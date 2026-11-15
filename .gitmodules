@@ -1,0 +1,5 @@
+[submodule "gangstar-wch"]
+	path = games/gangstar-wch
+	url = https://github.com/OpenGangstar/gangstar-wch-decomp.git
+	branch = main
+	ignore = dirty

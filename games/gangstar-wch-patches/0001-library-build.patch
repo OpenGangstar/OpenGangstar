@@ -1,0 +1,633 @@
+diff --git a/config/linker/Aggregate.ld b/config/linker/Aggregate.ld
+new file mode 100644
+index 0000000..15115de
+--- /dev/null
++++ b/config/linker/Aggregate.ld
+@@ -0,0 +1,8 @@
++/* Item constructs and registers cleanup for this factory in the same word.
++   Keep its reference symbol relative to that storage in the partial link. */
++SECTIONS {
++    .bss.s_billboardFactoryStorage : {
++        s_billboardFactory = .;
++        *item.o(.bss.s_billboardFactoryStorage)
++    }
++}
+diff --git a/docs/COMMAND-BUILD-PLAN.md b/docs/COMMAND-BUILD-PLAN.md
+index 5afa0a1..38a998b 100644
+--- a/docs/COMMAND-BUILD-PLAN.md
++++ b/docs/COMMAND-BUILD-PLAN.md
+@@ -108,6 +108,58 @@ bytes or fabricated symbol bindings. Only then substitute compiled game units.
+ 
+ ## 4. Link a complete Android ARM shared library
+ 
++Run `python tools/build.py --all --link-object` to verify the configured
++units and combine their primary objects with GNU `ld -r`. The relocatable
++`build/library-link/game-units.o` retains the remaining undefined symbols and
++relocations for inspection. It excludes the per-unit linker scripts and
++generated comparison harnesses.
++
++The first aggregate link combined 174 verified objects and left 1,303
++undefined symbols. Of these, 427 names have definitions in the retail symbol
++table and 66 appear as retail dynamic imports. The other 810 need individual
++resolution, including verification-only references such as the transition
++tables in `config/linker/Achievements.ld`. Existing verification scripts
++provide literal address assignments for 876 of the 1,303 names. Those
++assignments locate retail code or data for comparison and need real
++definitions in the full link. The retail dynamic table uses an
++824-byte `.init_array` and depends on libc, libstdc++, libm, libGLESv1_CM,
++libdl and liblog. The relocatable object is an input to the full link.
++
++The same command extracts sized, relocation-free retail objects required
++by unresolved symbols, using the retail symbol table and verification alias
++addresses. It assembles the data locally and links it into
++`build/library-link/game-units-with-data.o`. It compares file-backed sections
++against retail bytes and checks the size, flags and ELF type of zero-initialized
++sections. It also reconstructs vtables in `.data.rel.ro` when each
++`R_ARM_RELATIVE` pointer identifies an unambiguous function. The aggregate
++keeps those pointers as `R_ARM_ABS32` relocations and verifies the relocation
++offsets, symbols and unchanged data bytes.
++
++The `ResStream` vtable uses the complete-object destructor when the
++base-object destructor shares its retail address. The weapon shop table
++links to eight locally extracted, unnamed labels. The build verifies 863
++sections and resolves 855 references after the first partial link. Its vtables expose
++18 additional function references. The aggregate linker script resolves
++`s_billboardFactory` by pointing it to the same four-byte BSS storage
++that Item constructs and destroys. Vehicle's retail initializer at
++`0x0030b310` copies four 28-byte records into the gear profile array at
++`0x004b8810`, which establishes its BSS extent. The runnable build still
++needs to execute that initializer. Its wrapper is entry 89 (zero-based)
++in the retail `.init_array`. All 206 entries target distinct named functions
++and carry `R_ARM_RELATIVE` relocations. The combined object has 465 unresolved
++symbols. The extracted input is ignored by Git and does not count as C++
++matching progress.
++
++The same build assembles a fixed-address reference image at
++`build/library-link/retail-text.elf`. It uses locally extracted retail text
++and real GNU assembler labels for 422 function symbols. The linker resolves
++the startup array and the extracted data relocations at their retail
++addresses. Verification checks the complete text bytes, all 206 ordered
++startup pointers, the function addresses including Thumb bits, and all 863
++data sections. This is the baseline for substituting compiled sections at
++retail addresses. It lacks the Android shared object's dynamic linking
++metadata and the rest of its data, so it cannot run.
++
+ Replace the per-unit verification harness with a complete link graph and an
+ evidence-based linker script. Account for every allocated section, startup and
+ cleanup record, vtable, RTTI region where present, BSS extent, GOT/PLT slot,
+diff --git a/tools/build.py b/tools/build.py
+index 5d6ceb8..01ffed2 100644
+--- a/tools/build.py
++++ b/tools/build.py
+@@ -2,6 +2,7 @@
+ 
+ Usage: python tools/build.py logs
+        python tools/build.py --all
++       python tools/build.py --all --link-object
+ 
+ Windows defaults to the local NDK r4b and Cygwin runtime described in
+ docs/COMPILER-NOTES.md. Override the compiler root with --toolchain or
+@@ -27,7 +28,9 @@ import subprocess
+ import sys
+ 
+ from . import check
+-from .elf import ElfFile
++from . import extract_retail_text
++from .elf import ElfError, ElfFile
++from .extract_retail_data import extract, verify_sections
+ from .project import BASE_LIB_SHA256, ROOT, find_base_library, load_base_library
+ from .retail_got import write_harness
+ from .thumb_bindings import write_bindings
+@@ -239,10 +242,14 @@ def main(argv: list[str] | None = None) -> int:
+     available = sorted(p.stem for p in (ROOT / "config/matches").glob("*.json"))
+     parser.add_argument("units", nargs="*", help="configured unit names")
+     parser.add_argument("--all", action="store_true", help="build every configured unit")
++    parser.add_argument("--link-object", action="store_true",
++                        help="combine verified units into a relocatable object for full-link analysis")
+     parser.add_argument("--baselib", help="retail libsanangeles.so")
+     parser.add_argument("--toolchain", type=Path,
+                         default=os.environ.get("WCH_TOOLCHAIN_ROOT"))
+     args = parser.parse_args(argv)
++    if args.link_object and not args.all:
++        parser.error("--link-object requires --all")
+     names = available if args.all else args.units
+     if not names:
+         parser.error("select at least one unit or --all")
+@@ -255,11 +262,76 @@ def main(argv: list[str] | None = None) -> int:
+         if hashlib.sha256(base_library.read_bytes()).hexdigest() != BASE_LIB_SHA256:
+             raise ValueError("retail SHA-256 differs from the repository target")
+         passed = build_units(names, args.toolchain, base_library)
++        if passed and args.link_object:
++            link_verified_objects(names, args.toolchain, base_library)
+         return 0 if passed else 1
+-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
++    except (OSError, ValueError, ElfError, subprocess.CalledProcessError) as error:
+         print(f"BUILD FAILED: {error}", file=sys.stderr)
+         return 2
+ 
+ 
++def link_verified_objects(names: list[str], toolchain: Path | None, base_library: Path) -> None:
++    """Combine only the primary objects freshly rebuilt by this invocation."""
++    if toolchain is None:
++        toolchain = ROOT / "toolchain/android-ndk-r4b/build/prebuilt/windows/arm-eabi-4.2.1"
++    extension = ".exe" if os.name == "nt" else ""
++    linker = toolchain.resolve() / "bin" / f"arm-eabi-ld{extension}"
++    assembler = linker.with_name(f"arm-eabi-as{extension}")
++    environment = os.environ.copy()
++    if os.name == "nt":
++        runtime = ROOT / "toolchain/cygwin32/bin"
++        environment["PATH"] = str(runtime) + os.pathsep + environment["PATH"]
++
++    output = ROOT / "build/library-link/game-units.o"
++    output.parent.mkdir(parents=True, exist_ok=True)
++    objects = [f"build/matches/{name}/{name}.o" for name in names]
++    aggregate_script = ROOT / "config/linker/Aggregate.ld"
++    run([str(linker), "-r", "-T", str(aggregate_script), "-o", str(output), *objects], environment)
++    linked = ElfFile.load(str(output))
++    factory_storage = linked.section(".bss.s_billboardFactoryStorage")
++    factory_aliases = {symbol.name: symbol for symbol in linked.defined_symbols(".symtab")
++                       if symbol.name in ("s_billboardFactory", "s_billboardFactoryStorage")}
++    if (factory_storage is None or not factory_storage.is_nobits or factory_storage.sh_size != 4
++            or len(factory_aliases) != 2
++            or any(symbol.st_shndx != factory_storage.index or symbol.st_value != 0
++                   for symbol in factory_aliases.values())):
++        raise ValueError("billboard factory reference does not alias its four-byte storage")
++    unresolved = {symbol.name for symbol in linked.symbols if symbol.is_undefined and symbol.name}
++    print(f"LINK OBJECT {output.relative_to(ROOT).as_posix()}: "
++          f"{len(objects)} input objects, {len(unresolved)} unresolved symbols")
++
++    retail = ElfFile.load(str(base_library))
++    assembly, sections, aliases = extract(linked, retail, ROOT / "config/linker")
++    if not sections:
++        return
++    source = output.with_name("retail-data.s")
++    data = output.with_name("retail-data.o")
++    source.write_text(assembly, encoding="ascii")
++    run([str(assembler), "-o", str(data), str(source)], environment)
++    candidate = output.with_name("game-units-with-data.o")
++    run([str(linker), "-r", "-o", str(candidate), str(output), str(data)], environment)
++    combined = ElfFile.load(str(candidate))
++    verify_sections(combined, retail, sections)
++    remaining = {symbol.name for symbol in combined.symbols if symbol.is_undefined and symbol.name}
++    if unresolved - remaining != aliases:
++        raise ValueError("extracted retail definitions did not resolve the expected symbols")
++    print(f"OK EXTRACT DATA {len(sections)} sections, {len(aliases)} resolved symbols, "
++          f"{len(remaining - unresolved)} newly referenced symbols")
++    print(f"LINK OBJECT {candidate.relative_to(ROOT).as_posix()}: {len(remaining)} unresolved symbols")
++
++    directory = output.parent
++    entry_points, constructors, compiled = extract_retail_text.extract(retail, combined, directory, sections)
++    text_object = directory / "retail-text.o"
++    text_image = directory / "retail-text.elf"
++    run([str(assembler), "-I", str(directory), "-o", str(text_object),
++         str(directory / "retail-text.s")], environment)
++    run([str(linker), "-T", str(directory / "retail-text.ld"), "-o", str(text_image),
++         str(text_object), str(data), str(candidate)], environment)
++    extract_retail_text.verify(retail, ElfFile.load(str(text_image)), entry_points, sections)
++    print(f"OK RETAIL TEXT {text_image.relative_to(ROOT).as_posix()}: "
++          f"{len(entry_points)} entry points, {constructors} startup slots, "
++          f"{len(sections)} data sections, {compiled} compiled sections")
++
++
+ if __name__ == "__main__":
+     raise SystemExit(main())
+diff --git a/tools/extract_retail_data.py b/tools/extract_retail_data.py
+new file mode 100644
+index 0000000..39050f0
+--- /dev/null
++++ b/tools/extract_retail_data.py
+@@ -0,0 +1,232 @@
++"""Generate assembler definitions for unresolved, relocation-free retail data."""
++
++from __future__ import annotations
++
++from collections import defaultdict
++from dataclasses import dataclass, field
++from pathlib import Path
++import re
++import struct
++
++from .elf import EM_ARM, ET_REL, SHT_REL, SHT_RELA, STB_WEAK, ElfFile
++
++
++ASSIGNMENT = re.compile(r"^\s*([A-Za-z_.$][\w.$]*)\s*=\s*(0x[0-9a-fA-F]+)\s*;", re.M)
++SECTION_PREFIX = ".retail."
++R_ARM_ABS32 = 2
++R_ARM_RELATIVE = 23
++WEAPON_SHOP_TABLE = "_ZN11MenuManager16s_WeaponShopDataE"
++GEAR_PROFILES = "_ZN8gameloft7vehicle13gear_profiles8profilesE"
++
++
++@dataclass
++class DataRegion:
++    size: int
++    pointers: dict[int, str] = field(default_factory=dict)
++
++
++def extract(aggregate: ElfFile, retail: ElfFile, scripts: Path) -> tuple[str, dict[str, DataRegion], set[str]]:
++    if aggregate.e_type != ET_REL or aggregate.e_machine != EM_ARM:
++        raise ValueError("expected an ARM relocatable object")
++    supported = {section.index: section for section in retail.sections
++                 if section.name in (".rodata", ".data", ".data.rel.ro", ".bss")}
++
++    undefined = {symbol.name for symbol in aggregate.symbols if symbol.is_undefined}
++    assignments = defaultdict(set)
++    for script in sorted(scripts.glob("*.ld")):
++        for name, address in ASSIGNMENT.findall(script.read_text(encoding="utf-8")):
++            if name in undefined:
++                assignments[name].add(int(address, 16))
++
++    definitions = {symbol.name for symbol in aggregate.defined_symbols(".symtab") if symbol.st_bind}
++    functions = defaultdict(set)
++    regions = defaultdict(set)
++    for symbol in retail.defined_symbols(".symtab"):
++        if symbol.is_func and symbol.st_bind and symbol.st_size:
++            functions[symbol.st_value].add(symbol.name)
++        size = symbol.st_size if symbol.is_object else 0
++        if symbol.name == GEAR_PROFILES and symbol.st_value == 0x004b8810 and not symbol.st_size:
++            # Vehicle's startup at 0x0030b310 copies four 28-byte records here.
++            size = 4 * 28
++        if symbol.st_shndx not in supported or not size:
++            continue
++        regions[symbol.st_value].add((symbol.st_shndx, size))
++        if symbol.name in undefined:
++            assignments[symbol.name].add(symbol.st_value)
++    exports = {symbol.name: symbol for symbol in retail.defined_symbols(".dynsym")}
++
++    relocations = {}
++    for section in retail.sections:
++        if section.is_alloc and section.sh_type in (SHT_REL, SHT_RELA):
++            for offset in range(section.sh_offset, section.sh_offset + section.sh_size,
++                                section.sh_entsize):
++                address, info = struct.unpack_from("<II", retail.data, offset)
++                if any(region.contains(address) or region.contains(address + 3)
++                       for region in supported.values()):
++                    relocations[address] = (section.sh_type, info)
++
++    groups = defaultdict(list)
++    for name, addresses in assignments.items():
++        if len(addresses) == 1:
++            address, = addresses
++            if len(regions.get(address, ())) == 1:
++                groups[address].append(name)
++
++    output = []
++    sections = {}
++    extracted = set()
++    strings = {}
++    previous_end = 0
++    for address, names in sorted(groups.items()):
++        (index, size), = regions[address]
++        region = supported[index]
++        if not region.contains(address) or not region.contains(address + size - 1):
++            continue
++        patches = {target: entry for target, entry in relocations.items()
++                   if address - 3 <= target < address + size}
++        pointers = {}
++        vtable = all(name.startswith("_ZTV") for name in names)
++        shop_table = names == [WEAPON_SHOP_TABLE] and size == 160
++        if patches and (region.name != ".data.rel.ro" or not (vtable or shop_table)):
++            continue
++        if shop_table and set(patches) != {address + offset for offset in range(12, size, 20)}:
++            continue
++        table_strings = {}
++        for target, entry in sorted(patches.items()):
++            offset = target - address
++            if entry != (SHT_REL, R_ARM_RELATIVE) or offset < 0 or offset % 4 or offset + 4 > size:
++                break
++            value, = struct.unpack("<I", retail.read_at(target, 4))
++            if shop_table:
++                string = read_label(retail, value)
++                if string is None:
++                    break
++                table_strings[value] = string
++                pointers[offset] = f"__wch_retail_label_{value:08x}"
++            else:
++                symbol = virtual_target(functions[value], definitions)
++                if symbol is None:
++                    break
++                pointers[offset] = symbol
++        if len(pointers) != len(patches):
++            continue
++        if address < previous_end:
++            raise ValueError(f"overlapping retail objects at 0x{address:08x}")
++        previous_end = address + size
++        # Legacy ARM GAS pads each section to its alignment. Keep the input
++        # section exactly the object's size; its name records the retail VMA.
++        alignment = min(address & -address, size & -size, region.sh_addralign)
++        section_name = f"{SECTION_PREFIX}{region.name[1:]}.{address:08x}"
++        flags = "a" if region.name == ".rodata" else "aw"
++        section_type = "nobits" if region.is_nobits else "progbits"
++        output.extend((f'.section {section_name},"{flags}",%{section_type}',
++                       f".balign {alignment}"))
++        for name in sorted(names):
++            export = exports.get(name)
++            if export is not None and export.st_value == address:
++                binding = ".weak" if export.st_bind == STB_WEAK else ".global"
++                output.append(f"{binding} {name}")
++                visibility = {1: ".internal", 2: ".hidden", 3: ".protected"}.get(export.st_other & 3)
++                if visibility:
++                    output.append(f"{visibility} {name}")
++            else:
++                output.extend((f".global {name}", f".hidden {name}"))
++            output.extend((f".type {name}, %object", f"{name}:", f".size {name}, {size}"))
++        if region.is_nobits:
++            output.append(f".zero {size}")
++        else:
++            data = retail.read_at(address, size)
++            start = 0
++            for offset, symbol in pointers.items():
++                write_bytes(output, data[start:offset])
++                output.append(f".word {symbol}")
++                start = offset + 4
++            write_bytes(output, data[start:])
++        sections[section_name] = DataRegion(size, pointers)
++        extracted.update(names)
++        strings.update(table_strings)
++    for address, content in sorted(strings.items()):
++        name = f"__wch_retail_label_{address:08x}"
++        if name in undefined or name in definitions:
++            raise ValueError(f"retail label collides with existing symbol {name}")
++        section_name = f"{SECTION_PREFIX}rodata.{address:08x}"
++        if section_name in sections or any(address - 3 <= target < address + len(content)
++                                          for target in relocations):
++            raise ValueError(f"conflicting retail label at 0x{address:08x}")
++        output.extend((f'.section {section_name},"a",%progbits',
++                       f".global {name}", f".hidden {name}", f".type {name}, %object",
++                       f"{name}:", f".size {name}, {len(content)}"))
++        write_bytes(output, content)
++        sections[section_name] = DataRegion(len(content))
++    return "\n".join(output) + "\n", sections, extracted
++
++
++def virtual_target(candidates: set[str], definitions: set[str]) -> str | None:
++    # The Itanium C++ ABI uses the complete-object destructor in the vtable.
++    # A base-object destructor can share that address in the retail ELF.
++    candidates = {name for name in candidates
++                  if not (name.endswith("D2Ev") and name[:-4] + "D1Ev" in candidates)}
++    candidates = candidates & definitions or candidates
++    if len(candidates) == 1:
++        return next(iter(candidates))
++    return None
++
++
++def read_label(retail: ElfFile, address: int) -> bytes | None:
++    section = retail.section_for_address(address)
++    if section is None or section.name != ".rodata":
++        return None
++    limit = min(64, section.sh_addr + section.sh_size - address)
++    value, terminator, _ = retail.read_at(address, limit).partition(b"\0")
++    if terminator and value and all(32 <= byte <= 126 for byte in value):
++        return value + terminator
++    return None
++
++
++def write_bytes(output: list[str], data: bytes) -> None:
++    for offset in range(0, len(data), 16):
++        output.append(".byte " + ", ".join(f"0x{value:02x}" for value in data[offset:offset + 16]))
++
++
++def verify_sections(linked: ElfFile, retail: ElfFile, expected: dict[str, DataRegion]) -> None:
++    sections = {section.name: section for section in linked.sections
++                if section.name.startswith(SECTION_PREFIX)}
++    if sections.keys() != expected.keys():
++        raise ValueError("linked image has a different set of extracted retail sections")
++    symbols = [symbol for symbol in linked.symbols if symbol.table == ".symtab"]
++    symtab = linked.section(".symtab")
++    relocations = defaultdict(dict)
++    data_indices = {section.index for section in sections.values()}
++    for section in linked.sections:
++        if section.sh_type not in (SHT_REL, SHT_RELA) or section.sh_info not in data_indices:
++            continue
++        if section.sh_type != SHT_REL or section.sh_link != symtab.index:
++            raise ValueError(f"unexpected relocation table {section.name}")
++        for offset in range(section.sh_offset, section.sh_offset + section.sh_size, section.sh_entsize):
++            location, info = struct.unpack_from("<II", linked.data, offset)
++            if info & 0xff != R_ARM_ABS32 or location in relocations[section.sh_info]:
++                raise ValueError(f"unexpected relocation in {section.name}")
++            relocations[section.sh_info][location] = symbols[info >> 8].name
++
++    previous_end = 0
++    by_address = sorted(expected.items(), key=lambda entry: entry[0].rsplit(".", 1)[1])
++    for name, definition in by_address:
++        size = definition.size
++        section = sections[name]
++        address = int(name.rsplit(".", 1)[1], 16)
++        if address < previous_end:
++            raise ValueError(f"overlapping extracted sections at 0x{address:08x}")
++        previous_end = address + size
++        region = retail.section_for_address(address)
++        if section.sh_size != size or section.sh_type != region.sh_type or section.sh_flags != region.sh_flags:
++            raise ValueError(f"extracted retail section layout differs at 0x{address:08x}")
++        if relocations[section.index] != definition.pointers:
++            raise ValueError(f"extracted retail pointers differ at 0x{address:08x}")
++        if section.is_nobits:
++            continue
++        actual = linked.data[section.sh_offset:section.sh_offset + section.sh_size]
++        reference = bytearray(retail.read_at(address, size))
++        for offset in definition.pointers:
++            reference[offset:offset + 4] = b"\0" * 4
++        if actual != reference:
++            raise ValueError(f"extracted retail section differs at 0x{address:08x}")
+diff --git a/tools/extract_retail_text.py b/tools/extract_retail_text.py
+new file mode 100644
+index 0000000..d281f65
+--- /dev/null
++++ b/tools/extract_retail_text.py
+@@ -0,0 +1,196 @@
++"""Assemble a fixed-address baseline for retail text and the startup array."""
++
++from bisect import bisect_left
++from collections import Counter, defaultdict
++from pathlib import Path
++import re
++from struct import iter_unpack
++
++from .elf import SHT_INIT_ARRAY, SHT_REL, SHT_RELA, STB_WEAK, ElfFile
++from .extract_retail_data import DataRegion
++
++R_ARM_RELATIVE = 23
++
++
++def compiled_sections(retail: ElfFile, aggregate: ElfFile, reserved: list[int]):
++    """Find whole executable sections that can be placed without any relocations."""
++    text = retail.section(".text")
++    originals = defaultdict(set)
++    for symbol in retail.functions(".symtab"):
++        if symbol.st_shndx == text.index and symbol.st_size:
++            originals[symbol.name].add((symbol.st_value, symbol.st_size))
++    functions = defaultdict(list)
++    for symbol in aggregate.functions(".symtab"):
++        if symbol.st_bind:
++            functions[symbol.st_shndx].append(symbol)
++    relocated = {section.sh_info for section in aggregate.sections
++                 if section.sh_type in (SHT_REL, SHT_RELA)}
++    section_counts = Counter(section.name for section in aggregate.sections)
++    candidates = []
++    for index, symbols in functions.items():
++        section = aggregate.sections[index]
++        if (not section.is_exec or index in relocated or section_counts[section.name] != 1
++                or not re.fullmatch(r"[.\w]+", section.name, re.ASCII)):
++            continue
++        placements = set()
++        expected = {}
++        for symbol in symbols:
++            choices = originals[symbol.name]
++            if len(choices) != 1:
++                break
++            address, size = next(iter(choices))
++            if size != symbol.st_size or (address ^ symbol.st_value) & 1:
++                break
++            placements.add((address & ~1) - (symbol.st_value & ~1))
++            expected[symbol.name] = (address, size)
++        if len(expected) != len(symbols) or len(placements) != 1:
++            continue
++        address, = placements
++        stop = address + section.sh_size
++        if (not text.contains(address) or not text.contains(stop - 1)
++                or address % max(1, section.sh_addralign)):
++            continue
++        label_index = bisect_left(reserved, address)
++        if label_index < len(reserved) and reserved[label_index] < stop:
++            continue
++        contents = aggregate.data[section.sh_offset:section.sh_offset + section.sh_size]
++        if contents == retail.read_at(address, section.sh_size):
++            candidates.append((address, section, expected))
++
++    selected = []
++    previous_end = 0
++    for address, section, expected in sorted(candidates, key=lambda candidate: (candidate[0], candidate[1].name)):
++        if address >= previous_end:
++            selected.append((address, section, expected))
++            previous_end = address + section.sh_size
++    return selected
++
++
++def extract(retail: ElfFile, aggregate: ElfFile, directory: Path,
++            data: dict[str, DataRegion]) -> tuple[dict[str, tuple[int, int]], int, int]:
++    text = retail.section(".text")
++    startup = retail.section(".init_array")
++    rel = retail.section(".rel.dyn")
++    if text is None or startup is None or startup.sh_type != SHT_INIT_ARRAY or rel is None:
++        raise ValueError("retail image is missing its text or startup metadata")
++
++    entry_points = set()
++    undefined = {symbol.name for symbol in aggregate.symbols if symbol.is_undefined and symbol.name}
++    referenced = {name for region in data.values() for name in region.pointers.values()}
++    required = undefined | referenced
++    by_name = defaultdict(list)
++    for symbol in retail.functions(".symtab"):
++        if symbol.st_shndx == text.index and symbol.st_size:
++            entry_points.add(symbol.st_value)
++            if symbol.name in required and symbol.st_bind:
++                by_name[symbol.name].append(symbol)
++    exports = {symbol.name: symbol for symbol in retail.defined_symbols(".dynsym")}
++
++    labels = defaultdict(list)
++    expected = {}
++    for name, candidates in sorted(by_name.items()):
++        if len(candidates) != 1 or not re.fullmatch(r"[A-Za-z_.$][\w.$]*", name, re.ASCII):
++            raise ValueError(f"ambiguous or unsupported text definition: {name}")
++        symbol, = candidates
++        export = exports.get(name)
++        binding = ".weak" if symbol.st_bind == STB_WEAK else ".global"
++        visibility = {1: ".internal", 2: ".hidden", 3: ".protected"}.get(symbol.st_other & 3)
++        if export is None:
++            visibility = ".hidden"
++        labels[symbol.st_value].append((name, symbol.st_size, binding, visibility))
++        expected[name] = (symbol.st_value, symbol.st_size)
++
++    dynamic_relocations = dict(iter_unpack("<II", retail.read_at(rel.sh_addr, rel.sh_size)))
++    pointers = [address for address, in iter_unpack("<I", retail.read_at(startup.sh_addr, startup.sh_size))]
++    startup_labels = []
++    for index, address in enumerate(pointers):
++        if dynamic_relocations.get(startup.sh_addr + 4 * index) != R_ARM_RELATIVE or address not in entry_points:
++            raise ValueError(f"unsupported startup pointer at index {index}")
++        name = f".Lretail_startup_{index}"
++        labels[address].append((name, 0, None, None))
++        startup_labels.append(name)
++
++    # The raw input remains local. GAS and ld recreate its placement without
++    # changing any compiler-generated object or claiming matches for these bytes.
++    (directory / "retail-text.bin").write_bytes(retail.read_at(text.sh_addr, text.sh_size))
++    selected = compiled_sections(retail, aggregate, sorted({address & ~1 for address in labels}))
++    replacements = {address: section for address, section, _ in selected}
++    for _, _, symbols in selected:
++        expected.update(symbols)
++    source = []
++    contents = []
++    cursor = 0
++    for address, replacement in sorted(replacements.items()):
++        offset = address - text.sh_addr
++        if offset > cursor:
++            write_span(source, contents, text.sh_addr, cursor, offset, labels)
++        contents.append(f"        *game-units-with-data.o({replacement.name})")
++        cursor = offset + replacement.sh_size
++    if cursor < text.sh_size:
++        write_span(source, contents, text.sh_addr, cursor, text.sh_size, labels)
++    source.extend(('.section .init_array,"aw",%init_array', ".balign 4"))
++    source.extend(f".word {name}" for name in startup_labels)
++    (directory / "retail-text.s").write_text("\n".join(source) + "\n", encoding="ascii")
++    script = ["SECTIONS {", f"    .text 0x{text.sh_addr:x} : {{", *contents, "    }",
++              f"    .init_array 0x{startup.sh_addr:x} : {{ *(.init_array) }}"]
++    for name in sorted(data, key=lambda section: section.rsplit(".", 1)[1]):
++        address = name.rsplit(".", 1)[1]
++        script.append(f"    {name} 0x{address} : {{ *({name}) }}")
++    script.extend(("    /DISCARD/ : { *game-units-with-data.o(*) }", "}"))
++    (directory / "retail-text.ld").write_text("\n".join(script) + "\n", encoding="ascii")
++    return expected, len(pointers), len(selected)
++
++
++def write_span(source, contents, text_address, start, end, labels):
++    section_name = f".text.retail.{start:08x}"
++    contents.append(f"        *({section_name})")
++    source.append(f'.section {section_name},"ax",%progbits')
++    cursor = start
++    for address, entries in sorted(labels.items()):
++        offset = (address & ~1) - text_address
++        if not start <= offset < end:
++            continue
++        if offset > cursor:
++            source.append(f'.incbin "retail-text.bin", {cursor}, {offset - cursor}')
++        cursor = offset
++        source.append(".thumb" if address & 1 else ".arm")
++        for name, size, binding, visibility in entries:
++            if binding:
++                source.append(f"{binding} {name}")
++            if visibility:
++                source.append(f"{visibility} {name}")
++            source.append(f".type {name}, %function")
++            if address & 1:
++                source.append(".thumb_func")
++            source.append(f"{name}:")
++            if size:
++                source.append(f".size {name}, {size}")
++    if end > cursor:
++        source.append(f'.incbin "retail-text.bin", {cursor}, {end - cursor}')
++
++
++def verify(retail: ElfFile, baseline: ElfFile, expected: dict[str, tuple[int, int]],
++           data: dict[str, DataRegion]) -> None:
++    for name in (".text", ".init_array"):
++        original = retail.section(name)
++        rebuilt = baseline.section(name)
++        if rebuilt is None or (
++            rebuilt.sh_addr, rebuilt.sh_size, rebuilt.sh_type, rebuilt.sh_flags
++        ) != (original.sh_addr, original.sh_size, original.sh_type, original.sh_flags):
++            raise ValueError(f"retail baseline {name} layout differs")
++        if baseline.read_at(rebuilt.sh_addr, rebuilt.sh_size) != retail.read_at(original.sh_addr, original.sh_size):
++            raise ValueError(f"retail baseline {name} bytes differ")
++    definitions = {symbol.name: (symbol.st_value, symbol.st_size)
++                   for symbol in baseline.functions(".symtab")}
++    if {name: definitions.get(name) for name in expected} != expected:
++        raise ValueError("retail baseline entry point addresses differ")
++    for name, region in data.items():
++        rebuilt = baseline.section(name)
++        address = int(name.rsplit(".", 1)[1], 16)
++        original = retail.section_for_address(address)
++        if rebuilt is None or (
++            rebuilt.sh_addr, rebuilt.sh_size, rebuilt.sh_type, rebuilt.sh_flags
++        ) != (address, region.size, original.sh_type, original.sh_flags):
++            raise ValueError(f"retail baseline data layout differs at 0x{address:08x}")
++        if not rebuilt.is_nobits and baseline.read_at(address, region.size) != retail.read_at(address, region.size):
++            raise ValueError(f"retail baseline data bytes differ at 0x{address:08x}")
