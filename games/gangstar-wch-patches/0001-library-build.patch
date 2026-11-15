@@ -13,10 +13,10 @@ index 0000000..15115de
 +    }
 +}
 diff --git a/docs/COMMAND-BUILD-PLAN.md b/docs/COMMAND-BUILD-PLAN.md
-index 5afa0a1..38a998b 100644
+index 5afa0a1..f216384 100644
 --- a/docs/COMMAND-BUILD-PLAN.md
 +++ b/docs/COMMAND-BUILD-PLAN.md
-@@ -108,6 +108,58 @@ bytes or fabricated symbol bindings. Only then substitute compiled game units.
+@@ -108,6 +108,68 @@ bytes or fabricated symbol bindings. Only then substitute compiled game units.
  
  ## 4. Link a complete Android ARM shared library
  
@@ -64,22 +64,32 @@ index 5afa0a1..38a998b 100644
 +
 +The same build assembles a fixed-address reference image at
 +`build/library-link/retail-text.elf`. It uses locally extracted retail text
-+and real GNU assembler labels for 422 function symbols. The linker resolves
-+the startup array and the extracted data relocations at their retail
-+addresses. Verification checks the complete text bytes, all 206 ordered
-+startup pointers, the function addresses including Thumb bits, and all 863
-+data sections. This is the baseline for substituting compiled sections at
-+retail addresses. It lacks the Android shared object's dynamic linking
-+metadata and the rest of its data, so it cannot run.
++and real GNU assembler labels. A separate partial link selects whole,
++compiled sections with matching layout and retail bytes, including
++Thumb calls to verified retail functions, ARM import stubs and other retained
++compiled sections and section-relative adjustment thunks,
++preserving the compiler-generated input objects. The final reference
++link includes only the selected sections, the extracted text gaps and the
++extracted data. It verifies all text bytes, 1,382 function entry points,
++206 ordered startup pointers and 863 data sections, with 939 compiled
++sections linked directly. The linker uses the ARM PLT slot order from
++`.rel.plt` and `--use-blx` to resolve Thumb calls to the original import stubs. The build then places these verified code, startup and file-backed data
++sections in the original file layout. The remaining bytes, including ELF
++headers, dynamic relocations and imports, come from the hash-checked
++retail input. GNU ld resolves included pointers at their retail addresses.
++GNU objcopy serializes the linked file image without byte edits. The
++builder publishes `build/library-link/libsanangeles.so` only after comparing
++every output byte with retail. This is a hybrid build and still needs
++APK packaging and gameplay validation.
 +
  Replace the per-unit verification harness with a complete link graph and an
  evidence-based linker script. Account for every allocated section, startup and
  cleanup record, vtable, RTTI region where present, BSS extent, GOT/PLT slot,
 diff --git a/tools/build.py b/tools/build.py
-index 5d6ceb8..01ffed2 100644
+index 5d6ceb8..3a71e04 100644
 --- a/tools/build.py
 +++ b/tools/build.py
-@@ -2,6 +2,7 @@
+@@ -2,11 +2,12 @@
  
  Usage: python tools/build.py logs
         python tools/build.py --all
@@ -87,12 +97,18 @@ index 5d6ceb8..01ffed2 100644
  
  Windows defaults to the local NDK r4b and Cygwin runtime described in
  docs/COMPILER-NOTES.md. Override the compiler root with --toolchain or
+ WCH_TOOLCHAIN_ROOT. On other hosts the root must contain bin/arm-eabi-g++.
+-This builds verification images, not a complete game library.
++With --link-object, also build a byte-identical hybrid Android library.
+ """
+ 
+ from __future__ import annotations
 @@ -27,7 +28,9 @@ import subprocess
  import sys
  
  from . import check
 -from .elf import ElfFile
-+from . import extract_retail_text
++from . import extract_retail_text, link_retail_image
 +from .elf import ElfError, ElfFile
 +from .extract_retail_data import extract, verify_sections
  from .project import BASE_LIB_SHA256, ROOT, find_base_library, load_base_library
@@ -103,7 +119,7 @@ index 5d6ceb8..01ffed2 100644
      parser.add_argument("units", nargs="*", help="configured unit names")
      parser.add_argument("--all", action="store_true", help="build every configured unit")
 +    parser.add_argument("--link-object", action="store_true",
-+                        help="combine verified units into a relocatable object for full-link analysis")
++                        help="combine verified units and build the hybrid Android library")
      parser.add_argument("--baselib", help="retail libsanangeles.so")
      parser.add_argument("--toolchain", type=Path,
                          default=os.environ.get("WCH_TOOLCHAIN_ROOT"))
@@ -113,7 +129,7 @@ index 5d6ceb8..01ffed2 100644
      names = available if args.all else args.units
      if not names:
          parser.error("select at least one unit or --all")
-@@ -255,11 +262,76 @@ def main(argv: list[str] | None = None) -> int:
+@@ -255,11 +262,102 @@ def main(argv: list[str] | None = None) -> int:
          if hashlib.sha256(base_library.read_bytes()).hexdigest() != BASE_LIB_SHA256:
              raise ValueError("retail SHA-256 differs from the repository target")
          passed = build_units(names, args.toolchain, base_library)
@@ -181,12 +197,38 @@ index 5d6ceb8..01ffed2 100644
 +    text_image = directory / "retail-text.elf"
 +    run([str(assembler), "-I", str(directory), "-o", str(text_object),
 +         str(directory / "retail-text.s")], environment)
-+    run([str(linker), "-T", str(directory / "retail-text.ld"), "-o", str(text_image),
-+         str(text_object), str(data), str(candidate)], environment)
++    inputs = [str(text_object), str(data)]
++    if compiled:
++        selected = directory / "selected-text.o"
++        run([str(linker), "-r", "-T", str(directory / "selected-text.ld"),
++             "-o", str(selected), str(candidate)], environment)
++        inputs.append(str(selected))
++    run([str(linker), "--use-blx", "-T", str(directory / "retail-imports.ld"),
++         "-T", str(directory / "retail-text.ld"), "-o", str(text_image),
++         *inputs], environment)
 +    extract_retail_text.verify(retail, ElfFile.load(str(text_image)), entry_points, sections)
 +    print(f"OK RETAIL TEXT {text_image.relative_to(ROOT).as_posix()}: "
 +          f"{len(entry_points)} entry points, {constructors} startup slots, "
 +          f"{len(sections)} data sections, {compiled} compiled sections")
++
++    link_retail_image.write_layout(retail, directory, sections)
++    layout_object = directory / "elf-layout.o"
++    layout_image = directory / "elf-layout.elf"
++    run([str(assembler), "-I", str(directory), "-o", str(layout_object),
++         str(directory / "elf-layout.s")], environment)
++    run([str(linker), "--use-blx", "-T", str(directory / "retail-imports.ld"),
++         "-T", str(directory / "elf-layout.ld"), "-o", str(layout_image),
++         str(layout_object), *inputs], environment)
++
++    # Serialize the linked file image. This preserves the bytes placed by ld.
++    objcopy = linker.with_name(f"arm-eabi-objcopy{extension}")
++    pending = directory / "libsanangeles.pending"
++    run([str(objcopy), "-O", "binary", str(layout_image), str(pending)], environment)
++    if pending.read_bytes() != retail.data:
++        raise ValueError("full linked library differs from the retail file image")
++    library = pending.replace(directory / "libsanangeles.so")
++    print(f"OK LIBRARY {library.relative_to(ROOT).as_posix()}: "
++          f"{len(retail.data)} bytes, SHA-256 {BASE_LIB_SHA256}")
 +
 +
  if __name__ == "__main__":
@@ -431,26 +473,30 @@ index 0000000..39050f0
 +            raise ValueError(f"extracted retail section differs at 0x{address:08x}")
 diff --git a/tools/extract_retail_text.py b/tools/extract_retail_text.py
 new file mode 100644
-index 0000000..d281f65
+index 0000000..0ecca0f
 --- /dev/null
 +++ b/tools/extract_retail_text.py
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,304 @@
 +"""Assemble a fixed-address baseline for retail text and the startup array."""
 +
 +from bisect import bisect_left
 +from collections import Counter, defaultdict
 +from pathlib import Path
 +import re
-+from struct import iter_unpack
++from struct import iter_unpack, pack, unpack_from
 +
-+from .elf import SHT_INIT_ARRAY, SHT_REL, SHT_RELA, STB_WEAK, ElfFile
++from .elf import SHT_INIT_ARRAY, SHT_REL, SHT_RELA, STB_WEAK, STT_SECTION, ElfFile
 +from .extract_retail_data import DataRegion
 +
++R_ARM_REL32 = 3
 +R_ARM_RELATIVE = 23
++R_ARM_THM_CALL = 10
++R_ARM_JUMP_SLOT = 22
 +
 +
-+def compiled_sections(retail: ElfFile, aggregate: ElfFile, reserved: list[int]):
-+    """Find whole executable sections that can be placed without any relocations."""
++def compiled_sections(retail: ElfFile, aggregate: ElfFile, reserved: list[int],
++                      fallback: dict[str, tuple[int, int]]):
++    """Select whole compiler sections whose bytes and supported calls match retail."""
 +    text = retail.section(".text")
 +    originals = defaultdict(set)
 +    for symbol in retail.functions(".symtab"):
@@ -460,13 +506,16 @@ index 0000000..d281f65
 +    for symbol in aggregate.functions(".symtab"):
 +        if symbol.st_bind:
 +            functions[symbol.st_shndx].append(symbol)
-+    relocated = {section.sh_info for section in aggregate.sections
-+                 if section.sh_type in (SHT_REL, SHT_RELA)}
++    relocations = defaultdict(list)
++    for section in aggregate.sections:
++        if section.sh_type in (SHT_REL, SHT_RELA):
++            relocations[section.sh_info].append(section)
++    symbols_by_index = [symbol for symbol in aggregate.symbols if symbol.table == ".symtab"]
 +    section_counts = Counter(section.name for section in aggregate.sections)
-+    candidates = []
++    eligible = {}
 +    for index, symbols in functions.items():
 +        section = aggregate.sections[index]
-+        if (not section.is_exec or index in relocated or section_counts[section.name] != 1
++        if (not section.is_exec or section_counts[section.name] != 1
 +                or not re.fullmatch(r"[.\w]+", section.name, re.ASCII)):
 +            continue
 +        placements = set()
@@ -490,17 +539,108 @@ index 0000000..d281f65
 +        label_index = bisect_left(reserved, address)
 +        if label_index < len(reserved) and reserved[label_index] < stop:
 +            continue
-+        contents = aggregate.data[section.sh_offset:section.sh_offset + section.sh_size]
-+        if contents == retail.read_at(address, section.sh_size):
-+            candidates.append((address, section, expected))
++        eligible[index] = (address, section, expected)
 +
-+    selected = []
++    section_addresses = {index: address for index, (address, _, _) in eligible.items()}
++    candidates = []
++    for index, (address, section, expected) in eligible.items():
++        contents = aggregate.data[section.sh_offset:section.sh_offset + section.sh_size]
++        reference = retail.read_at(address, section.sh_size)
++        dependencies = relocation_dependencies(contents, reference, address, aggregate,
++                                              relocations[index], symbols_by_index,
++                                              fallback, originals, section_addresses)
++        if dependencies is not None:
++            candidates.append((address, section, expected, dependencies))
++
++    selected = {}
 +    previous_end = 0
-+    for address, section, expected in sorted(candidates, key=lambda candidate: (candidate[0], candidate[1].name)):
++    for address, section, expected, dependencies in sorted(
++        candidates, key=lambda candidate: (candidate[0], candidate[1].name)
++    ):
 +        if address >= previous_end:
-+            selected.append((address, section, expected))
++            selected[section.index] = (address, section, expected, dependencies)
 +            previous_end = address + section.sh_size
-+    return selected
++
++    # GNU ld must retain the actual compiled definition of every internal
++    # target. Remove callers whose callee was rejected, including chains.
++    while True:
++        rejected = [index for index, (_, _, _, dependencies) in selected.items()
++                    if not dependencies <= selected.keys()]
++        if not rejected:
++            break
++        for index in rejected:
++            del selected[index]
++    return [(address, section, expected) for address, section, expected, _ in selected.values()]
++
++
++def relocation_dependencies(contents, reference, address, aggregate, tables, symbols,
++                            fallback, originals, section_addresses):
++    """Screen supported compiler relocations before GNU ld resolves them."""
++    if not tables:
++        return set() if contents == reference else None
++    if len(tables) != 1 or tables[0].sh_type != SHT_REL:
++        return None
++    table = tables[0]
++    dependencies = set()
++    cursor = 0
++    for offset, info in iter_unpack("<II", aggregate.data[table.sh_offset:table.sh_offset + table.sh_size]):
++        if not cursor <= offset <= len(contents) - 4 or offset % 2:
++            return None
++        target = symbols[info >> 8]
++        kind = info & 0xff
++        if kind == R_ARM_REL32 and target.st_type == STT_SECTION:
++            if target.st_shndx not in section_addresses:
++                return None
++            destination = section_addresses[target.st_shndx]
++            addend, = unpack_from("<i", contents, offset)
++            value = pack("<I", (destination + addend - address - offset) & 0xffffffff)
++            dependencies.add(target.st_shndx)
++        elif kind == R_ARM_THM_CALL:
++            if target.is_undefined:
++                destination, _ = fallback.get(target.name, (0, 0))
++            else:
++                choices = originals[target.name]
++                if not target.is_func or not target.st_bind or len(choices) != 1:
++                    return None
++                destination, size = next(iter(choices))
++                if size != target.st_size or (destination ^ target.st_value) & 1:
++                    return None
++                dependencies.add(target.st_shndx)
++            if not destination or unpack_from("<HH", contents, offset) != (0xf7ff, 0xfffe):
++                return None
++            thumb = destination & 1
++            pc = address + offset + 4
++            distance = (destination & ~1) - (pc if thumb else pc & ~3)
++            if not -(1 << 22) <= distance < (1 << 22):
++                return None
++            value = pack("<HH", 0xf000 | ((distance >> 12) & 0x7ff),
++                         (0xf800 if thumb else 0xe800) | ((distance >> 1) & 0x7ff))
++        else:
++            return None
++        if contents[cursor:offset] != reference[cursor:offset] or value != reference[offset:offset + 4]:
++            return None
++        cursor = offset + 4
++    return dependencies if contents[cursor:] == reference[cursor:] else None
++
++
++def import_slots(retail: ElfFile, undefined: set[str]) -> dict[str, tuple[int, int]]:
++    plt = retail.section(".plt")
++    relocations = retail.section(".rel.plt")
++    if plt is None or relocations is None:
++        return {}
++    entries = list(iter_unpack("<II", retail.read_at(relocations.sh_addr, relocations.sh_size)))
++    # This retail ARM PLT has a 20-byte resolver followed by 12-byte entries.
++    if plt.sh_size != 20 + 12 * len(entries):
++        raise ValueError("unsupported ARM PLT layout")
++    symbols = [symbol for symbol in retail.symbols if symbol.table == ".dynsym"]
++    slots = {}
++    for index, (_, info) in enumerate(entries):
++        symbol = symbols[info >> 8]
++        if info & 0xff != R_ARM_JUMP_SLOT or not symbol.is_undefined:
++            raise ValueError(f"unexpected relocation in retail PLT slot {index}")
++        if symbol.name in undefined and re.fullmatch(r"[A-Za-z_.$][\w.$]*", symbol.name, re.ASCII):
++            slots[symbol.name] = (plt.sh_addr + 20 + 12 * index, 0)
++    return slots
 +
 +
 +def extract(retail: ElfFile, aggregate: ElfFile, directory: Path,
@@ -550,7 +690,12 @@ index 0000000..d281f65
 +    # The raw input remains local. GAS and ld recreate its placement without
 +    # changing any compiler-generated object or claiming matches for these bytes.
 +    (directory / "retail-text.bin").write_bytes(retail.read_at(text.sh_addr, text.sh_size))
-+    selected = compiled_sections(retail, aggregate, sorted({address & ~1 for address in labels}))
++    imports = import_slots(retail, undefined)
++    # Absolute ARM PLT addresses let ld resolve BLX to the loader's original stubs.
++    assignments = [f"{name} = 0x{address:x};" for name, (address, _) in sorted(imports.items())]
++    (directory / "retail-imports.ld").write_text("\n".join(assignments) + "\n", encoding="ascii")
++    selected = compiled_sections(retail, aggregate, sorted({address & ~1 for address in labels}),
++                                 expected | imports)
 +    replacements = {address: section for address, section, _ in selected}
 +    for _, _, symbols in selected:
 +        expected.update(symbols)
@@ -561,7 +706,7 @@ index 0000000..d281f65
 +        offset = address - text.sh_addr
 +        if offset > cursor:
 +            write_span(source, contents, text.sh_addr, cursor, offset, labels)
-+        contents.append(f"        *game-units-with-data.o({replacement.name})")
++        contents.append(f"        *selected-text.o({replacement.name})")
 +        cursor = offset + replacement.sh_size
 +    if cursor < text.sh_size:
 +        write_span(source, contents, text.sh_addr, cursor, text.sh_size, labels)
@@ -573,8 +718,13 @@ index 0000000..d281f65
 +    for name in sorted(data, key=lambda section: section.rsplit(".", 1)[1]):
 +        address = name.rsplit(".", 1)[1]
 +        script.append(f"    {name} 0x{address} : {{ *({name}) }}")
-+    script.extend(("    /DISCARD/ : { *game-units-with-data.o(*) }", "}"))
++    script.append("}")
 +    (directory / "retail-text.ld").write_text("\n".join(script) + "\n", encoding="ascii")
++    selection = ["SECTIONS {"]
++    for _, section, _ in selected:
++        selection.append(f"    {section.name} 0 : {{ *({section.name}) }}")
++    selection.extend(("    /DISCARD/ : { *(*) }", "}"))
++    (directory / "selected-text.ld").write_text("\n".join(selection) + "\n", encoding="ascii")
 +    return expected, len(pointers), len(selected)
 +
 +
@@ -631,3 +781,66 @@ index 0000000..d281f65
 +            raise ValueError(f"retail baseline data layout differs at 0x{address:08x}")
 +        if not rebuilt.is_nobits and baseline.read_at(address, region.size) != retail.read_at(address, region.size):
 +            raise ValueError(f"retail baseline data bytes differ at 0x{address:08x}")
+diff --git a/tools/link_retail_image.py b/tools/link_retail_image.py
+new file mode 100644
+index 0000000..67ff468
+--- /dev/null
++++ b/tools/link_retail_image.py
+@@ -0,0 +1,57 @@
++"""Lay out verified ARM link inputs inside the original Android ELF image."""
++
++from pathlib import Path
++
++from .elf import ElfFile
++from .extract_retail_data import DataRegion
++
++
++def write_layout(retail: ElfFile, directory: Path, data: dict[str, DataRegion]) -> None:
++    text = retail.section(".text")
++    startup = retail.section(".init_array")
++    if text is None or startup is None or text.sh_addr != text.sh_offset:
++        raise ValueError("unsupported retail load layout")
++
++    # Reuse the exact text placements already checked in the reference link.
++    reference = (directory / "retail-text.ld").read_text(encoding="ascii").splitlines()
++    text_end = reference.index("    }")
++    regions = [(text.sh_offset, text.sh_addr, text.sh_size, reference[1:text_end + 1]),
++               (startup.sh_offset, startup.sh_addr, startup.sh_size,
++                [f"    .init_array 0x{startup.sh_addr:x} : AT(0x{startup.sh_offset:x}) "
++                 "{ *(.init_array) }"])]
++    for name, info in data.items():
++        address = int(name.rsplit(".", 1)[1], 16)
++        section = retail.section_for_address(address)
++        if section.is_nobits:
++            continue
++        offset = section.file_offset(address)
++        regions.append((offset, address, info.size,
++                        [f"    {name} 0x{address:x} : AT(0x{offset:x}) {{ *({name}) }}"]))
++
++    assembly = []
++    script = ["SECTIONS {"]
++    cursor = 0
++    bias = startup.sh_addr - startup.sh_offset
++    for offset, address, size, commands in sorted(regions):
++        if offset < cursor or offset + size > len(retail.data):
++            raise ValueError(f"overlapping or out-of-file retail region at 0x{address:x}")
++        write_gap(assembly, script, cursor, offset, bias if cursor >= startup.sh_offset else 0)
++        script.extend(commands)
++        cursor = offset + size
++    write_gap(assembly, script, cursor, len(retail.data), bias)
++    script.extend(("    /DISCARD/ : { *(*) }", "}"))
++
++    # Source material for regions still supplied by the user's retail ELF.
++    # The linker places retained code and rebuilt data directly into its gaps.
++    (directory / "retail-image.bin").write_bytes(retail.data)
++    (directory / "elf-layout.s").write_text("\n".join(assembly) + "\n", encoding="ascii")
++    (directory / "elf-layout.ld").write_text("\n".join(script) + "\n", encoding="ascii")
++
++
++def write_gap(assembly: list[str], script: list[str], start: int, end: int, bias: int) -> None:
++    if start == end:
++        return
++    name = f".image.{start:08x}"
++    assembly.extend((f'.section {name},"a",%progbits',
++                     f'.incbin "retail-image.bin", {start}, {end - start}'))
++    script.append(f"    {name} 0x{start + bias:x} : AT(0x{start:x}) {{ *({name}) }}")
