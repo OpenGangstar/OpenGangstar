@@ -381,6 +381,7 @@ struct CityMissionTitle {
     uint32_t animation;
     std::string text;
     int32_t cashReward;
+    std::string completionText;
 };
 
 struct CityMissionCinematic {
@@ -634,7 +635,7 @@ CityScriptInventory auditCityScripts(FileSystemBase& assets);
 std::optional<std::array<float, 3>> findCityMissionTargetPosition(const CityAssets& city, const std::string& name);
 struct CityMissionDefinition {
     // The offsets follow the recovered Structs::Mission layout.
-    int32_t field0, cashReward, field8;
+    int32_t field0, cashReward, completionTextId;
     std::string contact;
     int32_t field16, field20;
     std::string sprite;

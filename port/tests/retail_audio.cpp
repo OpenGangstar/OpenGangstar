@@ -96,6 +96,9 @@ try {
     if (audio.mixGain(119) != 0.4f)
         throw std::runtime_error("Stopping priority audio did not restore the restricted effect.");
     audio.stopAll();
+    audio.playPriority(25, false, 0);
+    if (!audio.playing(25)) throw std::runtime_error("The retail mission completion cue did not start.");
+    audio.stop(25);
     audio.play(131, false, 0);
     if (audio.playing(131)) throw std::runtime_error("An empty retail audio slot started playback.");
     audio.play(4, false, 0);

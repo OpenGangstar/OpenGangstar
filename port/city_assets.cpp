@@ -2612,11 +2612,15 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         const auto catalog = loadCityMissions(assets);
         const auto& mission = catalog.at(id);
         const auto titleIndex = static_cast<uint32_t>(mission.field28) & 0xfff;
+        const auto completionId = static_cast<uint32_t>(mission.completionTextId);
+        const auto completionIndex = completionId & 0xfff;
+        const auto completion = (completionId >> 12 & 0xf) == 4 && completionIndex < chapterText.size()
+            ? chapterText[completionIndex] : std::string{};
         if (mission.field0 < 0 || (static_cast<uint32_t>(mission.field28) >> 12 & 0xf) != 4 ||
             titleIndex >= chapterText.size())
             throw std::runtime_error("Invalid retail mission title.");
         return CityMissionTitle{id, mission.sprite,
-            static_cast<uint32_t>(mission.field0), chapterText[titleIndex], mission.cashReward};
+            static_cast<uint32_t>(mission.field0), chapterText[titleIndex], mission.cashReward, completion};
     };
     if (openingMissionId) opening.missionTitle = missionTitle(*openingMissionId);
     const auto speakers = dialogue.empty() && payphoneDialogue.empty() && postFightDialogue.empty()

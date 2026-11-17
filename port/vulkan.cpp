@@ -467,6 +467,8 @@ struct CityRender {
             for (const auto& texture : gauge.layers) destroyTexture(texture);
         for (const auto& texture : cashGlyphs) destroyTexture(texture);
         destroyTexture(failureTitle);
+        destroyTexture(missionCompleteObjective);
+        for (const auto& frame : missionRewardFrames) destroyTexture(frame);
         destroyTexture(failurePrompt);
         destroyTexture(cinematicBars);
         destroyTexture(cinematicSkip);
@@ -545,6 +547,12 @@ struct CityRender {
     uint32_t missionTitleLabelVertex = 0;
     std::optional<double> missionTitleMs;
     std::optional<double> missionRevealMs;
+    CityTexture missionCompleteObjective;
+    std::vector<CityTexture> missionRewardFrames;
+    std::vector<uint32_t> missionRewardFrameEnds;
+    std::optional<double> missionRewardMs;
+    std::string missionRewardCash;
+    static constexpr double missionCompleteMessageMs = 3000;
     CityTexture failureTitle;
     CityTexture failurePrompt;
     std::vector<uint32_t> failureFrameEnds;
@@ -1027,6 +1035,11 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             std::cerr << "Could not load retail mission failure animation. " << error.what() << '\n';
         }
     }
+    const auto* openingMission = titles.front();
+    const bool hasMissionCompleteObjective = openingMission && !openingMission->completionText.empty();
+    std::vector<RetailSpriteRasterStep> rewardFrames;
+    if (openingMission && openingMission->cashReward > 0)
+        rewardFrames = rasterRetailSpriteAnimation(assets, "huds.bsprite", "MISSION_END", 480, 320, true);
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount +
@@ -1035,6 +1048,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                                                           statusHud->cashGlyphs.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
                                              failure.size() + hasFailureTitle + hasFailurePrompt +
+                                             rewardFrames.size() + hasMissionCompleteObjective +
                                              titleTextures + city.portraits.size() +
                                              (minimap ? city.minimapTextures.size() + minimap->checkpointAnimation.size() : 0));
     const VkDescriptorPoolSize size{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, count};
@@ -1114,6 +1128,19 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto dialogues = city.opening.dialogue.size();
     const RetailCaptionFont font(assets, language);
     if (!font.family()) std::cerr << "Could not load the retail caption font. Using Segoe UI.\n";
+    if (hasMissionCompleteObjective)
+        upload(city.missionCompleteObjective, rasterCaption({0, 0, {}, openingMission->completionText},
+                                                             true, false, 432, 68, font.family()));
+    if (!rewardFrames.empty()) {
+        city.missionRewardCash = formatRetailCash(openingMission->cashReward, language);
+        city.missionRewardFrames.resize(rewardFrames.size());
+        uint32_t ticks = 0;
+        for (size_t i = 0; i < rewardFrames.size(); ++i) {
+            upload(city.missionRewardFrames[i], rewardFrames[i].image);
+            ticks += rewardFrames[i].duration;
+            city.missionRewardFrameEnds.push_back(ticks);
+        }
+    }
     for (size_t titleIndex = 0; titleIndex < titles.size(); ++titleIndex) {
         const auto& frames = titleFrames[titleIndex];
         if (frames.empty()) continue;
@@ -2022,6 +2049,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             }
         }
         if (caption) overlay(city.captions[*caption].descriptor, screen, captionVertex, 6);
+        else if (city.missionRewardMs && *city.missionRewardMs < CityRender::missionCompleteMessageMs &&
+                 !postFightMs && city.missionCompleteObjective.descriptor)
+            overlay(city.missionCompleteObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.hummerTutorialVisible && city.hummerTutorial.descriptor)
             overlay(city.hummerTutorial.descriptor, screen, city.captionVertex, 6);
         else if (city.weaponShopTutorialVisible && city.weaponShopTutorial.descriptor)
@@ -2050,16 +2080,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             city.weaponShopConfirmPurchase ? city.weaponShopConfirmation[selected] : city.weaponShopInventory[selected];
         overlay(panel.descriptor, screen, city.weaponShopInventoryVertex, 6);
     }
-    if (city.cashGlyphs[0].descriptor && !failed &&
-        (city.weaponShopOpen || (city.payphoneGameplayMs && !city.payphoneRevealMs && !postFightMs))) {
-        if (city.displayedCash != city.playback.playerCash) {
-            city.displayedCash = city.playback.playerCash;
-            city.cashLabel = formatRetailCash(city.displayedCash, city.cashLanguage);
-        }
+    const auto drawCash = [&](std::string_view label, uint32_t x, float y) {
         auto glyphTransform = screen;
-        glyphTransform[1][3] = (city.weaponShopOpen ? 8.f : 97.f) / 160.f;
-        uint32_t x = 6;
-        for (const char character : city.cashLabel) {
+        glyphTransform[1][3] = y / 160.f;
+        for (const char character : label) {
             if (character == ' ') {
                 x += 8;
                 continue;
@@ -2070,6 +2094,22 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     VK_NULL_HANDLE, 1);
             x += city.cashGlyphWidths[glyph];
         }
+    };
+    if (city.cashGlyphs[0].descriptor && !failed &&
+        (city.weaponShopOpen || (city.payphoneGameplayMs && !city.payphoneRevealMs && !postFightMs))) {
+        if (city.displayedCash != city.playback.playerCash) {
+            city.displayedCash = city.playback.playerCash;
+            city.cashLabel = formatRetailCash(city.displayedCash, city.cashLanguage);
+        }
+        drawCash(city.cashLabel, 6, city.weaponShopOpen ? 8.f : 97.f);
+    }
+    if (city.missionRewardMs && !failed && !postFightMs && !city.weaponShopOpen && !city.missionRewardFrames.empty()) {
+        const double tick = *city.missionRewardMs * city.retailFrameRate / 2000;
+        const auto end = std::upper_bound(city.missionRewardFrameEnds.begin(), city.missionRewardFrameEnds.end(), tick);
+        const auto frame = std::min<size_t>(end - city.missionRewardFrameEnds.begin(), city.missionRewardFrames.size() - 1);
+        overlay(city.missionRewardFrames[frame].descriptor, screen, city.cinematicBarsVertex, 6, VK_NULL_HANDLE, 1);
+        if (end == city.missionRewardFrameEnds.end() && city.cashGlyphs[0].descriptor)
+            drawCash(city.missionRewardCash, 8, 152.f);
     }
     VK_CALL(vkCmdEndRenderPass)(vk.command);
     finishFrame(vk, index, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
@@ -2252,6 +2292,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     cityRender->payphoneRevealMs.reset();
             }
             if (cityRender->payphoneGameplayMs) *cityRender->payphoneGameplayMs += delta;
+            if (cityRender->missionRewardMs && !cityRender->postFightCinematic) {
+                *cityRender->missionRewardMs += delta;
+                const auto& ends = cityRender->missionRewardFrameEnds;
+                const auto animationMs = ends.empty() ? 0. : ends.back() * 2000. / cityRender->retailFrameRate;
+                if (*cityRender->missionRewardMs >= CityRender::missionCompleteMessageMs + animationMs)
+                    cityRender->missionRewardMs.reset();
+            }
             if (cityRender->nextMissionFadeMs) {
                 *cityRender->nextMissionFadeMs += delta;
                 if (*cityRender->nextMissionFadeMs >= cityRender->opening.payphone->postFight.nextCheckpoint->fadeMs) {
@@ -2420,9 +2467,20 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 if (&scene == &handoff && handoff.missionOverMs &&
                     cinematicPlayback.elapsedMs() >= *handoff.missionOverMs && cityRender->opening.missionTitle) {
                     const auto reward = cityRender->opening.missionTitle->cashReward;
-                    if (playback.creditOpeningMission(reward) && cityRender->achievements) {
-                        cityRender->achievements->recordMissionCash(reward);
-                        cityRender->achievements->recordMissionEnded();
+                    if (playback.creditOpeningMission(reward)) {
+                        cityRender->missionRewardMs = 0;
+                        if (cityRender->achievements) {
+                            cityRender->achievements->recordMissionCash(reward);
+                            cityRender->achievements->recordMissionEnded();
+                        }
+                        if (cityRender->audio) {
+                            try {
+                                cityRender->audio->stop(14);
+                                cityRender->audio->playPriority(25, false);
+                            } catch (const std::runtime_error& error) {
+                                std::cerr << error.what() << '\n';
+                            }
+                        }
                     }
                 }
                 if (playback.vehicle && cityRender->opening.vehicleActor) {
@@ -3156,6 +3214,15 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 render.postFightCinematic.reset();
                 render.activeMissionCinematic = nullptr;
                 std::cout << "Submitted the post-fight camera, actors, and dialogue through Vulkan.\n" << std::flush;
+                if (!render.missionCompleteObjective.descriptor || render.missionRewardFrames.size() != 6 ||
+                    render.missionRewardCash.empty())
+                    throw std::runtime_error("Mission reward smoke frame did not prepare the retail presentation.");
+                render.missionRewardMs = 0;
+                presentCity(render, info.imageExtent);
+                render.missionRewardMs = 1000;
+                presentCity(render, info.imageExtent);
+                render.missionRewardMs.reset();
+                std::cout << "Submitted the opening mission completion message and reward through Vulkan.\n" << std::flush;
                 if (!route.postFight.nextCheckpoint || !render.nextMissionFirstSurface ||
                     render.checkpointMeshes[3].empty())
                     throw std::runtime_error("Post-fight smoke frame could not resolve the next mission checkpoint.");

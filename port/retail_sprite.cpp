@@ -258,7 +258,8 @@ Image rasterRetailDialoguePortrait(FileSystemBase& assets, uint32_t animation)
 }
 
 std::vector<RetailSpriteRasterStep> rasterRetailSpriteAnimation(FileSystemBase& assets,
-    const std::string& spritePath, const std::string& animationName, uint32_t width, uint32_t height)
+    const std::string& spritePath, const std::string& animationName, uint32_t width, uint32_t height,
+    bool keepBitmapAlpha)
 {
     const std::unique_ptr<IFileStream> file(assets.openResource(spritePath.c_str()));
     if (!file) throw std::runtime_error("Missing retail sprite " + spritePath);
@@ -269,7 +270,7 @@ std::vector<RetailSpriteRasterStep> rasterRetailSpriteAnimation(FileSystemBase& 
         throw std::runtime_error("Missing retail sprite animation " + animationName);
     if (!width || !height || uint64_t(width) * height > 4096ULL * 4096 / animation->count)
         throw std::runtime_error("Unsupported sprite animation render size.");
-    const auto atlas = loadRetailSpriteAtlas(assets, spritePath, sprite);
+    const auto atlas = loadRetailSpriteAtlas(assets, spritePath, sprite, keepBitmapAlpha);
     std::vector<RetailSpriteRasterStep> steps;
     for (size_t i = 0; i < animation->count; ++i) {
         const auto& parameters = sprite.animationFrames[animation->first + i].parameters;

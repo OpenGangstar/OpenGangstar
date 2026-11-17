@@ -70,7 +70,8 @@ struct RetailSpriteRasterStep {
     uint32_t duration;
 };
 std::vector<RetailSpriteRasterStep> rasterRetailSpriteAnimation(FileSystemBase& assets,
-    const std::string& spritePath, const std::string& animationName, uint32_t width, uint32_t height);
+    const std::string& spritePath, const std::string& animationName, uint32_t width, uint32_t height,
+    bool keepBitmapAlpha = false);
 void paintRetailSpriteDraws(const RetailSprite& sprite, const Image& atlas,
                            const std::vector<RetailSpriteDraw>& draws, Image& target);
 std::vector<RetailSpriteDraw> composeRetailSpriteFrame(const RetailSprite& sprite, size_t frame,

@@ -1626,8 +1626,13 @@ void poseRetailDoor(const std::filesystem::path& root)
     CityPlayback shopVisitor;
     const auto& missionEnd = opening.payphone->postFight;
     require(opening.missionTitle && opening.missionTitle->cashReward == 250 &&
+            opening.missionTitle->completionText == "FIND L.C." &&
             missionEnd.missionOverMs == missionEnd.durationMs,
             "Opening mission lost its retail reward or completion cue.");
+    const auto rewardFrames = rasterRetailSpriteAnimation(assets, "huds.bsprite", "MISSION_END", 480, 320, true);
+    require(rewardFrames.size() == 6 && rewardFrames.front().duration == 1 &&
+            rewardFrames.front().image.bgra != rewardFrames.back().image.bgra,
+            "Opening mission reward lost its retail animation frames.");
     require(shopVisitor.creditOpeningMission(opening.missionTitle->cashReward) &&
             !shopVisitor.creditOpeningMission(opening.missionTitle->cashReward) && shopVisitor.playerCash == 250,
             "Opening mission reward was omitted or paid twice.");
