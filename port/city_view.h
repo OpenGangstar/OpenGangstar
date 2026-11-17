@@ -111,6 +111,9 @@ struct CityTerrain {
     void indexWalls();
     std::optional<size_t> pedestrianNeighbor(size_t triangle, std::optional<size_t> previous,
                                              uint32_t draw) const;
+    std::optional<size_t> vehicleNeighbor(size_t triangle, std::optional<size_t> previous,
+                                          const std::array<float, 3>& position, float yaw) const;
+    std::optional<float> vehicleRoadSpeed(size_t triangle, int32_t frameRate) const;
     std::optional<std::vector<size_t>> wallCandidates(float left, float bottom, float right, float top) const;
     std::optional<GroundContact> groundContact(const std::array<float, 3>& position,
         std::optional<size_t> preferred = std::nullopt, float rise = 42, float drop = 80) const;
@@ -120,7 +123,8 @@ struct CityTerrain {
 private:
     std::map<std::pair<int, int>, std::vector<size_t>> groundCells;
     std::vector<std::vector<size_t>> groundLinks;
-    std::vector<std::array<std::optional<size_t>, 3>> sidewalkEdges;
+    std::vector<std::array<std::optional<size_t>, 3>> sidewalkEdges, roadEdges;
+    std::vector<uint8_t> roadFlags;
     std::map<std::pair<int, int>, std::vector<size_t>> wallCells;
 };
 
@@ -252,6 +256,13 @@ struct CityPedestrianWalk {
     std::optional<std::array<float, 3>> sharedEdge;
     void advance(const CityTerrain& terrain, CityPlayerPose& pose, float speed, uint32_t elapsedMs,
                  const std::function<uint32_t()>& random);
+};
+
+struct CityAmbientDrive {
+    std::optional<size_t> destination, previous;
+    std::optional<std::array<float, 3>> sharedEdge;
+    void advance(const CityTerrain& terrain, CityPlayerPose& pose, const CityTerrain::VehicleFootprint& footprint,
+                 int32_t frameRate, uint32_t elapsedMs);
 };
 
 struct CityVehiclePose {
@@ -476,6 +487,7 @@ struct CitySpawnMesh {
     std::shared_ptr<const CityActor> actor;
     std::vector<CityVertex> source;
     std::vector<CitySkinRange> skins;
+    CityTerrain::VehicleFootprint footprint;
 };
 std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,
                                                 const CitySpawnPool& pool, FileSystemBase& assets);

@@ -1265,6 +1265,26 @@ void poseRetailDoor(const std::filesystem::path& root)
     std::cout << staticCity.terrain.walls.size() << " authored district collision-plane triangles.\n";
     auto markerDraw = prepareCityView(city, opening);
     require(!markerDraw.billboards.empty(), "Retail billboard tags did not reach draw geometry.");
+    const auto policeCar = retailPool.acquire(38);
+    require(policeCar.has_value(), "Retail police car has no spawn geometry slot.");
+    const auto& policeFootprint = ambientMeshes[*policeCar].footprint;
+    require(policeFootprint.radius > 0, "Retail police car has no measured traffic footprint.");
+    const auto& trafficTerrain = markerDraw.terrain;
+    const auto& trafficSpawnPoints = city.districts[opening.district].spawnPoints;
+    const auto movesOnRoad = [&](const CitySpawnPoint& point) {
+        if (point.objectType != 3) return false;
+        const auto ground = trafficTerrain.groundContact(point.position, std::nullopt, 300, 300);
+        if (!ground) return false;
+        CityPlayerPose pose{point.position, point.rotation[2]};
+        pose.position[2] = ground->height;
+        pose.groundTriangle = ground->triangle;
+        CityAmbientDrive drive;
+        for (int frame = 0; frame < 20; ++frame) drive.advance(trafficTerrain, pose, policeFootprint, 30, 33);
+        return pose.groundTriangle && pose.groundTriangle != ground->triangle;
+    };
+    require(std::any_of(trafficSpawnPoints.begin(), trafficSpawnPoints.end(), movesOnRoad),
+            "Ambient car could not cross an authored Santa Monica road edge.");
+    require(retailPool.release(*policeCar), "Could not return the retail police car slot.");
     size_t propCutouts = 0;
     for (const auto& surface : markerDraw.surfaces) {
         const auto name = std::filesystem::path(surface.texture).filename();
@@ -3238,6 +3258,47 @@ static void checkAmbientPedestrianWalk()
             "Ambient pedestrian walked into a wall or retained a blocked destination.");
 }
 
+static void checkAmbientVehicleDrive()
+{
+    CityNavigation navigation;
+    auto& road = navigation.buffers.emplace_back();
+    for (auto& lane : road.neighbors) lane.assign(2, UINT16_MAX);
+    road.roadFlags = {0, 0x80};
+    road.overlaps.resize(2);
+    road.neighbors[0] = {3, 0};
+    road.neighbors[3] = {0, 0};
+    CityTerrain terrain;
+    terrain.ground = {
+        CityTriangle{{{0, 0, 0}, {300, 0, 0}, {0, 300, 0}}},
+        CityTriangle{{{300, 0, 0}, {300, 300, 0}, {0, 300, 0}}}
+    };
+    terrain.groundNavigation = {{0, 0}, {0, 3}};
+    terrain.indexGround(&navigation);
+    require(terrain.vehicleRoadSpeed(0, 30) == 600 && terrain.vehicleRoadSpeed(1, 30) == 1200,
+            "Ambient vehicles did not read the retail road speed codes.");
+    const CityTerrain::VehicleFootprint footprint{0, 5, {0, 0, 0}};
+    CityPlayerPose pose{{100, 100, 0}, 135};
+    pose.groundTriangle = 0;
+    CityAmbientDrive drive;
+    for (int i = 0; i < 6; ++i) drive.advance(terrain, pose, footprint, 10, 250);
+    require(pose.groundTriangle == 1 && pose.position[0] > 150 && pose.position[2] == 0,
+            "Ambient vehicle did not cross its directed road edge.");
+
+    pose = CityPlayerPose{{100, 100, 0}, 135};
+    pose.groundTriangle = 0;
+    drive = {};
+    road.roadFlags[0] = 1;
+    terrain.indexGround(&navigation);
+    drive.advance(terrain, pose, footprint, 10, 250);
+    require(pose.position[0] == 100 && !drive.destination, "Ambient vehicle took a wrong-way road exit.");
+
+    road.roadFlags[0] = 0;
+    terrain.indexGround(&navigation);
+    terrain.walls = {CityTriangle{{{125, 0, 0}, {125, 300, 0}, {125, 150, 200}}}};
+    drive.advance(terrain, pose, footprint, 10, 250);
+    require(pose.position[0] == 100 && drive.destination, "Ambient vehicle drove through a static wall.");
+}
+
 static void checkNavigationWaypoint()
 {
     CityMesh mesh;
@@ -3618,6 +3679,7 @@ int wmain(int argc, wchar_t** argv)
         checkSpawnRules();
         checkSpawnScheduler();
         checkAmbientPedestrianWalk();
+        checkAmbientVehicleDrive();
         walkAndSlide();
         driveAndReverse();
         simulateParticles();

@@ -201,6 +201,18 @@ struct CitySpawnContext {
     std::optional<CitySpawnTraffic> traffic;
 };
 
+inline constexpr bool cityRoadAllowsExit(uint8_t flags, size_t edge)
+{
+    const auto code = edge + 1;
+    return (flags & 3) != code && ((flags >> 2) & 3) != code;
+}
+
+inline constexpr float cityRoadSpeedPerFrame(uint8_t flags)
+{
+    const auto code = flags >> 6;
+    return (code ? code : 1) * 20.f;
+}
+
 inline constexpr bool isCityPoliceMetatype(uint8_t metatype)
 {
     return metatype == 38 || metatype == 48 || metatype == 161;

@@ -1085,6 +1085,12 @@ std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityA
         if (actor->fightIdle && mesh.skins.empty())
             throw std::runtime_error("Missing ambient skin geometry for " + actor->name);
         for (auto& skin : mesh.skins) skin.firstVertex -= static_cast<uint32_t>(firstVertex);
+        if (!actor->fightIdle) {
+            mesh.footprint = measureVehicleFootprint(*actor, draw.vertices, firstVertex);
+            mesh.footprint.lateralCenter *= actor->scale[0];
+            mesh.footprint.radius *= std::abs(actor->scale[0]);
+            for (auto& center : mesh.footprint.longitudinalCenters) center *= actor->scale[1];
+        }
     }
     return meshes;
 }
@@ -1487,6 +1493,8 @@ void CityTerrain::indexGround(const CityNavigation* navigation)
 {
     groundLinks.clear();
     sidewalkEdges.clear();
+    roadEdges.clear();
+    roadFlags.clear();
     if (navigation && !groundNavigation.empty()) {
         std::vector<size_t> bufferStarts;
         size_t first = 0;
@@ -1501,15 +1509,24 @@ void CityTerrain::indexGround(const CityNavigation* navigation)
         };
         groundLinks.resize(ground.size());
         sidewalkEdges.resize(ground.size());
+        roadEdges.resize(ground.size());
+        roadFlags.resize(ground.size());
+        const auto road = navigation->materialBuffers[static_cast<size_t>(CityNavigation::Material::road)];
+        const auto intersection = navigation->materialBuffers[static_cast<size_t>(CityNavigation::Material::intersection)];
+        const auto isRoad = [&](uint16_t buffer) { return buffer == road || buffer == intersection; };
         const auto sidewalk = navigation->materialBuffers[static_cast<size_t>(CityNavigation::Material::sidewalk)];
         for (size_t i = 0; i < groundNavigation.size(); ++i) {
             const auto source = groundNavigation[i];
             auto& links = groundLinks[i];
+            const auto flags = navigation->buffers[source.buffer].roadFlags[source.indexOffset / 3];
+            roadFlags[i] = flags;
             for (size_t edge = 0; edge < 3; ++edge) {
                 if (const auto neighbor = navigation->neighbor(source, edge)) {
                     const auto index = groundIndex(*neighbor);
                     links.push_back(index);
                     if (neighbor->buffer == sidewalk) sidewalkEdges[i][edge] = index;
+                    if (isRoad(source.buffer) && isRoad(neighbor->buffer) && cityRoadAllowsExit(flags, edge))
+                        roadEdges[i][edge] = index;
                 }
             }
             const auto& overlaps = navigation->buffers.at(source.buffer).overlaps.at(source.indexOffset / 3);
@@ -1531,6 +1548,56 @@ std::optional<size_t> CityTerrain::pedestrianNeighbor(size_t triangle, std::opti
     for (const auto neighbor : sidewalkEdges[triangle])
         if (neighbor) return neighbor;
     return std::nullopt;
+}
+
+namespace {
+Vec3 groundTriangleCenter(const CityTriangle& triangle)
+{
+    const auto& [a, b, c] = triangle;
+    return scale(add(add(a, b), c), 1.f / 3);
+}
+
+std::optional<Vec3> groundSharedEdge(const CityTriangle& source, const CityTriangle& target)
+{
+    Vec3 middle{};
+    size_t shared = 0;
+    for (const auto& vertex : source) {
+        if (std::find(target.begin(), target.end(), vertex) == target.end()) continue;
+        middle = add(middle, vertex);
+        ++shared;
+    }
+    return shared == 2 ? std::optional{scale(middle, 0.5f)} : std::nullopt;
+}
+}
+
+std::optional<size_t> CityTerrain::vehicleNeighbor(size_t triangle, std::optional<size_t> previous,
+                                                  const Vec3& position, float yaw) const
+{
+    if (triangle >= roadEdges.size()) return std::nullopt;
+    const Vec3 forward{std::sin(yaw * radians), -std::cos(yaw * radians), 0};
+    std::optional<size_t> selected;
+    float bestAlignment = -1.f;
+    for (const auto neighbor : roadEdges[triangle]) {
+        if (!neighbor || neighbor == previous) continue;
+        const auto& target = ground[*neighbor];
+        auto delta = add(groundSharedEdge(ground[triangle], target).value_or(groundTriangleCenter(target)),
+                         scale(position, -1));
+        if (std::hypot(delta[0], delta[1]) < 1.f)
+            delta = add(groundTriangleCenter(target), scale(position, -1));
+        const auto distance = std::hypot(delta[0], delta[1]);
+        if (distance < 1.f) continue;
+        const auto alignment = dot(forward, delta) / distance;
+        if (alignment <= bestAlignment) continue;
+        bestAlignment = alignment;
+        selected = neighbor;
+    }
+    return selected;
+}
+
+std::optional<float> CityTerrain::vehicleRoadSpeed(size_t triangle, int32_t frameRate) const
+{
+    if (triangle >= roadFlags.size()) return std::nullopt;
+    return cityRoadSpeedPerFrame(roadFlags[triangle]) * frameRate;
 }
 
 void CityTerrain::indexWalls()
@@ -1666,10 +1733,9 @@ bool crossesWall(const CityTerrain& terrain, const Vec3& start, const Vec3& end,
     return false;
 }
 
-bool crossesWallInCar(const CityTerrain& terrain, const CityVehiclePose& car,
-                      const Vec3& next, float yaw, Vec3& normalTravel)
+bool crossesWallInCar(const CityTerrain& terrain, const CityTerrain::VehicleFootprint& footprint,
+                      const Vec3& start, float startYaw, const Vec3& next, float yaw, Vec3& normalTravel)
 {
-    const auto& footprint = terrain.vehicleFootprint;
     const auto center = [&](float degrees, float offset) -> Vec3 {
         const auto angle = degrees * radians;
         const auto cosine = std::cos(angle), sine = std::sin(angle);
@@ -1678,7 +1744,7 @@ bool crossesWallInCar(const CityTerrain& terrain, const CityVehiclePose& car,
     };
     // Three overlapping circles approximate the body and bumpers.
     for (const auto offset : footprint.longitudinalCenters) {
-        if (crossesWall(terrain, add(car.position, center(car.yaw, offset)),
+        if (crossesWall(terrain, add(start, center(startYaw, offset)),
                          add(next, center(yaw, offset)), footprint.radius, &normalTravel)) return true;
     }
     return false;
@@ -1692,15 +1758,7 @@ void CityPedestrianWalk::advance(const CityTerrain& terrain, CityPlayerPose& pos
         destination = terrain.pedestrianNeighbor(*pose.groundTriangle, previous, random());
         if (destination) {
             previous = pose.groundTriangle;
-            const auto& target = terrain.ground.at(*destination);
-            Vec3 middle{};
-            size_t shared = 0;
-            for (const auto& vertex : terrain.ground.at(*previous)) {
-                if (std::find(target.begin(), target.end(), vertex) == target.end()) continue;
-                middle = add(middle, vertex);
-                ++shared;
-            }
-            if (shared == 2) sharedEdge = scale(middle, 0.5f);
+            sharedEdge = groundSharedEdge(terrain.ground.at(*previous), terrain.ground.at(*destination));
         }
     }
     const auto arrive = [&] {
@@ -1709,8 +1767,7 @@ void CityPedestrianWalk::advance(const CityTerrain& terrain, CityPlayerPose& pos
     };
     bool moved = false;
     if (destination) {
-        const auto& [a, b, c] = terrain.ground.at(*destination);
-        const auto center = sharedEdge.value_or(scale(add(add(a, b), c), 1.f / 3));
+        const auto center = sharedEdge.value_or(groundTriangleCenter(terrain.ground.at(*destination)));
         const auto dx = center[0] - pose.position[0], dy = center[1] - pose.position[1];
         const auto distance = std::hypot(dx, dy);
         if (distance <= 1.f) {
@@ -1735,6 +1792,49 @@ void CityPedestrianWalk::advance(const CityTerrain& terrain, CityPlayerPose& pos
     }
     pose.clipTimeMs = (pose.walking == moved ? pose.clipTimeMs : 0) + elapsedMs;
     pose.walking = moved;
+}
+
+void CityAmbientDrive::advance(const CityTerrain& terrain, CityPlayerPose& pose,
+                               const CityTerrain::VehicleFootprint& footprint, int32_t frameRate,
+                               uint32_t elapsedMs)
+{
+    if (!pose.groundTriangle) return;
+    if (!destination) {
+        destination = terrain.vehicleNeighbor(*pose.groundTriangle, previous, pose.position, pose.yaw);
+        if (!destination) return;
+        previous = pose.groundTriangle;
+        sharedEdge = groundSharedEdge(terrain.ground.at(*previous), terrain.ground.at(*destination));
+    }
+    if (sharedEdge && std::hypot((*sharedEdge)[0] - pose.position[0], (*sharedEdge)[1] - pose.position[1]) <= 1.f)
+        sharedEdge.reset();
+    const auto target = sharedEdge.value_or(groundTriangleCenter(terrain.ground.at(*destination)));
+    const auto dx = target[0] - pose.position[0], dy = target[1] - pose.position[1];
+    const auto distance = std::hypot(dx, dy);
+    if (distance <= 1.f) {
+        pose.groundTriangle = destination;
+        destination.reset();
+        return;
+    }
+    const auto speed = terrain.vehicleRoadSpeed(*pose.groundTriangle, frameRate);
+    if (!speed) return;
+    const auto step = std::min(distance, *speed * elapsedMs * 0.001f);
+    auto next = add(pose.position, {dx * step / distance, dy * step / distance, 0});
+    const auto ground = terrain.groundContact(next, pose.groundTriangle, 70, 100);
+    if (!ground || (ground->triangle != previous && ground->triangle != destination)) return;
+    next[2] = ground->height;
+    const auto yaw = std::atan2(dx, -dy) / radians;
+    Vec3 normalTravel;
+    if (crossesWallInCar(terrain, footprint, pose.position, pose.yaw, next, yaw, normalTravel)) return;
+    pose.position = next;
+    pose.groundTriangle = ground->triangle;
+    pose.yaw = yaw;
+    if (step == distance) {
+        if (sharedEdge) sharedEdge.reset();
+        else {
+            pose.groundTriangle = destination;
+            destination.reset();
+        }
+    }
 }
 
 void CityPlayback::walk(const CityOpening& opening, const CityTerrain& terrain,
@@ -1976,7 +2076,7 @@ CityDoorSounds CityPlayback::drive(const CityOpening& opening, const CityTerrain
             verticalSpeed = 0;
         }
         Vec3 normalTravel{};
-        if (!crossesWallInCar(terrain, car, next, yaw, normalTravel)) {
+        if (!crossesWallInCar(terrain, terrain.vehicleFootprint, car.position, car.yaw, next, yaw, normalTravel)) {
             const auto travel = add(next, scale(car.position, -1));
             const auto traveledCm = static_cast<int32_t>(std::sqrt(dot(travel, travel)));
             drivenCentimeters += traveledCm;

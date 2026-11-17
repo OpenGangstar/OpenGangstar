@@ -584,6 +584,7 @@ struct CityRender {
         std::array<float, 3> rotation;
         int32_t groupType, objectType;
         CityPedestrianWalk walk;
+        CityAmbientDrive drive;
     };
     std::minstd_rand spawnRandom;
     std::optional<CitySpawnScheduler> spawnScheduler;
@@ -2386,6 +2387,9 @@ void updateCitySpawns(CityRender& city, const CityCameraPose& camera, const City
         }
         if (pose->objectType == 5)
             pose->walk.advance(city.terrain, pose->motion, city.opening.walkSpeed, elapsedMs, random);
+        else if (pose->groupType == 3)
+            pose->drive.advance(city.terrain, pose->motion, city.spawnMeshes[slot].footprint,
+                                city.retailFrameRate, elapsedMs);
         ++context.activeCounts[group.populationIndex()];
         context.nearbyObjects.push_back({current, pose->objectType, 1});
     }

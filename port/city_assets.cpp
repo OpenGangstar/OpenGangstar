@@ -1720,8 +1720,7 @@ std::vector<CityNavigation::TriangleRef> CityNavigation::findRoute(
             if (!next || !passable(next->buffer)) continue;
             if (mode == RouteMode::vehicle) {
                 const auto flags = buffers[current.triangle.buffer].roadFlags[current.triangle.indexOffset / 3];
-                const auto edgeCode = edge + 1;
-                if ((flags & 3) == edgeCode || ((flags >> 2) & 3) == edgeCode) continue;
+                if (!cityRoadAllowsExit(flags, edge)) continue;
             }
             const auto nextCenter = center(*next);
             if (!nextCenter) continue;
@@ -1873,7 +1872,7 @@ bool CitySpawnGroup::canSpawn(const CitySpawnPoint& point, const CitySpawnContex
     if (objectType != 3) return true;
     if (!context.traffic) return false;
     const auto& traffic = *context.traffic;
-    const auto roadSpeed = std::max(1, traffic.roadFlags >> 6) * 20.f;
+    const auto roadSpeed = cityRoadSpeedPerFrame(traffic.roadFlags);
     constexpr float radiansPerDegree = 0.0174532925f;
     const float x = point.rotation[0] * radiansPerDegree;
     const float y = point.rotation[1] * radiansPerDegree;
