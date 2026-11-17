@@ -544,7 +544,7 @@ struct CityRender {
     bool postLcIntroFinished = false;
     bool postLcAmbushFinished = false;
     std::optional<RetailScriptExecution> postLcWalkScript;
-    bool postLcFightIntroFinished = false;
+    std::optional<RetailScriptExecution> postLcFightScript;
     struct WalkingMarker { size_t index; double startMs; };
     std::optional<WalkingMarker> postLcWalkMarker;
     std::optional<double> postLcTailMs;
@@ -1862,7 +1862,8 @@ void activatePostLcDrive(CityRender& city)
     city.postLcIntroFinished = true;
     city.postLcAmbushFinished = false;
     city.postLcWalkScript.reset();
-    city.postLcFightIntroFinished = false;
+    city.postLcFightScript.reset();
+    playback.locoOpponents.clear();
     city.postLcWalkMarker.reset();
     city.postLcTailMs.reset();
     city.spyGauge.reset();
@@ -2238,6 +2239,15 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             city.playback.payphoneOpponentDisabled = true;
         }
     }
+    for (auto& [name, opponent] : city.playback.locoOpponents) {
+        if (!opponent.disablePending) continue;
+        const auto& position = opponent.pose.position;
+        if (!cityBoundsVisible({{position[0] - 150, position[1] - 150, position[2] - 25},
+                                {position[0] + 150, position[1] + 150, position[2] + 200}}, frustum)) {
+            opponent.disabled = true;
+            opponent.disablePending = false;
+        }
+    }
     const auto regularSurfaceCount = city.vehicleLights.empty() ? city.surfaces.size()
         : city.vehicleLights.front().firstSurface;
     for (size_t i = 0; i < regularSurfaceCount; ++i) {
@@ -2481,7 +2491,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.postLcIntroFinished && city.hummerRouteScript && city.postLcDriveObjective.descriptor)
             overlay(city.postLcDriveObjective.descriptor, screen, city.captionVertex, 6);
-        else if (city.postLcFightIntroFinished && city.postLcFightObjective.descriptor)
+        else if (city.postLcFightScript && city.postLcFightObjective.descriptor)
             overlay(city.postLcFightObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.postLcWalkScript && city.postLcConfrontationObjective.descriptor)
             overlay(city.postLcConfrontationObjective.descriptor, screen, city.captionVertex, 6);
@@ -3002,7 +3012,11 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         auto& script = cityRender->postLcWalkScript.emplace(CityScriptProgram{{{64, wait}}});
                         script.unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postLcFightIntro) {
-                        cityRender->postLcFightIntroFinished = true;
+                        CityScriptProgram program(1);
+                        for (const auto& [opcode, payload] : handoff.nextCheckpoint->postLcFightCommands)
+                            program.front().push_back({opcode, payload});
+                        auto& script = cityRender->postLcFightScript.emplace(std::move(program));
+                        script.unlock(0, 0, 0);
                     }
                 }
             }
@@ -3039,6 +3053,42 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 playback.pursuePayphoneTarget(cityRender->opening, cityRender->terrain, delta);
                 playback.punchPayphoneOpponent(cityRender->opening, cityRender->terrain, delta,
                                               punchPressed, cityRender->payphoneTargetLocked);
+                playback.updateLocoFight(cityRender->opening, cityRender->terrain, delta);
+                if (cityRender->postLcFightScript && playback.player) {
+                    const auto& scene = cityRender->opening.payphone->postFight.nextCheckpoint->postLcFightIntro;
+                    RetailTravelHooks travel;
+                    travel.escapePositions = [&](std::string_view name) -> std::optional<RetailEscapePositions> {
+                        const auto opponent = playback.locoOpponents.find(name);
+                        if (opponent == playback.locoOpponents.end()) return std::nullopt;
+                        const auto& position = playback.vehicle && playback.vehicle->occupied
+                            ? playback.vehicle->position : playback.player->position;
+                        return RetailEscapePositions{position, opponent->second.pose.position};
+                    };
+                    RetailMissionHooks fight;
+                    fight.actorAttack = [&](const CityActorAttack& attack) {
+                        const auto placement = std::find_if(scene.placements.rbegin(), scene.placements.rend(),
+                            [&](const auto& cue) { return cue.actor == attack.attacker; });
+                        if (placement == scene.placements.rend() || !placement->visible)
+                            throw std::logic_error("Missing live Loco fight placement.");
+                        CityPlayerPose pose{placement->position, placement->rotationDegrees[2]};
+                        if (const auto ground = cityRender->terrain.groundContact(pose.position)) {
+                            pose.position[2] = ground->height;
+                            pose.groundTriangle = ground->triangle;
+                        }
+                        playback.locoOpponents.try_emplace(attack.attacker, CityFightOpponent{pose});
+                    };
+                    fight.disableActor = [&](std::string_view name, bool immediate) {
+                        const auto opponent = playback.locoOpponents.find(name);
+                        if (opponent == playback.locoOpponents.end())
+                            throw std::logic_error("Missing live Loco opponent.");
+                        opponent->second.disabled = immediate;
+                        opponent->second.disablePending = !immediate;
+                    };
+                    auto& script = *cityRender->postLcFightScript;
+                    script.execute(0, 0, 0, [](const auto&, int32_t) { return false; }, [] {}, [] {},
+                                   false, &travel, {}, &fight);
+                    if (script.state(0) == RetailScriptState::locked) cityRender->postLcFightScript.reset();
+                }
                 if (cityRender->nextMissionScript) {
                     const auto& next = *cityRender->opening.payphone->postFight.nextCheckpoint;
                     const bool postLc = playback.openingMissionsPaid[1];
@@ -3301,6 +3351,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 } catch (const std::runtime_error& error) {
                     std::cerr << error.what() << '\n';
                 }
+            }
+            if (cityRender->postLcFightScript && !playback.missionFailure && playback.playerHealth == 0) {
+                playback.missionFailure = -1;
+                ++playback.missionFailureCount;
             }
             if (!missionAlreadyFailed && playback.missionFailure) {
                 if (cityRender->radio) cityRender->radio->stop();
@@ -3752,12 +3806,32 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             mission.postLcFightIntro.placements.rend(), [](const auto& cue) {
                                 return cue.actor == "Player" && cue.visible;
                             });
-                        if (!render.postLcFightIntroFinished || !render.postLcFightObjective.descriptor ||
+                        update(0);
+                        if (!render.postLcFightScript || playback.locoOpponents.size() != 2 ||
+                            !render.postLcFightObjective.descriptor ||
                             render.postFightCinematic || playback.missionFailure ||
                             fightStart == mission.postLcFightIntro.placements.rend() ||
                             playback.player->position[0] != fightStart->position[0] ||
                             playback.player->position[1] != fightStart->position[1])
                             throw std::runtime_error("Script 25 did not restore the player at the fight objective.");
+                        auto& firstLoco = playback.locoOpponents.at("Loco_00");
+                        auto& secondLoco = playback.locoOpponents.at("Loco_01");
+                        firstLoco.pose.position = secondLoco.pose.position = playback.player->position;
+                        const auto startingVitals = playback.playerHealth + playback.playerArmor;
+                        for (int step = 0; step < 30 && playback.playerHealth + playback.playerArmor == startingVitals;
+                             ++step) update(50);
+                        if (!firstLoco.punchMs || !secondLoco.punchMs ||
+                            playback.playerHealth + playback.playerArmor >= startingVitals || !render.postLcFightScript)
+                            throw std::runtime_error("Script 25 live opponents did not attack within range.");
+                        firstLoco.pose.position[0] += 4000;
+                        update(0);
+                        if ((!firstLoco.disabled && !firstLoco.disablePending) || secondLoco.disabled ||
+                            secondLoco.disablePending || !render.postLcFightScript)
+                            throw std::runtime_error("Script 25 did not resolve the first escape gate independently.");
+                        secondLoco.pose.position[0] -= 4000;
+                        update(0);
+                        if ((!secondLoco.disabled && !secondLoco.disablePending) || render.postLcFightScript)
+                            throw std::runtime_error("Script 25 did not resolve the last escape gate.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

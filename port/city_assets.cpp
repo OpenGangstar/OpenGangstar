@@ -3090,6 +3090,21 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail Loco fight objective.");
                 route.postLcFightObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expectedActor : {"Loco_00", "Loco_01"}) {
+                    auto weapon = postLc.record();
+                    if (weapon.integer() != 82 || weapon.string() != expectedActor || weapon.integer() != 0)
+                        throw std::runtime_error("Invalid retail Loco fight weapon cue.");
+                    weapon.finish();
+                }
+                for (const auto expected : {29u, 29u, 101u, 23u, 101u, 23u}) {
+                    auto cue = postLc.record();
+                    if (cue.integer() != expected) throw std::runtime_error("Missing retail Loco fight command.");
+                    auto payload = cue.remainingBytes();
+                    if (expected == 29) readActorAttack(cue);
+                    else if (expected == 101) decodeCityWaitEscape({expected, payload});
+                    else readScriptObject(cue);
+                    route.postLcFightCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3394,6 +3409,18 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.postLcConfrontation);
                 loadCinematicActors(next.postLcPhone);
                 loadCinematicActors(next.postLcFightIntro);
+                for (const auto& [opcode, payload] : next.postLcFightCommands) {
+                    if (opcode != 29) continue;
+                    const auto attack = decodeCityActorAttack({opcode, payload});
+                    const auto actor = findCinematicActor(attack.attacker);
+                    if (actor == opening.actors.end() || attack.target != "Player")
+                        throw std::runtime_error("Invalid retail Loco attacker.");
+                    if (actor->handPunches) continue;
+                    actor->pursuitWalk = readClip(library, &actor->model, "move_walk");
+                    actor->handPunches = std::array{
+                        readClip(library, &actor->model, "combat_hand_rightpunch"),
+                        readClip(library, &actor->model, "combat_hand_leftpunch")};
+                }
             }
             const auto bindCinematic = [&](CityMissionCinematic& scene, const auto& commands) {
                 for (const auto& command : commands) {

@@ -1110,6 +1110,8 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
             return playback.nextMissionVehicleActive && opening.vehicleActor == surface.payphoneActor &&
                 playback.vehicle && playback.vehicle->doorAction;
         const auto& actor = opening.actors.at(*surface.payphoneActor);
+        const auto loco = playback.locoOpponents.find(actor.name);
+        if (!missionScene && loco != playback.locoOpponents.end()) return !loco->second.disabled;
         if (playback.payphoneOpponentDisabled && playback.payphoneAttack &&
             actor.name == playback.payphoneAttack->attacker) return false;
         if (missionMs && missionScene) {
@@ -2092,51 +2094,39 @@ void CityPlayback::advancePayphone(const CityOpening& opening, double deltaMs)
     }
 }
 
-void CityPlayback::pursuePayphoneTarget(const CityOpening& opening, const CityTerrain& terrain, double deltaMs)
+static void pursueMeleeTarget(CityPlayback& playback, const CityOpening& opening, const CityTerrain& terrain,
+                              const CityActor* actor, CityPlayerPose& pose, std::optional<double>& punchMs,
+                              size_t& punchIndex, double deltaMs)
 {
-    if (!opening.payphone || !payphoneAttack || !player || payphoneAttack->target != "Player") return;
-    if (payphoneOpponentHealth == 0) {
-        payphoneDefeatMs += std::max(0., deltaMs);
-        return;
-    }
     const auto& route = *opening.payphone;
-    if (!payphonePursuer) {
-        const auto* marker = cityPayphonePlacement(route, payphoneAttack->attacker, route.cinematicDurationMs);
-        if (!marker || !marker->visible) return;
-        payphonePursuer = CityPlayerPose{marker->position, marker->rotationDegrees[2]};
-    }
-    auto& pose = *payphonePursuer;
-    if (playerHealth == 0 && !payphonePunchMs) return;
-    const auto& target = vehicle && vehicle->occupied ? vehicle->position : player->position;
+    if (playback.playerHealth == 0 && !punchMs) return;
+    const auto& target = playback.vehicle && playback.vehicle->occupied ? playback.vehicle->position : playback.player->position;
     const auto dx = target[0] - pose.position[0], dy = target[1] - pose.position[1];
     const auto distance = std::hypot(dx, dy);
     if (distance > 0) pose.yaw = std::atan2(dx, -dy) / radians;
     const auto stepMs = std::clamp(deltaMs, 0., 50.);
     const float stoppingDistance = route.handRangeCm;
-    const auto actor = std::find_if(opening.actors.begin(), opening.actors.end(), [&](const CityActor& candidate) {
-        return candidate.payphoneOnly && candidate.name == payphoneAttack->attacker;
-    });
-    if (actor != opening.actors.end() && actor->handPunches) {
+    if (actor && actor->handPunches) {
         const auto& clips = *actor->handPunches;
         const auto canReach = [&] {
             return distance <= stoppingDistance && std::abs(target[2] - pose.position[2]) <= stoppingDistance &&
-                !(vehicle && vehicle->occupied) && !crossesWall(terrain, pose.position, target, 28);
+                !(playback.vehicle && playback.vehicle->occupied) && !crossesWall(terrain, pose.position, target, 28);
         };
-        if (payphonePunchMs) {
-            const auto previous = *payphonePunchMs;
-            *payphonePunchMs += stepMs;
-            const auto duration = clips[payphonePunchIndex].durationMs;
+        if (punchMs) {
+            const auto previous = *punchMs;
+            *punchMs += stepMs;
+            const auto duration = clips[punchIndex].durationMs;
             // Approximate contact until the retail punch collision query is ported.
             const double impactMs = duration * 0.5;
-            if (previous < impactMs && *payphonePunchMs >= impactMs && canReach())
-                damagePlayer(route.handDamage);
-            if (*payphonePunchMs < duration) return;
-            payphonePunchMs.reset();
-            payphonePunchIndex = (payphonePunchIndex + 1) % clips.size();
+            if (previous < impactMs && *punchMs >= impactMs && canReach())
+                playback.damagePlayer(route.handDamage);
+            if (*punchMs < duration) return;
+            punchMs.reset();
+            punchIndex = (punchIndex + 1) % clips.size();
         }
-        if (playerHealth == 0) return;
+        if (playback.playerHealth == 0) return;
         if (canReach()) {
-            payphonePunchMs = 0;
+            punchMs = 0;
             pose.walking = false;
             return;
         }
@@ -2156,6 +2146,37 @@ void CityPlayback::pursuePayphoneTarget(const CityOpening& opening, const CityTe
     }
     pose.clipTimeMs = (pose.walking == moved ? pose.clipTimeMs : 0) + stepMs;
     pose.walking = moved;
+}
+
+void CityPlayback::pursuePayphoneTarget(const CityOpening& opening, const CityTerrain& terrain, double deltaMs)
+{
+    if (!opening.payphone || !payphoneAttack || !player || payphoneAttack->target != "Player") return;
+    if (payphoneOpponentHealth == 0) {
+        payphoneDefeatMs += std::max(0., deltaMs);
+        return;
+    }
+    const auto& route = *opening.payphone;
+    if (!payphonePursuer) {
+        const auto* marker = cityPayphonePlacement(route, payphoneAttack->attacker, route.cinematicDurationMs);
+        if (!marker || !marker->visible) return;
+        payphonePursuer = CityPlayerPose{marker->position, marker->rotationDegrees[2]};
+    }
+    const auto actor = std::find_if(opening.actors.begin(), opening.actors.end(), [&](const CityActor& candidate) {
+        return candidate.payphoneOnly && candidate.name == payphoneAttack->attacker;
+    });
+    pursueMeleeTarget(*this, opening, terrain, actor == opening.actors.end() ? nullptr : &*actor,
+                      *payphonePursuer, payphonePunchMs, payphonePunchIndex, deltaMs);
+}
+
+void CityPlayback::updateLocoFight(const CityOpening& opening, const CityTerrain& terrain, double deltaMs)
+{
+    if (!player || !opening.payphone) return;
+    for (const auto& actor : opening.actors) {
+        const auto entry = locoOpponents.find(actor.name);
+        if (!actor.payphoneOnly || entry == locoOpponents.end() || entry->second.disabled) continue;
+        auto& opponent = entry->second;
+        pursueMeleeTarget(*this, opening, terrain, &actor, opponent.pose, opponent.punchMs, opponent.punchIndex, deltaMs);
+    }
 }
 
 void CityPlayback::punchPayphoneOpponent(const CityOpening& opening, const CityTerrain& terrain,
@@ -2387,7 +2408,10 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         const auto* staging = missionPlacement ? missionPlacement : payphoneMs && opening.payphone &&
             (actor.payphoneOnly || (player && *payphoneMs < opening.payphone->cinematicDurationMs))
             ? cityPayphonePlacement(*opening.payphone, actor.name, *payphoneMs) : nullptr;
-        if (actor.payphoneOnly && opening.vehicleActor != range.actor && (!staging || !staging->visible)) continue;
+        const auto locoEntry = playback.locoOpponents.find(actor.name);
+        const auto* loco = actor.payphoneOnly && !missionScene && locoEntry != playback.locoOpponents.end() &&
+            !locoEntry->second.disabled ? &locoEntry->second : nullptr;
+        if (actor.payphoneOnly && !loco && opening.vehicleActor != range.actor && (!staging || !staging->visible)) continue;
         if (staging && staging->visible) {
             const auto position = tailing && missionPlacement && terrain
                 ? cityTailingActorPosition(*missionScene, actor.name, *terrain, *missionMs).value_or(staging->position)
@@ -2396,7 +2420,8 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         }
         const auto* pursuer = actor.payphoneOnly && playback.payphonePursuer && playback.payphoneAttack &&
             playback.payphoneAttack->attacker == actor.name ? &*playback.payphonePursuer : nullptr;
-        if (pursuer) world = actorTransform(actor, pursuer);
+        if (loco) world = actorTransform(actor, &loco->pose);
+        else if (pursuer) world = actorTransform(actor, pursuer);
         const auto* walk = !missionPlacement && actor.payphoneOnly && opening.payphone && opening.payphone->walk &&
             opening.payphone->walk->actor == actor.name && elapsedMs >= opening.payphone->walk->startMs
             ? &*opening.payphone->walk : nullptr;
@@ -2453,6 +2478,15 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         } else if (player && playback.playerPunchMs && actor.handPunches) {
             clip = &(*actor.handPunches)[playback.playerPunchIndex];
             clipTime = *playback.playerPunchMs;
+        } else if (loco && loco->punchMs && actor.handPunches) {
+            clip = &(*actor.handPunches)[loco->punchIndex];
+            clipTime = *loco->punchMs;
+        } else if (loco && loco->pose.walking && actor.pursuitWalk) {
+            clip = &*actor.pursuitWalk;
+            clipTime = std::fmod(loco->pose.clipTimeMs, clip->durationMs);
+        } else if (loco) {
+            clip = &opening.payphone->postFight.nextCheckpoint->postLcFightIntro.actorAnimations.at(actor.name).back().loop;
+            clipTime = std::fmod(loco->pose.clipTimeMs, clip->durationMs);
         } else if (pursuer && playback.payphoneOpponentHealth == 0 && actor.defeatAnimation) {
             const auto& defeat = *actor.defeatAnimation;
             const auto time = playback.payphoneDefeatMs;
@@ -2513,7 +2547,7 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
                 // Movement already applies the walk cycle's net root displacement.
                 if (channel.transform == CityAnimationTransform::translation &&
                     ((player && player->walking && clip == &opening.walk) ||
-                     ((walk || pursuer) && clip->name == "move_walk") ||
+                     ((walk || pursuer || loco) && clip->name == "move_walk") ||
                      (motion && clip == &motion->clip)) && source.name == "Bip01-node") {
                     const auto fraction = float(clipTime / clip->durationMs);
                     for (size_t j = 0; j < 2; ++j)

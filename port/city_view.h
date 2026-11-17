@@ -281,6 +281,14 @@ struct CityCameraShake {
 
 enum class CityShopService { health, vest };
 
+struct CityFightOpponent {
+    CityPlayerPose pose;
+    std::optional<double> punchMs;
+    size_t punchIndex = 0;
+    bool disablePending = false;
+    bool disabled = false;
+};
+
 struct CityPlayback {
     double elapsedMs = 0;
     size_t nextDialogue = 0;
@@ -309,6 +317,7 @@ struct CityPlayback {
     std::array<bool, 2> openingMissionsPaid{};
     int32_t payphoneOpponentHealth = 100;
     double payphoneDefeatMs = 0;
+    std::map<std::string, CityFightOpponent, std::less<>> locoOpponents;
     bool payphoneDisablePending = false;
     bool payphoneOpponentDisabled = false;
     bool nextMissionVehicleActive = false;
@@ -344,6 +353,7 @@ struct CityPlayback {
     void releaseCameraTap(const CityOpening& opening, uint64_t releasedMs);
     void recenterVehicleCamera(const CityOpening& opening);
     void advancePayphone(const CityOpening& opening, double deltaMs);
+    void updateLocoFight(const CityOpening& opening, const CityTerrain& terrain, double deltaMs);
     void pursuePayphoneTarget(const CityOpening& opening, const CityTerrain& terrain, double deltaMs);
     void punchPayphoneOpponent(const CityOpening& opening, const CityTerrain& terrain,
                                double deltaMs, bool pressed, bool locked);

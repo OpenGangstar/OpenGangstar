@@ -328,8 +328,14 @@ mission playthroughs for discovery or verification.
   C2M204 now starts the retail Loco fight introduction. Windows uses its
   fades, staging markers, camera, gesture, and split dialogue timing, then
   restores the player at the last authored marker and shows the localized
-  fight objective. Live opponents, NPC damage, and the escape and mission
-  completion gates remain open.
+  fight objective. Both Locos now pursue the player and use the existing
+  native melee damage model, which approximates contact at the midpoint
+  of each punch clip. The retail script checks both 4,000 cm escape
+  distances in order and defers each opponent's removal until it leaves
+  the camera frustum. Automated Continue smoke checks both opponents'
+  attacks and escape gates. Player attacks against these NPCs, retail
+  pursuit AI, and the mission completion reward and script handoff
+  remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
