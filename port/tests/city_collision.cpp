@@ -1656,6 +1656,19 @@ void poseRetailDoor(const std::filesystem::path& root)
             ambush.dialogue.size() == 3 && !ambush.placements.empty() &&
             !hummerRoute.postLcAmbushObjective.empty(),
             "Script 25 lost its arrival fade, Loco cinematic or objective.");
+    require(ambush.motions.size() == 2, "Script 25 lost authored Loco path commands.");
+    for (const auto& motion : ambush.motions) {
+        const auto& travel = motion.travel;
+        require(travel.waypoints.size() == 4 && travel.durationMs > 0 &&
+                cityCinematicTravelPosition(travel, travel.startMs) == travel.from &&
+                cityCinematicTravelPosition(travel, travel.startMs + travel.durationMs + 1.) == travel.to,
+                "Retail Loco path lost its vertices or endpoints.");
+    }
+    const CityCinematicWalk corner{100, 300, "Walker", {0, 0, 10}, {100, 200, 20},
+                                   {{100, 0, 10}, {100, 200, 20}}};
+    require(cityCinematicTravelPosition(corner, 200) == std::array<float, 3>{100, 0, 10} &&
+            cityCinematicTravelPosition(corner, 300) == std::array<float, 3>{100, 100, 15},
+            "Cinematic waypoints must be sampled by segment length.");
     require(lcClosing.cameras.size() >= 4 && lcClosing.dialogue.size() == 3,
             "Retail LC camera or dialogue cues changed.");
     require(lcClosing.motions.size() == 3 && lcClosing.actorAnimations.at("LC_00").size() == 4,

@@ -2295,17 +2295,47 @@ const CityMissionCinematic::Motion* cityCinematicMotion(const CityMissionCinemat
     return cue == scene.motions.rend() ? nullptr : &*cue;
 }
 
+static std::pair<std::array<float, 3>, std::array<float, 3>>
+sampleCinematicTravel(const CityCinematicWalk& travel, double elapsedMs)
+{
+    const auto fraction = travel.durationMs ? static_cast<float>(
+        std::clamp((elapsedMs - travel.startMs) / travel.durationMs, 0., 1.)) : 1.f;
+    if (travel.waypoints.empty()) {
+        const auto direction = add(travel.to, scale(travel.from, -1));
+        return {add(travel.from, scale(direction, fraction)), direction};
+    }
+
+    auto previous = travel.from;
+    float total = 0;
+    for (const auto& point : travel.waypoints) {
+        total += std::hypot(point[0] - previous[0], point[1] - previous[1]);
+        previous = point;
+    }
+    auto remaining = fraction * total;
+    previous = travel.from;
+    std::array<float, 3> direction{};
+    for (const auto& point : travel.waypoints) {
+        const auto segment = add(point, scale(previous, -1));
+        const auto distance = std::hypot(segment[0], segment[1]);
+        if (distance > 0) {
+            direction = segment;
+            if (remaining <= distance)
+                return {add(previous, scale(segment, remaining / distance)), direction};
+            remaining -= distance;
+        }
+        previous = point;
+    }
+    return {travel.to, direction};
+}
+
 std::array<float, 3> cityCinematicTravelPosition(const CityCinematicWalk& travel, double elapsedMs)
 {
-    if (!travel.durationMs) return travel.to;
-    const auto fraction = static_cast<float>(
-        std::clamp((elapsedMs - travel.startMs) / travel.durationMs, 0., 1.));
-    return add(travel.from, scale(add(travel.to, scale(travel.from, -1)), fraction));
+    return sampleCinematicTravel(travel, elapsedMs).first;
 }
 
 void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>& skins,
                     const CityPlayback& playback, CityVertex* vertices, std::optional<double> payphoneMs,
-                    std::optional<double> missionMs, const CityMissionCinematic* missionScene)
+                    std::optional<double> missionMs, const CityMissionCinematic* missionScene, const CityTerrain* terrain)
 {
     for (const auto& range : skins) {
         const auto& actor = opening.actors[range.actor];
@@ -2334,8 +2364,11 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         const auto* travel = motion ? &motion->travel : walk;
         const auto travelMs = motion ? *missionMs : elapsedMs;
         if (travel && travel->durationMs) {
-            const auto direction = add(travel->to, scale(travel->from, -1));
-            const auto position = cityCinematicTravelPosition(*travel, travelMs);
+            auto [position, direction] = sampleCinematicTravel(*travel, travelMs);
+            if (terrain && !travel->waypoints.empty()) {
+                if (const auto ground = terrain->groundContact(position, std::nullopt, 1500, 1500))
+                    position[2] = ground->height;
+            }
             const auto yaw = std::atan2(direction[0], -direction[1]) / radians;
             world = placementTransform(position, staging->rotationDegrees, actor.scale, yaw);
         }

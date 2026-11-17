@@ -1916,7 +1916,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             poseCityVehicle(city.opening.actors[*city.opening.vehicleActor], *vehicle, city.vehicleVertices,
                             city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets);
         poseCityActors(city.opening, city.skins, city.playback, city.vertices.data(),
-                       actorSceneMs, postFightMs, missionScene);
+                       actorSceneMs, postFightMs, missionScene, &city.terrain);
         if (updateWalkMarker)
             poseCityCheckpoint(*city.opening.checkpoint, city.checkpointMeshes[0],
                                elapsedMs - city.opening.durationMs, city.vertices.data());
@@ -3509,7 +3509,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         finished = false;
                         for (int step = 0; step < 32 && !finished; ++step) {
                             finished = render.postFightCinematic->advance(mission.postLcAmbush, 1000, true, {});
-                            if (step == 0) presentCity(render, info.imageExtent);
+                            presentCity(render, info.imageExtent);
                         }
                         if (!finished) throw std::runtime_error("Script 25 Loco cinematic did not finish.");
                         update(0);

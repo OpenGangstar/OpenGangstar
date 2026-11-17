@@ -2218,8 +2218,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         std::string actor;
         std::string marker;
         bool running;
+        bool followsPath;
     };
-    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions;
+    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions, postLcAmbushMotions;
     const auto readCinematicAnimation = [](CityDataReader& command, uint32_t opcode, uint32_t time) {
         auto cue = readActorAnimation(command, opcode);
         // Retail scripts differ from anim_ingame.bdae in the casing of these names.
@@ -2326,8 +2327,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
             } else if (opcode == 23 && stopOpcode == 67) {
                 placements.emplace_back(time, CityScriptActorPlacement{
                     CityScriptActorAction::disable, readScriptObject(command), {}});
-            } else if ((opcode == 25 || opcode == 26) && motions) {
-                motions->push_back({time, command.string(), command.string(), opcode == 26});
+            } else if ((opcode == 25 || opcode == 26 || opcode == 34) && motions) {
+                motions->push_back({time, command.string(), command.string(), opcode != 25, opcode == 34});
                 command.finish();
             } else if (opcode == 6 || opcode == 7) {
                 auto cue = readCinematicAnimation(command, opcode, time);
@@ -2668,6 +2669,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         float radius;
         std::optional<uint32_t> radioStation;
         const CityVehicleDefinition* vehicle = nullptr;
+        std::vector<std::array<float, 3>> waypoints;
     };
     const auto findObject = [&](const std::string& name) {
         for (const auto& district : city.districts) {
@@ -2684,7 +2686,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                                0.f, vehicle.radioStation, &vehicle};
                     continue;
                 }
-                if (type != 5 && type != 6 && type != 10 && type != 13) continue;
+                if (type != 5 && type != 6 && type != 10 && type != 13 && type != 14) continue;
                 if (record.string() != name) continue;
                 PlacementObject object{};
                 object.type = type;
@@ -2699,6 +2701,16 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     record.skip(16);  // Marker fields followed by the two checkpoint IDs.
                     object.radius = record.signedInteger();
                     record.skip(1);
+                    record.finish();
+                }
+                if (type == 14) {
+                    // Path::Load consumes a scalar count followed by signed XYZ triples.
+                    const auto scalarCount = record.integer();
+                    if (scalarCount < 3 || scalarCount % 3 || scalarCount != record.remaining() / 4)
+                        throw std::runtime_error("Invalid retail path " + name);
+                    object.waypoints.resize(scalarCount / 3);
+                    for (auto& point : object.waypoints)
+                        for (auto& coordinate : point) coordinate = record.signedInteger();
                     record.finish();
                 }
                 return object;
@@ -2983,7 +2995,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 previousCinematicShot.clear();
                 route.postLcAmbush.fades.push_back({0, 0, false});
                 readCinematic(readCinematic, postLc, postLcLength, 0, route.postLcAmbush, postLcAmbushMoves,
-                              postLcAmbushDialogue, postLcAmbushPlacements, &postLcAmbushAnimations, nullptr, nullptr, 66);
+                              postLcAmbushDialogue, postLcAmbushPlacements, &postLcAmbushAnimations, &postLcAmbushMotions, nullptr, 66);
                 route.postLcAmbush.dialogue = resolveDialogue(postLcAmbushDialogue);
                 if (!nextMissionObjectiveId || (*nextMissionObjectiveId >> 12 & 0xf) != 4 ||
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
@@ -3325,7 +3337,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                             [&](const auto& placement) {
                                 return placement.timeMs <= motion.time && placement.actor == motion.actor && placement.visible;
                             });
-                        if (actor == opening.actors.end() || (destination.type != 10 && destination.type != 6) ||
+                        if (actor == opening.actors.end() ||
+                            (motion.followsPath ? destination.type != 14 : destination.type != 10 && destination.type != 6) ||
                             origin == scene.placements.rend())
                             throw std::runtime_error("Invalid retail cinematic movement for " + motion.actor);
                         auto clip = readClip(library, &actor->model, motion.running ? "move_run" : "move_walk");
@@ -3338,16 +3351,26 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                         const auto& last = root->keys.back().value;
                         const auto stride = std::hypot(last[0] - first[0], last[1] - first[1]);
                         if (stride <= 0) throw std::runtime_error("Invalid retail locomotion stride.");
-                        const auto distance = std::hypot(destination.position[0] - origin->position[0],
-                                                         destination.position[1] - origin->position[1]);
+                        auto waypoints = destination.waypoints;
+                        const auto endpoint = motion.followsPath ? waypoints.back() : destination.position;
+                        auto previous = origin->position;
+                        float distance = 0;
+                        const auto accumulate = [&](const auto& point) {
+                            distance += std::hypot(point[0] - previous[0], point[1] - previous[1]);
+                            previous = point;
+                        };
+                        if (motion.followsPath) {
+                            for (const auto& point : waypoints) accumulate(point);
+                        } else accumulate(endpoint);
                         scene.motions.push_back({{motion.time, static_cast<uint32_t>(std::ceil(distance * clip.durationMs / stride)),
-                                                 motion.actor, origin->position, destination.position}, std::move(clip)});
+                                                 motion.actor, origin->position, endpoint, std::move(waypoints)}, std::move(clip)});
                     }
                 };
                 bindMotions(next->pierCinematic, pierMotions);
                 bindMotions(next->weaponShopCinematic, shopMotions);
                 bindMotions(next->lcClosingCinematic, lcClosingMotions);
                 bindMotions(next->postLcIntro, postLcMotions);
+                bindMotions(next->postLcAmbush, postLcAmbushMotions);
             }
         }
     }

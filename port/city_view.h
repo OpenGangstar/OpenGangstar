@@ -404,7 +404,8 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
                     double elapsedMs, CityVertex* vertices);
 void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>& skins,
                     const CityPlayback& playback, CityVertex* vertices, std::optional<double> payphoneMs = {},
-                    std::optional<double> missionMs = {}, const CityMissionCinematic* missionScene = nullptr);
+                    std::optional<double> missionMs = {}, const CityMissionCinematic* missionScene = nullptr,
+                    const CityTerrain* terrain = nullptr);
 const CityCinematicPlacement* cityPayphonePlacement(const CityPayphoneRoute& route,
                                                   std::string_view actor, double elapsedMs);
 const CityMissionCinematic::Motion* cityCinematicMotion(const CityMissionCinematic& scene,

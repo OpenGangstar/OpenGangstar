@@ -373,6 +373,7 @@ struct CityCinematicWalk {
     std::string actor;
     std::array<float, 3> from;
     std::array<float, 3> to;
+    std::vector<std::array<float, 3>> waypoints;
 };
 
 struct CityMissionTitle {

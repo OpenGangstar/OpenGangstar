@@ -301,7 +301,9 @@ mission playthroughs for discovery or verification.
   requests the scripted exit, then starts the authored 300 ms fade and
   plays the Loco cinematic with its cameras, cast, dialogue, and animation
   cues. The handoff removes the Hummer and shows the localized objective.
-  Authored path following, scripted Hummer motion, and the ensuing combat
+  Both Loco actors follow their authored GMAP waypoints. The Windows
+  cinematic samples the segments using clip-derived speed and projects the
+  actors onto the terrain. Scripted Hummer motion and the ensuing combat
   remain open. Automated Continue smoke covers the drive checkpoint,
   cinematic rendering, and objective handoff.
   Sparse high-seat animation channels hold their nearest
