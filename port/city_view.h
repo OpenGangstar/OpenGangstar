@@ -30,6 +30,7 @@ public:
     bool release(size_t slot);
     int spawnedCops() const { return activeCops; }
     size_t capacity() const { return slots.size(); }
+    uint8_t metatype(size_t slot) const { return slots.at(slot).metatype; }
 
 private:
     struct Slot {
@@ -69,6 +70,7 @@ public:
                  int copLimit, bool alternateCopContext, const std::function<uint32_t()>& random,
                  const Spawn& spawn);
     bool release(size_t slot) { return pool.release(slot); }
+    const CitySpawnPool& spawnPool() const { return pool; }
 
 private:
     struct Entry {
@@ -458,6 +460,15 @@ private:
 };
 
 CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening);
+struct CitySpawnMesh {
+    size_t firstVertex, firstSurface, surfaceCount;
+    std::array<float, 3> scale;
+    std::vector<CityVertex> source;
+};
+std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,
+                                                const CitySpawnPool& pool, FileSystemBase& assets);
+void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& position,
+                       const std::array<float, 3>& rotation, CityVertex* target);
 bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, const CityPlayback& playback,
                         std::optional<double> payphoneMs = {}, std::optional<double> missionMs = {},
                         const CityMissionCinematic* missionScene = nullptr);
@@ -494,7 +505,8 @@ CityCameraMatrix cityCameraMatrix(const CityOpening& opening, float aspect, doub
                                   std::array<float, 3>* cameraEye = nullptr,
                                   std::optional<CityCameraMatrix>* distantCamera = nullptr,
                                   std::optional<double> payphoneMs = {}, std::optional<double> missionMs = {},
-                                  const CityMissionCinematic* missionScene = nullptr);
+                                  const CityMissionCinematic* missionScene = nullptr,
+                                  CityCameraPose* spawnCamera = nullptr, CityBounds* spawnQuery = nullptr);
 void poseCityVehicle(const CityActor& actor, const CityVehiclePose& vehicle,
                      const std::vector<CityVertex>& source, const std::vector<CityWheelRange>& wheels,
                      const std::vector<CityVehicleMorphRange>& morphs, CityVertex* target,

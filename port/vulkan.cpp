@@ -27,6 +27,7 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <random>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -578,6 +579,14 @@ struct CityRender {
     CityTexture elToroDriveObjective, vanMissionObjective, vanDriveObjective, vanProtectObjective;
     std::optional<RetailScriptExecution> vanProtectionScript, vanHandshakeScript, vanPoliceWaitScript, vanPoliceEscapeScript;
     CityTexture vanPoliceWaitObjective, vanPoliceObjective, vanLosePoliceObjective;
+    struct SpawnPose {
+        std::array<float, 3> position, rotation;
+        int32_t groupType, objectType;
+    };
+    std::minstd_rand spawnRandom;
+    std::optional<CitySpawnScheduler> spawnScheduler;
+    std::vector<CitySpawnMesh> spawnMeshes;
+    std::vector<std::optional<SpawnPose>> spawnPoses;
     RetailWantedState wanted;
     RetailWantedBlink wantedBlink;
     bool vanEnteredForEscape = false;
@@ -2339,7 +2348,55 @@ const CityCheckpoint& vanDriveCheckpoint(const CityPostFightScene::MissionCheckp
     return checkpoints.at(leg)->value();
 }
 
-bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr)
+void updateCitySpawns(CityRender& city, const CityCameraPose& camera, const CityBounds& query,
+                      const CityPlayerPose& player, const CityVehiclePose* vehicle, uint32_t elapsedMs)
+{
+    auto& scheduler = *city.spawnScheduler;
+    const bool driving = vehicle && vehicle->occupied;
+    const auto& position = driving ? vehicle->position : player.position;
+    const auto speed = driving ? std::optional{std::abs(vehicle->speed)} : std::nullopt;
+    CitySpawnContext context{};
+    const auto yaw = (driving ? vehicle->yaw : player.yaw) * 0.01745329252f;
+    // The traffic check compares the retail speed in cm per frame to the road speed.
+    context.traffic = CitySpawnTraffic{0, position, {std::sin(yaw), -std::cos(yaw), 0},
+                                      driving ? vehicle->speed / city.retailFrameRate : 0.f};
+    context.nearbyObjects.push_back({player.position, 5, 1});
+    if (vehicle && !vehicle->exploded) context.nearbyObjects.push_back({vehicle->position, 3, 1});
+    if (city.locoCooper) context.nearbyObjects.push_back({city.locoCooper->position, 3, 1});
+    for (const auto& [name, actor] : city.playback.locoOpponents)
+        if (!actor.disabled) context.nearbyObjects.push_back({actor.pose.position, 5, 1});
+
+    for (size_t slot = 0; slot < city.spawnPoses.size(); ++slot) {
+        auto& pose = city.spawnPoses[slot];
+        if (!pose) continue;
+        const CitySpawnGroup group{pose->groupType, {}};
+        const CitySpawnGroup despawnClass{pose->objectType, {}};
+        const auto outer = despawnClass.spawnCenters(camera.eye, camera.target, position[2], speed)[1];
+        const auto x = pose->position[0] - outer[0], y = pose->position[1] - outer[1];
+        const auto z = pose->position[2] - outer[2];
+        const auto limit = pose->objectType == 3 ? 32397042.f : 9000000.f;
+        if (x*x + y*y + z*z >= limit) {
+            scheduler.release(slot);
+            pose.reset();
+            continue;
+        }
+        ++context.activeCounts[group.populationIndex()];
+        context.nearbyObjects.push_back({pose->position, pose->objectType, 1});
+    }
+    scheduler.advance(elapsedMs, query, camera, position[2], speed, std::move(context), city.wanted.level(),
+        false, [&] { return static_cast<uint32_t>(city.spawnRandom()); },
+        [&](size_t slot, uint8_t, const CitySpawnPoint& point) {
+            auto origin = point.position;
+            const auto ground = city.terrain.groundHeight(origin, 300, 300);
+            if (!ground) return false;
+            origin[2] = *ground;
+            city.spawnPoses[slot] = CityRender::SpawnPose{origin, point.rotation, point.objectType,
+                point.objectType == 3 || point.objectType == 11 ? 3 : 5};
+            return true;
+        });
+}
+
+bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr, uint32_t spawnElapsedMs = 0)
 {
     auto& vk = city.context;
     const auto elapsedMs = city.playback.elapsedMs;
@@ -2359,10 +2416,16 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const auto* player = city.playback.player ? &*city.playback.player : nullptr;
     std::array<float, 3> cameraEye;
     std::optional<CityCameraMatrix> distantCamera;
+    const bool updateSpawns = spawnElapsedMs && city.spawnScheduler && player && city.payphoneGameplayMs &&
+        !city.payphoneRevealMs && !payphoneMs && !postFightMs && !city.playback.missionFailure;
+    CityCameraPose spawnCamera;
+    CityBounds spawnQuery;
     const auto camera = cityCameraMatrix(city.opening, float(size.width) / size.height, elapsedMs, player, vehicle,
                                          city.playback.cameraTransition, city.playback.cameraShake.offset,
                                          city.startup ? &*city.startup : nullptr, &cameraEye, &distantCamera,
-                                         payphoneMs, postFightMs, missionScene);
+                                         payphoneMs, postFightMs, missionScene,
+                                         updateSpawns ? &spawnCamera : nullptr, updateSpawns ? &spawnQuery : nullptr);
+    if (updateSpawns) updateCitySpawns(city, spawnCamera, spawnQuery, *player, vehicle, spawnElapsedMs);
     const bool failed = city.playback.missionFailure.has_value();
     const bool showMinimap = city.minimapWidth && player && !city.playback.activeDialogue && !failed &&
         !payphoneMs && !postFightMs;
@@ -2436,7 +2499,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                    updateVanDrive && vanMarkerIndex == 24};
     const bool particlesVisible = std::any_of(city.vehicleEffects.begin(), city.vehicleEffects.end(),
         [](const CityVehicleEffect& effect) { return !effect.simulation.particles().empty(); });
-    if (!city.skins.empty() || !city.billboards.empty() || updateVehicle || city.restoreVehicleGeometry || updateWalkMarker ||
+    if (updateSpawns || !city.skins.empty() || !city.billboards.empty() || updateVehicle || city.restoreVehicleGeometry || updateWalkMarker ||
         updateRouteMarker || updateVehicleMarker || updateNextMissionMarker || updateHummerMarker || updateShopMarker ||
         updateLcMarker || updatePostLcDriveMarker || updateCooperNextMarker || updateBasketballMarker || updatePostBasketballMarker || updateRepairDriveMarker || updateRepairShopMarker || updateDeliveryMarker || updateElToroDestination || updateElToroDrive || updateVanDrive || walkMarker || cooperPose || showMinimap || particlesVisible || lights) {
         if (updateVehicle)
@@ -2528,6 +2591,17 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         void* mapped = nullptr;
         check(VK_CALL(vkMapMemory)(vk.device, city.geometryMemory, 0, city.indexOffset, 0, &mapped),
               "vkMapMemory (actor skinning)");
+        if (updateSpawns) {
+            for (size_t slot = 0; slot < city.spawnPoses.size(); ++slot) {
+                const auto& pose = city.spawnPoses[slot];
+                if (!pose) continue;
+                const auto& mesh = city.spawnMeshes[slot];
+                auto* vertices = city.vertices.data() + mesh.firstVertex;
+                poseCitySpawnMesh(mesh, pose->position, pose->rotation, vertices);
+                std::memcpy(static_cast<char*>(mapped) + mesh.firstVertex * sizeof(CityVertex),
+                            vertices, mesh.source.size() * sizeof(CityVertex));
+            }
+        }
         for (const auto& billboard : city.billboards) {
             poseCityBillboard(billboard, camera, city.vertices.data());
             const auto offset = billboard.firstVertex * sizeof(CityVertex);
@@ -2821,7 +2895,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             opponent.disablePending = false;
         }
     }
-    const auto regularSurfaceCount = city.vehicleLights.empty() ? city.surfaces.size()
+    const auto spawnSurfaceStart = city.spawnMeshes.empty() ? city.surfaces.size()
+        : city.spawnMeshes.front().firstSurface;
+    const auto regularSurfaceCount = city.vehicleLights.empty() ? spawnSurfaceStart
         : city.vehicleLights.front().firstSurface;
     for (size_t i = 0; i < regularSurfaceCount; ++i) {
         if (i >= city.lowDetailFirstSurface && i < city.lowDetailEndSurface) continue;
@@ -2912,6 +2988,24 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                     sizeof fragment, &fragment);
         VK_CALL(vkCmdDrawIndexed)(vk.command, surface.indexCount, 1, surface.firstIndex, 0, 0);
         drewVehicleMarker |= vehicleMarker && surface.indexCount != 0;
+    }
+    if (!city.spawnPoses.empty() && city.payphoneGameplayMs && !failed && !postFightMs && !payphoneMs) {
+        if (boundPipeline != city.pipeline)
+            VK_CALL(vkCmdBindPipeline)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.pipeline);
+        for (size_t slot = 0; slot < city.spawnPoses.size(); ++slot) {
+            if (!city.spawnPoses[slot]) continue;
+            const auto& mesh = city.spawnMeshes[slot];
+            for (size_t index = mesh.firstSurface; index < mesh.firstSurface + mesh.surfaceCount; ++index) {
+                const auto& surface = city.surfaces[index];
+                const auto descriptor = city.textures.at(surface.texture).descriptor;
+                VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout, 0, 1,
+                                                 &descriptor, 0, nullptr);
+                const CityFragmentConstants fragment{surface.tintAndCutoff, brightness};
+                VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof camera,
+                                            sizeof fragment, &fragment);
+                VK_CALL(vkCmdDrawIndexed)(vk.command, surface.indexCount, 1, surface.firstIndex, 0, 0);
+            }
+        }
     }
     if (lightDraws) *lightDraws = 0;
     if (lights) {
@@ -4864,7 +4958,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 cityRender->healthBlink.update(playback.playerHealth, delta);
                 cityRender->wantedBlink.update(cityRender->wanted.beingPursued());
             }
-            presentCity(*cityRender, info.imageExtent);
+            presentCity(*cityRender, info.imageExtent, nullptr, static_cast<uint32_t>(std::clamp(delta, 0., 250.)));
             if (previous < cityRender->opening.handoffMs && playback.elapsedMs >= cityRender->opening.handoffMs)
                 std::cout << "Started the visual track of retail script " << cityRender->opening.nextScript
                           << " at " << cityRender->opening.handoffMs << " ms.\n" << std::flush;
@@ -5063,6 +5157,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             render->cashGlyphVertices[i] = appendOverlay(-1, glyph.width / 240.f - 1,
                                                                           -1, glyph.height / 160.f - 1);
                         }
+                    }
+                    if (opening.payphone) {
+                        render->spawnScheduler.emplace(city, opening.navigation,
+                            [&] { return static_cast<uint32_t>(render->spawnRandom()); });
+                        render->spawnMeshes = appendCitySpawnMeshes(geometry, city,
+                            render->spawnScheduler->spawnPool(), *assets);
+                        render->spawnPoses.resize(render->spawnMeshes.size());
                     }
                     prepareVehicleEffects(*render, *assets, geometry);
                     render->vehicleLights = std::move(geometry.vehicleLights);
@@ -6410,6 +6511,22 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     throw std::runtime_error("The Hummer respawned after LC mission completion.");
                 std::cout << "Submitted the retail return-to-LC checkpoint, fade, and closing scene through Vulkan.\n"
                           << std::flush;
+                for (int frame = 0; frame < 10; ++frame)
+                    presentCity(render, info.imageExtent, nullptr, 250);
+                const auto ambient = std::find_if(render.spawnPoses.begin(), render.spawnPoses.end(),
+                                                  [](const auto& pose) { return pose.has_value(); });
+                if (ambient == render.spawnPoses.end())
+                    throw std::runtime_error("The retail spawn scheduler did not populate the gameplay handoff.");
+                const auto& mesh = render.spawnMeshes.at(ambient - render.spawnPoses.begin());
+                if (!mesh.surfaceCount || render.vertices.at(mesh.firstVertex).position == mesh.source.front().position)
+                    throw std::runtime_error("The ambient entity did not submit transformed retail geometry.");
+                const CityCameraPose away{{100000, 100000, 0}, {100000, 100001, 0}};
+                const CityBounds awayQuery{away.eye, away.target};
+                updateCitySpawns(render, away, awayQuery, *render.playback.player, nullptr, 16);
+                if (std::any_of(render.spawnPoses.begin(), render.spawnPoses.end(),
+                                [](const auto& pose) { return pose.has_value(); }))
+                    throw std::runtime_error("The ambient spawn pool did not release distant entities.");
+                std::cout << "Submitted an ambient spawn from the retail city through Vulkan.\n" << std::flush;
                 render.payphoneGameplayMs.reset();
                 std::cout << "Submitted the retail payphone gameplay handoff through Vulkan.\n" << std::flush;
                 const auto& placements = route.postFight.placements;

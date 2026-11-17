@@ -767,8 +767,9 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   timer acquires reusable slots from the retail pool: one per distinct
   civilian or vehicle metatype and three per police metatype, including
   the reserved alternate officer. Allocation and release update the
-  global spawned police count. Scene entity creation and despawn still
-  need to use these slots. Fixtures exercise all four recovered spawn classes. Eligibility now checks the
+  global spawned police count. The Vulkan gameplay update uses those
+  slots to pose and draw the original models and release distant entities.
+  Fixtures exercise all four recovered spawn classes. Eligibility checks the
   retail class and total population caps, inner and outer sphere distances,
   and the 300 cm vertical clearance. Vehicle spawn points reject active
   non-checkpoint objects within the retail 1,000 cm horizontal radius. The
@@ -778,8 +779,11 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   combines the visibility query, camera-derived centers, per-point timers,
   and authored road flags with the actor and population snapshot. An
   accepted spawn updates the class count and clearance for later points
-  in the same pass. A rejected spawn restores the pool slot. The Vulkan
-  scene still needs to supply these inputs and create live entities. All 491 Santa Monica spawn
+  in the same pass. A rejected spawn restores the pool slot. Ambient
+  spawning starts with payphone gameplay. Entities use the authored spawn
+  rotation and terrain height and stay in their spawn poses. Ambient driving,
+  pedestrian animation, collision, pursuit, and remaining despawn rules are
+  pending. All 491 Santa Monica spawn
   points resolve to authored heightmap triangles by buffer and index offset.
   The loader reads the eight neighbor arrays per buffer and the 14,576
   road flag bytes from `nav_mesh_arrays.bin`. All 154 moving spawn points

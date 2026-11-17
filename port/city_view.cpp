@@ -228,7 +228,8 @@ CityCameraMatrix cityCameraMatrix(const CityOpening& opening, float aspect, doub
                                   std::array<float, 3>* cameraEye,
                                   std::optional<CityCameraMatrix>* distantCamera,
                                   std::optional<double> payphoneMs, std::optional<double> missionMs,
-                                  const CityMissionCinematic* missionScene)
+                                  const CityMissionCinematic* missionScene,
+                                  CityCameraPose* spawnCamera, CityBounds* spawnQuery)
 {
     const auto sceneMs = missionMs ? missionMs : payphoneMs;
     const auto* cinematic = missionScene ? &missionScene->cameras :
@@ -297,6 +298,22 @@ CityCameraMatrix cityCameraMatrix(const CityOpening& opening, float aspect, doub
     const auto focal = 1 / std::tan(blend(camera.first.fovDegrees, camera.second.fovDegrees) * halfDegreesToRadians);
     const auto nearPlane = blend(camera.first.nearPlane, camera.second.nearPlane);
     const auto farPlane = blend(camera.first.farPlane, camera.second.farPlane);
+    if (spawnCamera) *spawnCamera = {eye, target};
+    if (spawnQuery) {
+        *spawnQuery = {eye, eye};
+        // Irrlicht's view-frustum box encloses the eye and the four far-plane corners.
+        const auto farCenter = add(eye, scale(forward, farPlane));
+        for (float x : {-1.f, 1.f}) {
+            for (float y : {-1.f, 1.f}) {
+                const auto corner = add(add(farCenter, scale(right, x * farPlane * aspect / focal)),
+                                        scale(down, y * farPlane / focal));
+                for (size_t axis = 0; axis < corner.size(); ++axis) {
+                    spawnQuery->minimum[axis] = std::min(spawnQuery->minimum[axis], corner[axis]);
+                    spawnQuery->maximum[axis] = std::max(spawnQuery->maximum[axis], corner[axis]);
+                }
+            }
+        }
+    }
     const auto depth = farPlane / (farPlane - nearPlane);
     const auto row = [&](const Vec3& axis, float bias = 0) {
         return std::array<float, 4>{axis[0], axis[1], axis[2], bias - dot(eye, axis)};
@@ -975,6 +992,39 @@ void CitySpawnScheduler::advance(uint32_t elapsedMs, const CityBounds& query, co
             ++context.activeCounts[group.populationIndex()];
             context.nearbyObjects.push_back({position, group.objectType, 1});
         });
+    }
+}
+
+std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,
+                                                const CitySpawnPool& pool, FileSystemBase& assets)
+{
+    std::map<std::string, CityScene> models;
+    std::vector<CitySpawnMesh> meshes;
+    meshes.reserve(pool.capacity());
+    for (size_t slot = 0; slot < pool.capacity(); ++slot) {
+        const auto& definition = city.spawnMetatypes.at(pool.metatype(slot));
+        auto [model, inserted] = models.try_emplace(definition.model);
+        if (inserted) model->second = loadCityScene(assets, definition.model);
+        const auto firstVertex = draw.vertices.size(), firstSurface = draw.surfaces.size();
+        appendScene(draw, city, model->second, identity, 0);
+        if (draw.surfaces.size() == firstSurface)
+            throw std::runtime_error("Missing spawn geometry for " + definition.model);
+        meshes.push_back({firstVertex, firstSurface, draw.surfaces.size() - firstSurface, definition.scale,
+                          {draw.vertices.begin() + firstVertex, draw.vertices.end()}});
+    }
+    return meshes;
+}
+
+void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& position,
+                       const std::array<float, 3>& rotation, CityVertex* target)
+{
+    const auto transform = placementTransform(position, rotation, mesh.scale, rotation[2]);
+    const auto normals = normalTransform(transform);
+    for (const auto& vertex : mesh.source) {
+        *target = vertex;
+        target->position = point(transform, vertex.position);
+        target->normal = direction(normals, vertex.normal);
+        ++target;
     }
 }
 
