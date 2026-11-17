@@ -360,8 +360,12 @@ mission playthroughs for discovery or verification.
   retail title and opening, protects the Hummer, and waits for entry
   before activating C2M501. Reaching C2M501 requests the scripted exit.
   Automated smoke checks the transition from the payout and a separate
-  saved script 27 fixture. The scene after C2M501, retail vehicle AI,
-  and Loco's seated model remain open.
+  saved script 27 fixture. After the C2M501 exit, the retail 300 ms fade
+  leads into the confrontation. Windows renders the authored camera,
+  dialogue, staging and gestures. The three walks use animation-derived
+  straight-line motion. The cutscene queues the Hummer for offscreen
+  removal and returns control with the fight objective. The live fight,
+  retail vehicle AI, and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

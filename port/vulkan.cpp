@@ -467,6 +467,7 @@ struct CityRender {
         destroyTexture(locoNextObjective);
         destroyTexture(locoCooperObjective);
         destroyTexture(cooperNextDriveObjective);
+        destroyTexture(cooperNextFightObjective);
         destroyTexture(weaponShopTutorial);
         for (const auto& texture : weaponShopInventory) destroyTexture(texture);
         for (const auto& texture : weaponShopConfirmation) destroyTexture(texture);
@@ -548,7 +549,8 @@ struct CityRender {
     bool postLcAmbushFinished = false;
     std::optional<RetailScriptExecution> postLcWalkScript;
     std::optional<RetailScriptExecution> postLcFightScript;
-    CityTexture locoNextObjective, locoCooperObjective, cooperNextDriveObjective;
+    CityTexture locoNextObjective, locoCooperObjective, cooperNextDriveObjective, cooperNextFightObjective;
+    bool cooperNextArrivalFinished = false;
     bool locoCooperPending = false;
     std::optional<CityVehiclePose> locoCooper;
     std::optional<RetailScriptExecution> locoCooperScript;
@@ -563,7 +565,7 @@ struct CityRender {
     std::optional<WalkingMarker> postLcWalkMarker;
     std::optional<double> postLcTailMs;
     std::optional<float> spyGauge;
-    std::optional<double> postLcArrivalFadeMs;
+    std::optional<double> hummerArrivalFadeMs;
     std::array<CityTexture, 2> returnToLcObjectives;
     CityTexture weaponShopTutorial;
     std::array<CityTexture, 2> weaponShopInventory;
@@ -1079,6 +1081,12 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* cooperNextLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->cooperNextIntro.dialogue : nullptr;
     const auto cooperNextLineCount = cooperNextLines ? cooperNextLines->size() : 0;
+    const auto* cooperArrivalLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->cooperNextArrival.dialogue : nullptr;
+    const auto cooperArrivalLineCount = cooperArrivalLines ? cooperArrivalLines->size() : 0;
+    if (cooperArrivalLines)
+        for (const auto& dialogue : *cooperArrivalLines)
+            if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
     if (cooperNextLines)
         for (const auto& dialogue : *cooperNextLines)
             if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
@@ -1174,8 +1182,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount +
-                                             hasPayphoneObjective + (next ? 18 : 0) +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount +
+                                             hasPayphoneObjective + (next ? 19 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1341,7 +1349,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1387,6 +1395,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.locoCooperObjective}, true, false, 432, 68, font.family()));
             upload(city.cooperNextDriveObjective,
                    rasterCaption({0, 0, {}, next.cooperNextDriveObjective}, true, false, 432, 68, font.family()));
+            upload(city.cooperNextFightObjective,
+                   rasterCaption({0, 0, {}, next.cooperNextFightObjective}, true, false, 432, 68, font.family()));
             auto tutorial = route->postFight.nextCheckpoint->weaponShopTutorial;
             tutorial.text = "Walk to the yellow marker and press E or gamepad A to enter.";
             upload(city.weaponShopTutorial, rasterCaption(tutorial, true, false, 432, 68, font.family()));
@@ -1430,7 +1440,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto cooperNextBase = city.captions.size() - cooperNextLineCount;
+        const auto cooperArrivalBase = city.captions.size() - cooperArrivalLineCount;
+        const auto cooperNextBase = cooperArrivalBase - cooperNextLineCount;
         const auto cooperBase = cooperNextBase - cooperLineCount;
         const auto locoNextBase = cooperBase - locoNextLineCount;
         const auto fightIntroBase = locoNextBase - fightIntroLineCount;
@@ -1467,6 +1478,12 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             for (size_t i = 0; i < postLcLineCount; ++i) {
                 const auto& line = (*postLcLines)[i];
                 upload(city.captions[postLcBase + i],
+                       rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
+            }
+            city.missionCaptionBases.emplace(&nextMission->cooperNextArrival, cooperArrivalBase);
+            for (size_t i = 0; i < cooperArrivalLineCount; ++i) {
+                const auto& line = (*cooperArrivalLines)[i];
+                upload(city.captions[cooperArrivalBase + i],
                        rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
             }
             city.missionCaptionBases.emplace(&nextMission->cooperNextIntro, cooperNextBase);
@@ -1956,7 +1973,7 @@ void activatePostLcDrive(CityRender& city)
     city.postLcWalkMarker.reset();
     city.postLcTailMs.reset();
     city.spyGauge.reset();
-    city.postLcArrivalFadeMs.reset();
+    city.hummerArrivalFadeMs.reset();
     city.pendingHummerCinematic = nullptr;
     auto& script = city.hummerRouteScript.emplace(CityScriptProgram{{{89, mission.postLcVehicleWait},
         {70, mission.postLcVehicleProtection}, {105, mission.postLcDriveWait}}});
@@ -2015,6 +2032,15 @@ uint32_t nextMissionFadeDuration(const CityRender& city)
     if (city.missionTitleIndex == 4) return route.cooperNextFadeMs;
     if (city.missionTitleIndex == 3) return route.locoNextFadeMs;
     return city.missionTitleIndex == 2 ? route.postLcFadeMs : route.fadeMs;
+}
+
+uint32_t hummerArrivalFadeDuration(const CityRender& city)
+{
+    if (!city.pendingHummerCinematic) return 0;
+    const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
+    if (city.pendingHummerCinematic == &route.cooperNextArrival) return route.cooperNextArrivalFadeMs;
+    if (city.pendingHummerCinematic == &route.postLcAmbush) return route.postLcArrivalFadeMs;
+    return 0;
 }
 
 bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr)
@@ -2311,8 +2337,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             nextMissionFadeDuration(city)) : 1.f) *
         (city.returnToLcFadeMs ? 1.f - static_cast<float>(std::clamp(*city.returnToLcFadeMs /
             city.opening.payphone->postFight.nextCheckpoint->returnToLcFadeMs, 0., 1.)) : 1.f) *
-        (city.postLcArrivalFadeMs ? 1.f - static_cast<float>(std::clamp(*city.postLcArrivalFadeMs /
-            city.opening.payphone->postFight.nextCheckpoint->postLcArrivalFadeMs, 0., 1.)) : 1.f) *
+        (city.hummerArrivalFadeMs ? 1.f - static_cast<float>(std::clamp(*city.hummerArrivalFadeMs /
+            hummerArrivalFadeDuration(city), 0., 1.)) : 1.f) *
         (city.payphoneRevealMs
             ? static_cast<float>(*city.payphoneRevealMs / city.opening.payphone->gameplayFadeMs) : 1.f);
     const auto index = beginFrame(vk);
@@ -2640,6 +2666,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         else if (city.returningToLc && city.hummerRouteScript)
             overlay(city.returnToLcObjectives[city.hummerRouteMarker ? 1 : 0].descriptor,
                     screen, city.captionVertex, 6);
+        else if (city.cooperNextArrivalFinished && city.cooperNextFightObjective.descriptor)
+            overlay(city.cooperNextFightObjective.descriptor, screen, city.captionVertex, 6);
         else if (cooperNextDrive && city.hummerRouteMarker && city.cooperNextDriveObjective.descriptor)
             overlay(city.cooperNextDriveObjective.descriptor, screen, city.captionVertex, 6);
         else if (!cooperNextDrive && city.postLcIntroFinished && city.hummerRouteScript && city.postLcDriveObjective.descriptor)
@@ -2987,6 +3015,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     if (cityRender->audio) cityRender->audio->stopAll();
                     cityRender->fireSoundActive = false;
                     if (cityRender->missionTitleIndex == 4) {
+                        cityRender->cooperNextArrivalFinished = false;
+                        cityRender->pendingHummerCinematic = nullptr;
+                        cityRender->hummerArrivalFadeMs.reset();
                         cityRender->hummerRouteScript.reset();
                         cityRender->hummerRouteMarker.reset();
                         playback.postLcVehicleActive = false;
@@ -3097,19 +3128,28 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             if (cityRender->pendingHummerCinematic && !playback.missionFailure && !playback.scriptedVehicleExit &&
                 !(playback.vehicle && (playback.vehicle->occupied || playback.vehicle->doorAction))) {
                 bool fadeComplete = true;
-                if (cityRender->postLcIntroFinished) {
-                    auto& fade = cityRender->postLcArrivalFadeMs;
+                if (const auto duration = hummerArrivalFadeDuration(*cityRender)) {
+                    auto& fade = cityRender->hummerArrivalFadeMs;
                     if (fade) *fade += delta;
                     else fade = 0;
-                    fadeComplete = *fade >= cityRender->opening.payphone->postFight.nextCheckpoint->postLcArrivalFadeMs;
+                    fadeComplete = *fade >= duration;
                 }
                 if (fadeComplete) {
                     if (cityRender->returnToLcFadeMs) {
                         cityRender->returnToLcFadeMs.reset();
                         playback.missionConditions.clear();
                     }
-                    cityRender->postLcArrivalFadeMs.reset();
+                    cityRender->hummerArrivalFadeMs.reset();
                     cityRender->activeMissionCinematic = std::exchange(cityRender->pendingHummerCinematic, nullptr);
+                    const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                    if (cityRender->activeMissionCinematic == &route.cooperNextArrival && playback.vehicle) {
+                        auto& vehicle = *playback.vehicle;
+                        const auto& checkpoint = *route.cooperNextDriveCheckpoint;
+                        vehicle.position = checkpoint.position;
+                        vehicle.yaw = checkpoint.rotationDegrees[2];
+                        vehicle.speed = 0;
+                        vehicle.groundTriangle.reset();
+                    }
                     cityRender->postFightCinematic.emplace();
                 }
             }
@@ -3132,6 +3172,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     const auto found = playback.locoOpponents.find(actor);
                     if (found != playback.locoOpponents.end() && !found->second.disabled)
                         found->second.disablePending = true;
+                    if (playback.vehicle && cityRender->opening.vehicleActor &&
+                        cityRender->opening.actors.at(*cityRender->opening.vehicleActor).name == actor)
+                        cityRender->hummerRemovalPending = true;
                 }
                 if (&scene == &handoff && handoff.missionOverMs &&
                     cinematicPlayback.elapsedMs() >= *handoff.missionOverMs && cityRender->opening.missionTitle)
@@ -3213,6 +3256,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         const auto& wait = handoff.nextCheckpoint->postLcWalkWaits[2];
                         auto& script = cityRender->postLcWalkScript.emplace(CityScriptProgram{{{64, wait}}});
                         script.unlock(0, 0, 0);
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextArrival) {
+                        cityRender->cooperNextArrivalFinished = true;
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextIntro) {
                         playback.missionConditions.clear();
                         playback.nextMissionVehicleAcquired = false;
@@ -3245,7 +3290,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             const bool walking = movement && playback.elapsedMs >= *movement && !cityRender->terrain.ground.empty();
             const bool occupied = playback.vehicle && playback.vehicle->occupied;
             const bool scriptedArrival = cityRender->returnToLcFadeMs || cityRender->locoCooperPending ||
-                (cityRender->postLcIntroFinished && cityRender->pendingHummerCinematic);
+                hummerArrivalFadeDuration(*cityRender) != 0;
             const auto input = scriptedArrival ? std::array<float, 2>{} : touch->movement(occupied);
             if (walking && !playback.missionFailure && !cinematic && !postFight &&
                 !cityRender->nextMissionFadeMs && !(cityRender->missionTitleIndex != 0 && cityRender->missionTitleMs)) {
@@ -3533,6 +3578,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->hummerRouteScript.reset();
                         if (cooperNextDrive) {
                             playback.scriptedVehicleExit = true;
+                            cityRender->pendingHummerCinematic = &mission.cooperNextArrival;
                         } else if (cityRender->postLcIntroFinished) {
                             playback.scriptedVehicleExit = true;
                             cityRender->pendingHummerCinematic = &mission.postLcAmbush;
@@ -4038,8 +4084,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         update(0);
                         if (render.hummerRouteScript || render.hummerRouteMarker || !playback.scriptedVehicleExit)
                             throw std::runtime_error("Script 25 drive did not request the retail vehicle exit.");
-                        for (int step = 0; step < 600 && !render.postLcArrivalFadeMs; ++step) update(16);
-                        if (!render.postLcArrivalFadeMs || render.postFightCinematic)
+                        for (int step = 0; step < 600 && !render.hummerArrivalFadeMs; ++step) update(16);
+                        if (!render.hummerArrivalFadeMs || render.postFightCinematic)
                             throw std::runtime_error("Script 25 exit did not start the arrival fade.");
                         update(mission.postLcArrivalFadeMs);
                         if (render.activeMissionCinematic != &mission.postLcAmbush || !render.postFightCinematic)
@@ -4231,10 +4277,26 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         update(0);
                         if (!render.hummerRouteMarker)
                             throw std::runtime_error("Script 27 did not activate its drive checkpoint upon Hummer entry.");
-                        playback.vehicle->position = route.cooperNextDriveCheckpoint->position;
+                        auto& hummer = *playback.vehicle;
+                        hummer.position = route.cooperNextDriveCheckpoint->position;
+                        const auto ground = render.terrain.groundContact(hummer.position, std::nullopt, 300, 300);
+                        if (!ground) throw std::runtime_error("Script 27 checkpoint ground is missing.");
+                        hummer.position[2] = ground->height;
+                        hummer.groundTriangle = ground->triangle;
+                        hummer.airborne = false;
                         update(0);
                         if (render.hummerRouteScript || render.hummerRouteMarker || !playback.scriptedVehicleExit)
                             throw std::runtime_error("Script 27 did not release the drive checkpoint and request exit.");
+                        for (int step = 0; step < 600 && !render.hummerArrivalFadeMs; ++step) update(16);
+                        if (!render.hummerArrivalFadeMs || render.postFightCinematic || playback.scriptedVehicleExit)
+                            throw std::runtime_error("Script 27 did not start fading after the Hummer exit.");
+                        update(route.cooperNextArrivalFadeMs);
+                        if (render.activeMissionCinematic != &route.cooperNextArrival || !render.postFightCinematic)
+                            throw std::runtime_error("Script 27 did not play the C2M501 arrival cinematic.");
+                        for (int step = 0; step < 96 && render.postFightCinematic; ++step) update(250, true);
+                        if (render.postFightCinematic || !render.cooperNextArrivalFinished ||
+                            !render.cooperNextFightObjective.descriptor || playback.missionFailure)
+                            throw std::runtime_error("Script 27 did not reach the next objective after C2M501.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

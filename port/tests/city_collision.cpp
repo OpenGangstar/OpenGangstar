@@ -1680,6 +1680,12 @@ void poseRetailDoor(const std::filesystem::path& root)
             hummerRoute.cooperNextDriveCheckpoint && hummerRoute.cooperNextDriveCheckpoint->name == "CheckpointDrive_C2M501" &&
             markerDraw.cooperNextDriveFirstSurface && !markerDraw.checkpointMeshes[13].empty(),
             "Retail script 27 lost its title, opening, or protected drive checkpoint.");
+    const auto& arrival = hummerRoute.cooperNextArrival;
+    require(hummerRoute.cooperNextArrivalFadeMs == 300 && arrival.cameras.size() == 4 &&
+            arrival.dialogue.size() == 4 && arrival.motions.size() == 3 && arrival.followCameraMs &&
+            arrival.deferredDisables.size() == 1 && arrival.deferredDisables.front().second == "aHummer_00" &&
+            !hummerRoute.cooperNextFightObjective.empty(),
+            "Retail C2M501 arrival lost its cinematics, walking cues, or objective.");
     const auto& cooperScene = hummerRoute.locoCooperIntro;
     require(cooperScene.cameras.size() == 1 && cooperScene.dialogue.size() == 2 &&
             cooperScene.vehicleDrives.size() == 1 && cooperScene.deferredDisables.size() == 1 &&
