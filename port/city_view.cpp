@@ -1225,6 +1225,7 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
         const bool postBasketballVehicle = nextMission && actor.name == nextMission->postBasketballVehicle;
         const bool van = actor.payphoneOnly && nextMission && actor.name == "aVan_00";
         const bool lincoln = actor.payphoneOnly && nextMission && actor.name == "aLincoln_00";
+        const bool pickup = actor.payphoneOnly && nextMission && actor.name == "aPickup_00";
         const bool raceRival = actor.payphoneOnly && nextMission && actor.name == nextMission->script33Rival;
         const bool cooper = actor.payphoneOnly && nextMission && !nextMission->locoCooperIntro.vehicleDrives.empty() &&
             actor.name == nextMission->locoCooperIntro.vehicleDrives.front().actor;
@@ -1232,7 +1233,7 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             nextVehicle ? &draw.nextVehicleGeometry.emplace() : cooper ? &draw.cooperGeometry.emplace() :
             postBasketballVehicle ? &draw.postBasketballVehicleGeometry.emplace() :
             van ? &draw.vanGeometry.emplace() : lincoln ? &draw.lincolnGeometry.emplace() :
-            raceRival ? &draw.raceRivalGeometry.emplace() : nullptr;
+            raceRival ? &draw.raceRivalGeometry.emplace() : pickup ? &draw.pickupGeometry.emplace() : nullptr;
         if (cooper) draw.cooperActor = i;
         if (raceRival) draw.raceRivalActor = i;
         appendScene(draw, city, actor.model, actorTransform(actor), actor.startMs, &actor, i, vehicle);
@@ -1245,6 +1246,7 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             else if (cooper) draw.cooperFootprint = footprint;
             else if (van) draw.vanFootprint = footprint;
             else if (lincoln) draw.lincolnFootprint = footprint;
+            else if (pickup) draw.pickupFootprint = footprint;
             else if (!raceRival) draw.terrain.vehicleFootprint = footprint;
             for (auto& wheel : vehicle->wheels) wheel.firstVertex -= first;
             for (auto& morph : vehicle->vehicleMorphs) morph.firstVertex -= first;
@@ -1414,7 +1416,7 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
             loco != playback.locoOpponents.end()) return !loco->second.disabled;
         if (playback.nextMissionVehicleActive && next &&
             (actor.name == next->postBasketballVehicle || actor.name == "aCooper_00" ||
-             actor.name == "aVan_00" || actor.name == "aLincoln_00"))
+             actor.name == "aVan_00" || actor.name == "aLincoln_00" || actor.name == "aPickup_00"))
             return opening.vehicleActor == surface.payphoneActor && playback.vehicle.has_value();
         if (playback.nextMissionVehicleActive && next && actor.name == next->targetVehicle)
             return (!opening.vehicleActor || !opening.actors[*opening.vehicleActor].payphoneOnly ||

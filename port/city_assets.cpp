@@ -2401,7 +2401,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> script36Dialogue, script36ArrivalDialogue;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script36Placements, script36ArrivalPlacements;
     std::vector<AnimationCommand> script36Animations, script36ArrivalAnimations;
-    std::vector<MotionCommand> script36Motions, script36ArrivalMotions;
+    std::vector<MotionCommand> script36Motions, script36ArrivalMotions, script36DebriefMotions;
+    std::vector<NamedMove> script36DebriefMoves;
+    std::vector<DialogueCommand> script36DebriefDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script36DebriefPlacements;
+    std::vector<AnimationCommand> script36DebriefAnimations;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4641,12 +4645,13 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.script36Title = missionTitle(title36.integer());
                 title36.finish();
                 const auto readChapterThreeCinematic = [&](CityMissionCinematic& scene, auto& moves36, auto& lines,
-                                                           auto& placements, auto& tracks, auto& motions) {
+                                                           auto& placements, auto& tracks, auto& motions,
+                                                           uint32_t stop = 66) {
                     previousCinematicShot.clear();
                     nextMissionObjectiveId.reset();
                     scene.fades.push_back({0, 0, false});
                     readCinematic(readCinematic, script36, script36Count - 4, 0, scene,
-                                  moves36, lines, placements, &tracks, &motions, nullptr, 66);
+                                  moves36, lines, placements, &tracks, &motions, nullptr, stop);
                     for (const auto& [time, duration, id, portrait] : lines)
                         scene.dialogue.push_back({time, duration, {}, objective33(id), portrait});
                 };
@@ -4685,6 +4690,33 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     } else if (opcode == 57) command.integer();
                     command.finish();
                     route.script36FightCommands.emplace_back(opcode, std::move(payload));
+                }
+                auto debriefExit = script36.record();
+                if (debriefExit.integer() != 99 || readScriptObject(debriefExit) != "Player")
+                    throw std::runtime_error("Missing Script 36 debrief exit.");
+                readChapterThreeCinematic(route.script36Debrief, script36DebriefMoves, script36DebriefDialogue,
+                                          script36DebriefPlacements, script36DebriefAnimations, script36DebriefMotions, 16);
+                route.script36Debrief.fades.clear();
+                auto pickupWait = script36.record(), juanRun = script36.record(), pickupObjective = script36.record();
+                if (pickupWait.integer() != 57 || juanRun.integer() != 26 || pickupObjective.integer() != 66)
+                    throw std::runtime_error("Missing Script 36 pickup handoff.");
+                route.script36PickupCommands.emplace_back(57, pickupWait.remainingBytes());
+                const auto runTime = route.script36Debrief.durationMs + pickupWait.integer();
+                pickupWait.finish();
+                auto runner = juanRun.string(), marker = juanRun.string();
+                juanRun.finish();
+                if (runner != "Juan_00") throw std::runtime_error("Unexpected Script 36 runner.");
+                script36DebriefMotions.push_back({runTime, std::move(runner), std::move(marker), true, false});
+                route.script36PickupObjective = objective33(readMissionObjective(pickupObjective));
+                for (const auto opcode : {57u, 87u}) {
+                    auto command = script36.record();
+                    if (command.integer() != opcode) throw std::runtime_error("Invalid Script 36 pickup objective.");
+                    auto payload = command.remainingBytes();
+                    if (opcode == 57) command.integer();
+                    else if (readScriptObject(command) != "aPickup_00")
+                        throw std::runtime_error("Unexpected Script 36 pickup.");
+                    command.finish();
+                    route.script36PickupCommands.emplace_back(opcode, std::move(payload));
                 }
             }
             opening.payphone->postFight = std::move(postFight);
@@ -4769,6 +4801,16 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script33ClosingPlacements, next->script33Closing.placements);
                 resolvePlacements(script36Placements, next->script36Intro.placements);
                 resolvePlacements(script36ArrivalPlacements, next->script36Arrival.placements);
+                for (const auto name : {"Player", "Juan_00"}) {
+                    const auto& placements = next->script36Arrival.placements;
+                    const auto origin = std::find_if(placements.rbegin(), placements.rend(), [&](const auto& cue) {
+                        return cue.actor == name && cue.visible;
+                    });
+                    if (origin == placements.rend()) throw std::runtime_error("Missing Script 36 debrief actor.");
+                    auto& cue = next->script36Debrief.placements.emplace_back(*origin);
+                    cue.timeMs = 0;
+                }
+                resolvePlacements(script36DebriefPlacements, next->script36Debrief.placements);
                 resolvePlacements(script19SecondFightPlacements, next->script19SecondFightPlacements);
                 resolvePlacements(script19ThirdFightPlacements, next->script19ThirdFightPlacements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
@@ -5144,6 +5186,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 const auto lincoln = findObject("aLincoln_00").vehicle;
                 if (!lincoln) throw std::runtime_error("Missing retail Lincoln vehicle definition.");
                 bindVehiclePlayer(*lincoln, approachPlayer->model, next.lincolnSeated, next.lincolnClips);
+                const auto pickup = findObject("aPickup_00").vehicle;
+                if (!pickup) throw std::runtime_error("Missing retail pickup definition.");
+                bindVehiclePlayer(*pickup, approachPlayer->model, next.pickupSeated, next.pickupClips);
                 bindVehiclePlayer(*postBasketballVehicle, approachPlayer->model,
                                   next.postBasketballVehicleSeated, next.postBasketballVehicleClips);
                 if (next.locoGuardPlacement) {
@@ -5206,6 +5251,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script33Closing, script33ClosingAnimations);
                 bindCinematic(next->script36Intro, script36Animations);
                 bindCinematic(next->script36Arrival, script36ArrivalAnimations);
+                bindCinematic(next->script36Debrief, script36DebriefAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -5264,7 +5310,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 const auto bindMotions = [&](CityMissionCinematic& scene, const std::vector<MotionCommand>& commands) {
                     for (const auto& motion : commands) {
                         const auto actor = findCinematicActor(motion.actor);
-                        const auto destination = findObject(motion.marker);
+                        const auto target = std::find_if(scene.placements.begin(), scene.placements.end(),
+                            [&](const auto& cue) {
+                                return &scene == &next->script36Debrief && cue.actor == motion.marker && cue.visible;
+                            });
+                        const auto destination = target == scene.placements.end() ? findObject(motion.marker) :
+                            PlacementObject{10, {}, target->position};
                         const auto origin = std::find_if(scene.placements.rbegin(), scene.placements.rend(),
                             [&](const auto& placement) {
                                 return placement.timeMs <= motion.time && placement.actor == motion.actor && placement.visible;
@@ -5293,7 +5344,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                         }
                         if ((&scene == &next->elToroArrival || &scene == &next->vanHandshake ||
                              &scene == &next->vanFourthArrival || &scene == &next->script20Interlude ||
-                             &scene == &next->script20Retreat || &scene == &next->script32Intro) &&
+                             &scene == &next->script20Retreat || &scene == &next->script32Intro ||
+                             &scene == &next->script36Debrief) &&
                             !motion.followsPath) {
                             const auto prior = std::find_if(scene.motions.rbegin(), scene.motions.rend(),
                                 [&](const auto& cue) {
@@ -5317,7 +5369,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                             for (const auto& point : waypoints) accumulate(point);
                         } else accumulate(endpoint);
                         scene.motions.push_back({{motion.time, static_cast<uint32_t>(std::ceil(distance * clip.durationMs / stride)),
-                                                 motion.actor, start, endpoint, std::move(waypoints)}, std::move(clip)});
+                                                 motion.actor, start, endpoint, std::move(waypoints),
+                                                 target == scene.placements.end() ? std::string{} : target->actor},
+                                                 std::move(clip)});
                     }
                 };
                 bindMotions(next->pierCinematic, pierMotions);
@@ -5370,6 +5424,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->script33Intro, script33Motions);
                 bindMotions(next->script36Intro, script36Motions);
                 bindMotions(next->script36Arrival, script36ArrivalMotions);
+                bindMotions(next->script36Debrief, script36DebriefMotions);
                 bindMotions(next->script19Closing, script19ClosingMotions);
                 for (const auto& approach : vanProtectionMotions) {
                     const auto& arrival = next->vanSecondArrival;

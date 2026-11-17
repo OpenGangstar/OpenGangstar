@@ -396,6 +396,7 @@ struct CityCinematicWalk {
     std::array<float, 3> from;
     std::array<float, 3> to;
     std::vector<std::array<float, 3>> waypoints;
+    std::string targetActor;
 };
 
 struct CityMissionTitle {
@@ -668,7 +669,11 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> script36EntranceWait, script36TravelWait;
         uint32_t script36EntranceFadeMs = 0, script36ArrivalFadeMs = 0;
         std::optional<CityMissionTitle> script36Title;
-        CityMissionCinematic script36Intro, script36Arrival;
+        CityMissionCinematic script36Intro, script36Arrival, script36Debrief;
+        std::string script36PickupObjective;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script36PickupCommands;
+        std::optional<CityAnimationClip> pickupSeated;
+        std::optional<std::array<CityVehicleCharacterClips, 2>> pickupClips;
         std::optional<CityCheckpoint> script36TravelCheckpoint;
         std::string script36TravelObjective, script36FightObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script36FightCommands;

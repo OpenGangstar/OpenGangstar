@@ -235,10 +235,10 @@ struct CityDrawData : CityVehicleGeometry {
     std::array<std::optional<size_t>, 2> script33UnlockedFirstSurfaces;
     std::optional<size_t> script36TravelFirstSurface;
     std::array<std::optional<size_t>, 3> postLcWalkFirstSurfaces;
-    std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry, postBasketballVehicleGeometry, vanGeometry, lincolnGeometry, raceRivalGeometry;
+    std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry, postBasketballVehicleGeometry, vanGeometry, lincolnGeometry, raceRivalGeometry, pickupGeometry;
     std::optional<size_t> raceRivalActor;
     std::optional<size_t> cooperActor;
-    std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint, cooperFootprint, vanFootprint, lincolnFootprint;
+    std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint, cooperFootprint, vanFootprint, lincolnFootprint, pickupFootprint;
     std::array<std::vector<CityCheckpointMesh>, 36> checkpointMeshes;
     std::vector<CityVehicleLightMesh> vehicleLights;
 };
