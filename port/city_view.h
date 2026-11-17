@@ -314,7 +314,7 @@ struct CityPlayback {
     int32_t playerHealth = playerMaxHealth;
     int32_t playerArmor = 0;
     int32_t playerCash = 0;
-    std::array<bool, 2> openingMissionsPaid{};
+    std::array<bool, 3> openingMissionsPaid{};
     int32_t payphoneOpponentHealth = 100;
     double payphoneDefeatMs = 0;
     std::map<std::string, CityFightOpponent, std::less<>> locoOpponents;

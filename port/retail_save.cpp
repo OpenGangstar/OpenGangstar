@@ -457,7 +457,8 @@ std::optional<RetailSavedState> readWindowsOpeningCheckpoint(const ResourceFileS
             return std::isfinite(value);
         }) || state.completedScripts.size() != 1 ||
         (state.completedScripts.front().script != windowsOpeningCheckpointScript &&
-         state.completedScripts.front().script != windowsPostLcCheckpointScript) ||
+         state.completedScripts.front().script != windowsPostLcCheckpointScript &&
+         state.completedScripts.front().script != windowsPostLocoCheckpointScript) ||
         state.completedScripts.front().context != -1)
         throw std::runtime_error("Unsupported Windows opening checkpoint.");
     return state;

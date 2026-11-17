@@ -1652,6 +1652,11 @@ void poseRetailDoor(const std::filesystem::path& root)
             hummerRoute.postLcDriveCheckpoint && markerDraw.postLcDriveFirstSurface &&
             !markerDraw.checkpointMeshes[9].empty(), "Script 25 lost its playable drive gates.");
     const auto& ambush = hummerRoute.postLcAmbush;
+    require(hummerRoute.postLcTitle && hummerRoute.postLcTitle->cashReward == 200 &&
+            hummerRoute.locoUnlockedScript == 26 && hummerRoute.locoNextFadeMs == 400 &&
+            hummerRoute.locoNextTitle && hummerRoute.locoNextTitle->id == 9 &&
+            hummerRoute.locoNextIntro.cameras.size() == 4 && hummerRoute.locoNextIntro.dialogue.size() == 2 &&
+            !hummerRoute.locoNextObjective.empty(), "Retail Loco reward or script 26 handoff changed.");
     const auto& fightIntro = hummerRoute.postLcFightIntro;
     require(fightIntro.cameras.size() == 1 && fightIntro.dialogue.size() == 3 &&
             fightIntro.fades.size() == 4 && fightIntro.fades.front().durationMs == 350 &&

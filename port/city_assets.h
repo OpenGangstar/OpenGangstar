@@ -471,6 +471,12 @@ struct CityPostFightScene : CityMissionCinematic {
         CityMissionCinematic postLcPhone;
         CityMissionCinematic postLcFightIntro;
         std::string postLcFightObjective;
+        std::optional<uint32_t> locoUnlockedScript;
+        std::vector<uint8_t> locoNextCheckpointWait;
+        uint32_t locoNextFadeMs = 0;
+        std::optional<CityMissionTitle> locoNextTitle;
+        CityMissionCinematic locoNextIntro;
+        std::string locoNextObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postLcFightCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postLcTailConditions;
         std::optional<std::array<CityVehicleCharacterClips, 2>> vehicleCharacterClips;

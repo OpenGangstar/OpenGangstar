@@ -333,9 +333,13 @@ mission playthroughs for discovery or verification.
   of each punch clip. The retail script checks both 4,000 cm escape
   distances in order and defers each opponent's removal until it leaves
   the camera frustum. Automated Continue smoke checks both opponents'
-  attacks and escape gates. Player attacks against these NPCs, retail
-  pursuit AI, and the mission completion reward and script handoff
-  remain open.
+  attacks and escape gates. MissionOver awards the retail $200 once,
+  updates mission and cash statistics, and saves the script 26 handoff.
+  The LC checkpoint starts script 26's retail title and opening scene,
+  which stages the Hummer and displays the first localized objective.
+  Automated Continue smoke covers the live payout and separately
+  restores a script 26 checkpoint. Player attacks against these NPCs,
+  retail pursuit AI, and script 26 gameplay after the opening remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
