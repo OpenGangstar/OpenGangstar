@@ -285,6 +285,9 @@ struct CityFightOpponent {
     CityPlayerPose pose;
     std::optional<double> punchMs;
     size_t punchIndex = 0;
+    int32_t health = 100;
+    double defeatMs = 0;
+    bool attacking = true;
     bool disablePending = false;
     bool disabled = false;
 };
@@ -318,6 +321,7 @@ struct CityPlayback {
     int32_t payphoneOpponentHealth = 100;
     double payphoneDefeatMs = 0;
     std::map<std::string, CityFightOpponent, std::less<>> locoOpponents;
+    std::optional<std::string> locoLockTarget;
     bool payphoneDisablePending = false;
     bool payphoneOpponentDisabled = false;
     bool nextMissionVehicleActive = false;
@@ -353,6 +357,10 @@ struct CityPlayback {
     void releaseCameraTap(const CityOpening& opening, uint64_t releasedMs);
     void recenterVehicleCamera(const CityOpening& opening);
     void advancePayphone(const CityOpening& opening, double deltaMs);
+    void spawnFightOpponent(const CityOpening& opening, const CityTerrain& terrain,
+                            const CityCinematicPlacement& placement, bool attacking);
+    void punchLocoOpponent(const CityOpening& opening, const CityTerrain& terrain,
+                          double deltaMs, bool pressed, bool lockPressed);
     void updateLocoFight(const CityOpening& opening, const CityTerrain& terrain, double deltaMs);
     void pursuePayphoneTarget(const CityOpening& opening, const CityTerrain& terrain, double deltaMs);
     void punchPayphoneOpponent(const CityOpening& opening, const CityTerrain& terrain,

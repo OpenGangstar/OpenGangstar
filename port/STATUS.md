@@ -338,8 +338,14 @@ mission playthroughs for discovery or verification.
   The LC checkpoint starts script 26's retail title and opening scene,
   which stages the Hummer and displays the first localized objective.
   Automated Continue smoke covers the live payout and separately
-  restores a script 26 checkpoint. Player attacks against these NPCs,
-  retail pursuit AI, and script 26 gameplay after the opening remain open.
+  restores a script 26 checkpoint. The script 26 guard now spawns at
+  its authored marker with its retail health and a minimap icon. The
+  player can lock on and punch the guard or either script 25 opponent.
+  Windows uses the existing melee approximation, with the guard idle
+  until damaged and retaliating afterward. The guard defeat animation
+  and retail 500 ms wait run before the player exit command. Automated
+  smoke covers damage, defeat, and that wait. The retail NPC AI and
+  the Cooper scene after the guard remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

@@ -2168,6 +2168,24 @@ void CityPlayback::pursuePayphoneTarget(const CityOpening& opening, const CityTe
                       *payphonePursuer, payphonePunchMs, payphonePunchIndex, deltaMs);
 }
 
+void CityPlayback::spawnFightOpponent(const CityOpening& opening, const CityTerrain& terrain,
+                                      const CityCinematicPlacement& placement, bool attacking)
+{
+    const auto actor = std::find_if(opening.actors.begin(), opening.actors.end(), [&](const auto& entry) {
+        return entry.payphoneOnly && entry.name == placement.actor;
+    });
+    if (actor == opening.actors.end() || !actor->npcHealth)
+        throw std::logic_error("Missing retail fight actor definition.");
+    CityFightOpponent opponent{CityPlayerPose{placement.position, placement.rotationDegrees[2]}};
+    opponent.health = *actor->npcHealth;
+    opponent.attacking = attacking;
+    if (const auto ground = terrain.groundContact(opponent.pose.position)) {
+        opponent.pose.position[2] = ground->height;
+        opponent.pose.groundTriangle = ground->triangle;
+    }
+    locoOpponents.insert_or_assign(placement.actor, std::move(opponent));
+}
+
 void CityPlayback::updateLocoFight(const CityOpening& opening, const CityTerrain& terrain, double deltaMs)
 {
     if (!player || !opening.payphone) return;
@@ -2175,7 +2193,42 @@ void CityPlayback::updateLocoFight(const CityOpening& opening, const CityTerrain
         const auto entry = locoOpponents.find(actor.name);
         if (!actor.payphoneOnly || entry == locoOpponents.end() || entry->second.disabled) continue;
         auto& opponent = entry->second;
+        if (opponent.health == 0) {
+            opponent.defeatMs += std::max(0., deltaMs);
+            continue;
+        }
+        if (!opponent.attacking) {
+            opponent.pose.clipTimeMs += std::max(0., deltaMs);
+            continue;
+        }
         pursueMeleeTarget(*this, opening, terrain, &actor, opponent.pose, opponent.punchMs, opponent.punchIndex, deltaMs);
+    }
+}
+
+static void punchActor(CityPlayback& playback, const CityOpening& opening, const CityTerrain& terrain,
+                       const std::array<float, 3>& target, int32_t& health, double deltaMs, bool pressed, bool locked)
+{
+    const auto& clips = openingPlayer(opening).handPunches;
+    if (!clips) return;
+    const auto offset = add(target, scale(playback.player->position, -1));
+    if (playback.playerPunchMs) {
+        const auto previous = *playback.playerPunchMs;
+        *playback.playerPunchMs += std::clamp(deltaMs, 0., 50.);
+        const auto duration = (*clips)[playback.playerPunchIndex].durationMs;
+        const double impact = duration * 0.5;
+        const auto& route = *opening.payphone;
+        if (previous < impact && *playback.playerPunchMs >= impact && locked &&
+            dot(offset, offset) <= route.handRangeCm * route.handRangeCm &&
+            !crossesWall(terrain, playback.player->position, target, 28))
+            health -= std::clamp(route.handDamage, 0, health);
+        if (*playback.playerPunchMs < duration) return;
+        playback.playerPunchMs.reset();
+        playback.playerPunchIndex = (playback.playerPunchIndex + 1) % clips->size();
+    }
+    if (pressed && health > 0) {
+        if (locked && (offset[0] || offset[1])) playback.player->yaw = std::atan2(offset[0], -offset[1]) / radians;
+        playback.player->walking = false;
+        playback.playerPunchMs = 0;
     }
 }
 
@@ -2187,28 +2240,43 @@ void CityPlayback::punchPayphoneOpponent(const CityOpening& opening, const CityT
         playerPunchMs.reset();
         return;
     }
-    const auto& clips = openingPlayer(opening).handPunches;
-    if (!clips) return;
-    const auto offset = add(payphonePursuer->position, scale(player->position, -1));
-    if (playerPunchMs) {
-        const auto previous = *playerPunchMs;
-        *playerPunchMs += std::clamp(deltaMs, 0., 50.);
-        const auto duration = (*clips)[playerPunchIndex].durationMs;
-        const double impact = duration * 0.5;
-        const auto& route = *opening.payphone;
-        if (previous < impact && *playerPunchMs >= impact && locked &&
-            dot(offset, offset) <= route.handRangeCm * route.handRangeCm &&
-            !crossesWall(terrain, player->position, payphonePursuer->position, 28))
-            payphoneOpponentHealth -= std::clamp(route.handDamage, 0, payphoneOpponentHealth);
-        if (*playerPunchMs < duration) return;
+    punchActor(*this, opening, terrain, payphonePursuer->position, payphoneOpponentHealth, deltaMs, pressed, locked);
+}
+
+void CityPlayback::punchLocoOpponent(const CityOpening& opening, const CityTerrain& terrain,
+                                    double deltaMs, bool pressed, bool lockPressed)
+{
+    if (!opening.payphone || !player || playerHealth == 0 || (vehicle && vehicle->occupied)) {
         playerPunchMs.reset();
-        playerPunchIndex = (playerPunchIndex + 1) % clips->size();
+        locoLockTarget.reset();
+        return;
     }
-    if (pressed && payphoneOpponentHealth > 0) {
-        if (locked && (offset[0] || offset[1])) player->yaw = std::atan2(offset[0], -offset[1]) / radians;
-        player->walking = false;
-        playerPunchMs = 0;
+    auto nearest = locoOpponents.end();
+    auto distanceSquared = std::numeric_limits<float>::max();
+    for (auto it = locoOpponents.begin(); it != locoOpponents.end(); ++it) {
+        if (it->second.disabled || it->second.health == 0) continue;
+        const auto offset = add(it->second.pose.position, scale(player->position, -1));
+        const auto candidate = dot(offset, offset);
+        if (candidate < distanceSquared) {
+            distanceSquared = candidate;
+            nearest = it;
+        }
     }
+    auto target = locoLockTarget ? locoOpponents.find(*locoLockTarget) : locoOpponents.end();
+    if (target != locoOpponents.end() && (target->second.disabled || target->second.health == 0))
+        target = locoOpponents.end();
+    if (lockPressed) target = target != locoOpponents.end() ? locoOpponents.end() : nearest;
+    locoLockTarget = target != locoOpponents.end() ? std::optional{target->first} : std::nullopt;
+    const bool locked = target != locoOpponents.end();
+    if (!locked) target = nearest;
+    if (target == locoOpponents.end()) {
+        playerPunchMs.reset();
+        return;
+    }
+    auto& opponent = target->second;
+    const auto before = opponent.health;
+    punchActor(*this, opening, terrain, opponent.pose.position, opponent.health, deltaMs, pressed, locked);
+    if (opponent.health < before) opponent.attacking = true;
 }
 
 std::optional<float> CityPlayback::payphoneBearing(const CityOpening& opening) const
@@ -2478,6 +2546,11 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         } else if (player && playback.playerPunchMs && actor.handPunches) {
             clip = &(*actor.handPunches)[playback.playerPunchIndex];
             clipTime = *playback.playerPunchMs;
+        } else if (loco && loco->health == 0 && actor.defeatAnimation) {
+            const auto& defeat = *actor.defeatAnimation;
+            clip = loco->defeatMs < defeat.first.durationMs ? &defeat.first : &defeat.loop;
+            clipTime = loco->defeatMs < defeat.first.durationMs ? loco->defeatMs :
+                std::fmod(loco->defeatMs - defeat.first.durationMs, defeat.loop.durationMs);
         } else if (loco && loco->punchMs && actor.handPunches) {
             clip = &(*actor.handPunches)[loco->punchIndex];
             clipTime = *loco->punchMs;
@@ -2485,7 +2558,7 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
             clip = &*actor.pursuitWalk;
             clipTime = std::fmod(loco->pose.clipTimeMs, clip->durationMs);
         } else if (loco) {
-            clip = &opening.payphone->postFight.nextCheckpoint->postLcFightIntro.actorAnimations.at(actor.name).back().loop;
+            clip = &*actor.fightIdle;
             clipTime = std::fmod(loco->pose.clipTimeMs, clip->durationMs);
         } else if (pursuer && playback.payphoneOpponentHealth == 0 && actor.defeatAnimation) {
             const auto& defeat = *actor.defeatAnimation;

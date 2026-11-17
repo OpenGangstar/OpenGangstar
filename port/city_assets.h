@@ -335,6 +335,8 @@ struct CityActor {
     std::optional<float> v6EngineSpeedRange;
     bool payphoneOnly = false;
     std::optional<CityAnimationClip> pursuitWalk;
+    std::optional<CityAnimationClip> fightIdle;
+    std::optional<int32_t> npcHealth;
     std::optional<std::array<CityAnimationClip, 2>> handPunches;
     std::optional<CityActorAnimation> defeatAnimation;
 };
@@ -477,6 +479,8 @@ struct CityPostFightScene : CityMissionCinematic {
         std::optional<CityMissionTitle> locoNextTitle;
         CityMissionCinematic locoNextIntro;
         std::string locoNextObjective;
+        std::optional<CityCinematicPlacement> locoGuardPlacement;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> locoGuardCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postLcFightCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postLcTailConditions;
         std::optional<std::array<CityVehicleCharacterClips, 2>> vehicleCharacterClips;

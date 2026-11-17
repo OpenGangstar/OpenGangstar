@@ -2697,6 +2697,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         std::optional<uint32_t> radioStation;
         const CityVehicleDefinition* vehicle = nullptr;
         std::vector<std::array<float, 3>> waypoints;
+        std::optional<int32_t> npcHealth;
     };
     const auto findObject = [&](const std::string& name) {
         for (const auto& district : city.districts) {
@@ -2729,6 +2730,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     object.radius = record.signedInteger();
                     record.skip(1);
                     record.finish();
+                }
+                if (type == 5) {
+                    // NPC::Load copies the seventh NPC field into current and maximum health.
+                    record.skip(6 * 4);
+                    object.npcHealth = record.signedInteger();
                 }
                 if (type == 14) {
                     // Path::Load consumes a scalar count followed by signed XYZ triples.
@@ -3134,6 +3140,26 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail mission objective after Loco.");
                 route.locoNextObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                auto guardEnable = locoNext.record();
+                if (guardEnable.integer() != 21) throw std::runtime_error("Missing retail Loco guard placement.");
+                const auto guard = readActorPlacement(guardEnable, 21);
+                const auto guardMarker = findObject(guard.marker);
+                if (guardMarker.type != 10) throw std::runtime_error("Invalid retail Loco guard marker.");
+                route.locoGuardPlacement = CityCinematicPlacement{0, guard.actor, guardMarker.position,
+                                                                  guardMarker.rotation, true};
+                for (const auto expected : {87u, 57u, 99u}) {
+                    auto command = locoNext.record();
+                    if (command.integer() != expected) throw std::runtime_error("Missing retail Loco guard gate.");
+                    auto payload = command.remainingBytes();
+                    if ((expected == 87 && decodeCityWaitKilled({expected, payload}) != guard.actor) ||
+                        (expected == 99 && decodeCityActorGetOut({expected, payload}) != "Player"))
+                        throw std::runtime_error("Invalid retail Loco guard gate.");
+                    if (expected == 57) {
+                        command.integer();
+                        command.finish();
+                    }
+                    route.locoGuardCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3412,23 +3438,25 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (!retailVehicle || playerActor == opening.actors.end())
                     throw std::runtime_error("Missing next mission vehicle or player model.");
                 bindVehiclePlayer(*retailVehicle, playerActor->model, next.vehicleSeated, next.vehicleCharacterClips);
-                const auto loadCinematicActors = [&](const CityMissionCinematic& scene) {
-                    for (const auto& cue : scene.placements) {
-                        if (!cue.visible || findCinematicActor(cue.actor) != opening.actors.end()) continue;
-                        const auto definition = findObject(cue.actor);
-                        if (definition.model.empty())
-                            throw std::runtime_error("Missing retail cinematic model " + cue.actor);
-                        opening.actors.push_back({cue.actor, loadScene(assets, definition.model, true, true),
-                            cue.position, cue.rotationDegrees, definition.scale, 0});
-                        auto& actor = opening.actors.back();
-                        actor.payphoneOnly = true;
-                        bindVehicle(actor, definition);
-                        if (!definition.vehicle) {
-                            actor.skins = readActorSkins(actor.model);
-                            if (actor.skins.empty())
-                                throw std::runtime_error("Missing retail cinematic skin " + cue.actor);
-                        }
+                const auto loadCinematicActor = [&](const CityCinematicPlacement& cue) {
+                    if (!cue.visible || findCinematicActor(cue.actor) != opening.actors.end()) return;
+                    const auto definition = findObject(cue.actor);
+                    if (definition.model.empty())
+                        throw std::runtime_error("Missing retail cinematic model " + cue.actor);
+                    opening.actors.push_back({cue.actor, loadScene(assets, definition.model, true, true),
+                        cue.position, cue.rotationDegrees, definition.scale, 0});
+                    auto& actor = opening.actors.back();
+                    actor.payphoneOnly = true;
+                    actor.npcHealth = definition.npcHealth;
+                    bindVehicle(actor, definition);
+                    if (!definition.vehicle) {
+                        actor.skins = readActorSkins(actor.model);
+                        if (actor.skins.empty())
+                            throw std::runtime_error("Missing retail cinematic skin " + cue.actor);
                     }
+                };
+                const auto loadCinematicActors = [&](const CityMissionCinematic& scene) {
+                    for (const auto& cue : scene.placements) loadCinematicActor(cue);
                 };
                 loadCinematicActors(next.cinematic);
                 loadCinematicActors(next.pierCinematic);
@@ -3440,17 +3468,30 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.postLcPhone);
                 loadCinematicActors(next.postLcFightIntro);
                 loadCinematicActors(next.locoNextIntro);
+                const auto prepareFightActor = [&](std::string_view name) {
+                    const auto actor = findCinematicActor(name);
+                    if (actor == opening.actors.end()) throw std::runtime_error("Missing retail fight actor.");
+                    actor->npcHealth = findObject(actor->name).npcHealth;
+                    if (!actor->npcHealth || *actor->npcHealth <= 0)
+                        throw std::runtime_error("Invalid retail fight actor health.");
+                    actor->fightIdle = readClip(library, &actor->model, "move_idle");
+                    if (!actor->pursuitWalk) actor->pursuitWalk = readClip(library, &actor->model, "move_walk");
+                    if (!actor->handPunches) actor->handPunches = std::array{
+                        readClip(library, &actor->model, "combat_hand_rightpunch"),
+                        readClip(library, &actor->model, "combat_hand_leftpunch")};
+                    if (!actor->defeatAnimation) actor->defeatAnimation = CityActorAnimation{0,
+                        readClip(library, &actor->model, "move_idle_to_dead"),
+                        readClip(library, &actor->model, "move_dead_idle")};
+                };
                 for (const auto& [opcode, payload] : next.postLcFightCommands) {
                     if (opcode != 29) continue;
                     const auto attack = decodeCityActorAttack({opcode, payload});
-                    const auto actor = findCinematicActor(attack.attacker);
-                    if (actor == opening.actors.end() || attack.target != "Player")
-                        throw std::runtime_error("Invalid retail Loco attacker.");
-                    if (actor->handPunches) continue;
-                    actor->pursuitWalk = readClip(library, &actor->model, "move_walk");
-                    actor->handPunches = std::array{
-                        readClip(library, &actor->model, "combat_hand_rightpunch"),
-                        readClip(library, &actor->model, "combat_hand_leftpunch")};
+                    if (attack.target != "Player") throw std::runtime_error("Invalid retail Loco attack target.");
+                    prepareFightActor(attack.attacker);
+                }
+                if (next.locoGuardPlacement) {
+                    loadCinematicActor(*next.locoGuardPlacement);
+                    prepareFightActor(next.locoGuardPlacement->actor);
                 }
             }
             const auto bindCinematic = [&](CityMissionCinematic& scene, const auto& commands) {

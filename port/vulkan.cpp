@@ -547,7 +547,7 @@ struct CityRender {
     std::optional<RetailScriptExecution> postLcWalkScript;
     std::optional<RetailScriptExecution> postLcFightScript;
     CityTexture locoNextObjective;
-    bool locoNextIntroFinished = false;
+    std::optional<RetailScriptExecution> locoGuardScript;
     struct WalkingMarker { size_t index; double startMs; };
     std::optional<WalkingMarker> postLcWalkMarker;
     std::optional<double> postLcTailMs;
@@ -1717,6 +1717,20 @@ void activateNextMissionCheckpoint(CityRender& city)
     script.unlock(0, 0, 0);
 }
 
+void activateLocoGuard(CityRender& city)
+{
+    const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
+    auto& playback = city.playback;
+    playback.locoOpponents.clear();
+    playback.locoLockTarget.reset();
+    playback.playerPunchMs.reset();
+    playback.spawnFightOpponent(city.opening, city.terrain, *route.locoGuardPlacement, false);
+    CityScriptProgram program(1);
+    for (const auto& [opcode, payload] : route.locoGuardCommands)
+        program.front().push_back({opcode, payload});
+    city.locoGuardScript.emplace(std::move(program)).unlock(0, 0, 0);
+}
+
 void activatePostLcCheckpoint(CityRender& city)
 {
     city.nextMissionMarker = city.payphoneGameplayMs.value_or(0);
@@ -1890,6 +1904,7 @@ void activatePostLcDrive(CityRender& city)
     city.postLcWalkScript.reset();
     city.postLcFightScript.reset();
     playback.locoOpponents.clear();
+    playback.locoLockTarget.reset();
     city.postLcWalkMarker.reset();
     city.postLcTailMs.reset();
     city.spyGauge.reset();
@@ -2135,7 +2150,17 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 });
                 return found == placements.rend() || !found->visible ? nullptr : &*found;
             }();
-            if (walkMarker) {
+            const CityFightOpponent* guard = nullptr;
+            if (city.locoGuardScript) {
+                const auto& placement = *city.opening.payphone->postFight.nextCheckpoint->locoGuardPlacement;
+                const auto found = city.playback.locoOpponents.find(placement.actor);
+                if (found != city.playback.locoOpponents.end() && found->second.health > 0 && !found->second.disabled)
+                    guard = &found->second;
+            }
+            if (guard) {
+                target = Target::fightActor;
+                targetPosition = &guard->pose.position;
+            } else if (walkMarker) {
                 target = Target::postLcWalk;
                 targetPosition = &city.opening.payphone->postFight.nextCheckpoint
                     ->postLcWalkCheckpoints[walkMarker->index]->position;
@@ -2523,7 +2548,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.postLcIntroFinished && city.hummerRouteScript && city.postLcDriveObjective.descriptor)
             overlay(city.postLcDriveObjective.descriptor, screen, city.captionVertex, 6);
-        else if (city.locoNextIntroFinished && city.locoNextObjective.descriptor)
+        else if (city.locoGuardScript && city.locoNextObjective.descriptor)
             overlay(city.locoNextObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.postLcFightScript && city.postLcFightObjective.descriptor)
             overlay(city.postLcFightObjective.descriptor, screen, city.captionVertex, 6);
@@ -2853,7 +2878,14 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 if (playback.acknowledgeFailure(opening, delta, pressed, animationFinished)) {
                     if (cityRender->audio) cityRender->audio->stopAll();
                     cityRender->fireSoundActive = false;
-                    if (cityRender->postLcIntroFinished) activatePostLcDrive(*cityRender);
+                    if (cityRender->locoGuardScript) {
+                        cityRender->locoGuardScript.reset();
+                        playback.locoOpponents.clear();
+                        playback.locoLockTarget.reset();
+                        playback.playerPunchMs.reset();
+                        playback.postLcVehicleActive = false;
+                        activatePostLcCheckpoint(*cityRender);
+                    } else if (cityRender->postLcIntroFinished) activatePostLcDrive(*cityRender);
                     else if (playback.nextMissionVehicleActive) activateNextMissionVehicle(*cityRender);
                     else {
                         cityRender->nextAudio = std::lower_bound(opening.audio.begin(), opening.audio.end(), opening.handoffMs,
@@ -3057,7 +3089,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         auto& script = cityRender->postLcWalkScript.emplace(CityScriptProgram{{{64, wait}}});
                         script.unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->locoNextIntro) {
-                        cityRender->locoNextIntroFinished = true;
+                        activateLocoGuard(*cityRender);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postLcFightIntro) {
                         CityScriptProgram program(1);
                         for (const auto& [opcode, payload] : handoff.nextCheckpoint->postLcFightCommands)
@@ -3098,8 +3130,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                      interact && !enterShop && !scriptedArrival)
                     : CityDoorSounds{};
                 playback.pursuePayphoneTarget(cityRender->opening, cityRender->terrain, delta);
-                playback.punchPayphoneOpponent(cityRender->opening, cityRender->terrain, delta,
-                                              punchPressed, cityRender->payphoneTargetLocked);
+                if (cityRender->postLcFightScript || cityRender->locoGuardScript)
+                    playback.punchLocoOpponent(cityRender->opening, cityRender->terrain, delta, punchPressed, lockPressed);
+                else playback.punchPayphoneOpponent(cityRender->opening, cityRender->terrain, delta,
+                                                   punchPressed, cityRender->payphoneTargetLocked);
                 playback.updateLocoFight(cityRender->opening, cityRender->terrain, delta);
                 if (cityRender->postLcFightScript && playback.player) {
                     const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
@@ -3118,12 +3152,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             [&](const auto& cue) { return cue.actor == attack.attacker; });
                         if (placement == scene.placements.rend() || !placement->visible)
                             throw std::logic_error("Missing live Loco fight placement.");
-                        CityPlayerPose pose{placement->position, placement->rotationDegrees[2]};
-                        if (const auto ground = cityRender->terrain.groundContact(pose.position)) {
-                            pose.position[2] = ground->height;
-                            pose.groundTriangle = ground->triangle;
-                        }
-                        playback.locoOpponents.try_emplace(attack.attacker, CityFightOpponent{pose});
+                        playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, *placement, true);
                     };
                     fight.disableActor = [&](std::string_view name, bool immediate) {
                         const auto opponent = playback.locoOpponents.find(name);
@@ -3147,6 +3176,22 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     script.execute(0, 0, 0, [](const auto&, int32_t) { return false; }, [] {}, [] {},
                                    false, &travel, {}, &fight);
                     if (script.state(0) == RetailScriptState::locked) cityRender->postLcFightScript.reset();
+                }
+                if (cityRender->locoGuardScript) {
+                    RetailMissionHooks guard;
+                    guard.actorKilled = [&](std::string_view name) {
+                        const auto found = playback.locoOpponents.find(name);
+                        return found != playback.locoOpponents.end() && found->second.health == 0;
+                    };
+                    guard.clearKilledTarget = [&](std::string_view) { playback.locoLockTarget.reset(); };
+                    guard.actorGetOut = [&](std::string_view name) {
+                        if (name == "Player" && playback.vehicle && playback.vehicle->occupied)
+                            playback.scriptedVehicleExit = true;
+                    };
+                    auto& script = *cityRender->locoGuardScript;
+                    script.execute(0, static_cast<int32_t>(std::clamp(delta, 0., 1000.)), 0,
+                                   [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &guard);
+                    if (script.state(0) == RetailScriptState::locked) cityRender->locoGuardScript.reset();
                 }
                 if (cityRender->nextMissionScript) {
                     const auto& next = *cityRender->opening.payphone->postFight.nextCheckpoint;
@@ -3411,7 +3456,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     std::cerr << error.what() << '\n';
                 }
             }
-            if (cityRender->postLcFightScript && !playback.missionFailure && playback.playerHealth == 0) {
+            if ((cityRender->postLcFightScript || cityRender->locoGuardScript) && !playback.missionFailure &&
+                playback.playerHealth == 0) {
                 playback.missionFailure = -1;
                 ++playback.missionFailureCount;
             }
@@ -3916,9 +3962,32 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         if (render.activeMissionCinematic != &route.locoNextIntro || !render.postFightCinematic)
                             throw std::runtime_error("Script 26 did not enter its opening cinematic.");
                         for (int step = 0; step < 64 && render.postFightCinematic; ++step) update(1000, true);
-                        if (!render.locoNextIntroFinished || !render.locoNextObjective.descriptor ||
+                        if (!render.locoGuardScript || !render.locoNextObjective.descriptor ||
                             !render.playback.vehicle || !render.playback.postLcVehicleActive)
                             throw std::runtime_error("Script 26 did not hand off its authored Hummer and objective.");
+                        auto& playback = render.playback;
+                        auto& guard = playback.locoOpponents.at(route.locoGuardPlacement->actor);
+                        if (guard.health != 100 || guard.attacking)
+                            throw std::runtime_error("Script 26 guard did not start in its authored state.");
+                        playback.player->position = guard.pose.position;
+                        playback.punchLocoOpponent(render.opening, render.terrain, 0, true, true);
+                        for (int step = 0; step < 20 && !guard.attacking; ++step) update(50);
+                        if (!guard.attacking || guard.health >= 100 || !render.locoGuardScript)
+                            throw std::runtime_error("Script 26 guard did not take melee damage or react.");
+                        // Keep a fixed combat fixture while checking the kill and wait gates.
+                        for (int hit = 0; hit < 16 && guard.health > 0; ++hit) {
+                            playback.punchLocoOpponent(render.opening, render.terrain, 0, true, false);
+                            for (int step = 0; step < 20; ++step)
+                                playback.punchLocoOpponent(render.opening, render.terrain, 50, false, false);
+                        }
+                        if (guard.health != 0) throw std::runtime_error("The script 26 guard survived lethal damage.");
+                        update(0);
+                        if (!render.locoGuardScript) throw std::runtime_error("Guard gate skipped its retail delay.");
+                        update(500);
+                        if (!render.locoGuardScript) throw std::runtime_error("Guard gate ended before its wait expired.");
+                        update(1);
+                        if (render.locoGuardScript || guard.defeatMs < 501)
+                            throw std::runtime_error("Script 26 did not release the guard gate after the retail wait.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;
