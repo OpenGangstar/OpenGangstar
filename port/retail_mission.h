@@ -155,6 +155,13 @@ private:
     bool outside = false;
 };
 
+struct RetailStayBetween {
+    int32_t maximumCm, minimumCm;
+    bool targetRemoved = false;
+
+    std::optional<float> gauge(const std::array<float, 3>& position, const std::array<float, 3>& target) const;
+};
+
 struct RetailMissionTargetState {
     std::array<float, 3> position;
     bool dead = false;
@@ -163,13 +170,14 @@ struct RetailMissionTargetState {
 };
 
 using RetailMissionCondition = std::variant<RetailBeQuick, RetailPhotographQuickly,
-                                            RetailStayWithin, RetailProtectionTarget>;
+                                            RetailStayWithin, RetailStayBetween, RetailProtectionTarget>;
 
 struct RetailMissionConditionUpdate {
     std::optional<int32_t> failureCause;
     std::optional<int32_t> timerMs;
     std::optional<int32_t> warningText;
     bool clearPhotoTargets = false;
+    std::optional<float> spyGauge;
 };
 
 class RetailMissionConditions {
@@ -178,6 +186,7 @@ public:
     bool add(const CityMissionConditionCommand& command);
     bool apply(const CityScriptCommand& command);
     void clear() { conditions.clear(); }
+    void targetRemoved(std::string_view name);
     RetailMissionConditionUpdate update(int32_t elapsedMs, bool cinematic, const std::array<float, 3>& playerPosition,
         const std::function<std::optional<RetailMissionTargetState>(std::string_view)>& findTarget);
 

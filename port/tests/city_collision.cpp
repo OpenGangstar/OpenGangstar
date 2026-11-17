@@ -2716,6 +2716,33 @@ void verifyExplosionCameraShake()
             "Explosion shake did not expire after one second.");
 }
 
+void verifyStayBetween()
+{
+    RetailMissionConditions conditions;
+    const CityMissionConditionCommand command{25, 0, CityMissionConditionType::stayBetween, "Loco_00", 2000, -1, 200};
+    const auto lookup = [](std::string_view name) -> std::optional<RetailMissionTargetState> {
+        if (name == "Loco_00") return RetailMissionTargetState{{0, 0, 0}};
+        return std::nullopt;
+    };
+    require(conditions.add(command), "Could not register StayBetween.");
+    require(conditions.update(0, false, {0, 0, 200}, lookup).spyGauge == 0.f &&
+            conditions.update(0, false, {1100, 0, 0}, lookup).spyGauge == 0.5f &&
+            conditions.update(0, false, {0, 2000, 0}, lookup).spyGauge == 1.f,
+            "StayBetween lost its inclusive 3D range or normalized gauge.");
+    require(conditions.update(0, false, {0, 2001, 0}, lookup).failureCause == -1,
+            "StayBetween did not fail immediately outside the maximum.");
+    conditions.add(command);
+    require(conditions.update(0, false, {0, 0, 199}, lookup).failureCause == -1,
+            "StayBetween did not fail immediately inside the minimum.");
+    conditions.add(command);
+    conditions.targetRemoved("Another actor");
+    require(conditions.update(0, false, {0, 0, 200}, lookup).spyGauge == 0.f,
+            "StayBetween reacted to an unrelated actor-removal event.");
+    conditions.targetRemoved("Loco_00");
+    require(conditions.update(0, false, {0, 0, 200}, lookup).failureCause == -1,
+            "StayBetween did not latch its target-removal event.");
+}
+
 void verifyStayWithin()
 {
     RetailStayWithin condition(375, 12367);
@@ -3315,6 +3342,7 @@ int wmain(int argc, wchar_t** argv)
         verifyPayphonePursuit();
         verifyExplosionCameraShake();
         verifyScriptedCameraHandoff();
+        verifyStayBetween();
         verifyStayWithin();
         verifyMissionConditions();
         verifyMissionConditionOrder();

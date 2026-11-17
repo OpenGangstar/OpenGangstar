@@ -373,6 +373,14 @@ std::optional<int32_t> RetailStayWithin::warningText() const
     return outside ? std::optional{textId} : std::nullopt;
 }
 
+std::optional<float> RetailStayBetween::gauge(const std::array<float, 3>& position,
+                                              const std::array<float, 3>& target) const
+{
+    const auto distance = std::hypot(position[0] - target[0], position[1] - target[1], position[2] - target[2]);
+    if (targetRemoved || distance < minimumCm || distance > maximumCm) return std::nullopt;
+    return (distance - minimumCm) / (maximumCm - minimumCm);
+}
+
 bool RetailMissionConditions::add(RetailMissionCondition condition, std::string target, int32_t failureCause)
 {
     constexpr size_t capacity = 8;
@@ -390,6 +398,7 @@ bool RetailMissionConditions::add(const CityMissionConditionCommand& command)
     case Type::protectNpc: return add(RetailProtectionTarget::character, command.target, command.argument);
     case Type::protectCar: return add(RetailProtectionTarget::vehicle, command.target, command.argument);
     case Type::stayWithin: return add(RetailStayWithin(command.argument, command.warningText), command.target);
+    case Type::stayBetween: return add(RetailStayBetween{command.argument, command.minimumDistanceCm}, command.target);
     case Type::beQuick: return add(RetailBeQuick(command.argument));
     case Type::photographQuickly: return add(RetailPhotographQuickly(command.argument), command.target);
     }
@@ -409,6 +418,14 @@ bool RetailMissionConditions::apply(const CityScriptCommand& command)
     return true;
 }
 
+void RetailMissionConditions::targetRemoved(std::string_view name)
+{
+    for (auto& entry : conditions) {
+        if (auto* distance = std::get_if<RetailStayBetween>(&entry.condition); distance && entry.target == name)
+            distance->targetRemoved = true;
+    }
+}
+
 RetailMissionConditionUpdate RetailMissionConditions::update(
     int32_t elapsedMs, bool cinematic, const std::array<float, 3>& playerPosition,
     const std::function<std::optional<RetailMissionTargetState>(std::string_view)>& findTarget)
@@ -420,6 +437,10 @@ RetailMissionConditionUpdate RetailMissionConditions::update(
             const auto state = timer->evaluate(elapsedMs, cinematic);
             result.timerMs = state.timerMs;
             passes = state.passes;
+        } else if (const auto* distance = std::get_if<RetailStayBetween>(&entry.condition)) {
+            const auto target = findTarget(entry.target);
+            result.spyGauge = target && !target->dead ? distance->gauge(playerPosition, target->position) : std::nullopt;
+            passes = result.spyGauge.has_value();
         } else {
             const auto target = findTarget(entry.target);
             if (!target) throw std::runtime_error("Missing retail mission condition target " + entry.target);
@@ -441,6 +462,7 @@ RetailMissionConditionUpdate RetailMissionConditions::update(
             result.failureCause = entry.failureCause;
             result.timerMs.reset();
             result.warningText.reset();
+            result.spyGauge.reset();
             clear();
             break;
         }

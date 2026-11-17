@@ -220,9 +220,19 @@ bool auditDistrictMaterials(FileSystemBase& assets, const std::set<std::string>&
                 if (name != command.target) return std::nullopt;
                 return target;
             };
-            const auto initial = conditions.update(0, false, *position, lookup);
+            auto playerPosition = *position;
+            if (command.type == Type::stayBetween)
+                playerPosition[2] += (float(command.minimumDistanceCm) + command.argument) * 0.5f;
+            const auto initial = conditions.update(0, false, playerPosition, lookup);
             bool valid = !initial.failureCause;
             switch (command.type) {
+            case Type::stayBetween: {
+                auto far = *position;
+                far[2] += float(command.argument) + 1;
+                valid = valid && initial.spyGauge && std::abs(*initial.spyGauge - 0.5f) < 0.001f &&
+                        conditions.update(0, false, far, lookup).failureCause == -1;
+                break;
+            }
             case Type::stayWithin: {
                 auto outside = *position;
                 outside[2] += float(command.argument) + 200;

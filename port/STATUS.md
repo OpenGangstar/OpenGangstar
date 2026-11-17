@@ -306,7 +306,11 @@ mission playthroughs for discovery or verification.
   actors onto the terrain. The Hummer follows its retail drive and speed
   cues toward Marker_C2M2car01 and disappears at the authored disable cue.
   Windows samples a straight drive with terrain height and wheel roll.
-  Retail AI steering and the ensuing combat remain open. Automated Continue smoke covers the drive checkpoint,
+  Retail AI steering remains open. The next objective begins a tailing
+  sequence. The shared script runner now decodes StayBetween, computes
+  the normalized spy gauge from 3D distance, and fails outside the
+  authored 200–2000 cm range or on loss of the target. Live Loco path
+  following, spy HUD, and later mission stages remain open. Automated Continue smoke covers the drive checkpoint,
   cinematic rendering, and objective handoff.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.

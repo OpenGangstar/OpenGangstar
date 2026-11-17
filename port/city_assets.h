@@ -580,7 +580,7 @@ struct CityMissionStart {
     uint32_t script, command, mission;
 };
 enum class CityMissionConditionType : uint32_t {
-    protectNpc = 69, protectCar = 70, stayWithin = 71, beQuick = 73, photographQuickly = 117
+    protectNpc = 69, protectCar = 70, stayWithin = 71, beQuick = 73, stayBetween = 100, photographQuickly = 117
 };
 struct CityMissionConditionCommand {
     uint32_t script, command;
@@ -588,6 +588,7 @@ struct CityMissionConditionCommand {
     std::string target;
     int32_t argument;
     int32_t warningText = -1;
+    int32_t minimumDistanceCm = 0;
 };
 struct CityScriptInventory {
     size_t scripts = 0, commands = 0, opcodes = 0, links = 0;

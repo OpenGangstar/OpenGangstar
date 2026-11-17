@@ -125,6 +125,13 @@ std::optional<CityMissionConditionCommand> readMissionCondition(CityDataReader& 
         result.argument = command.signedInteger();
         if (type == Type::stayWithin) result.warningText = command.signedInteger();
         break;
+    case Type::stayBetween:
+        result.target = command.string();
+        result.argument = command.signedInteger();
+        result.minimumDistanceCm = command.signedInteger();
+        if (result.minimumDistanceCm < 0 || result.argument <= result.minimumDistanceCm)
+            throw std::runtime_error("Invalid retail StayBetween distance range.");
+        break;
     case Type::beQuick:
         result.argument = command.signedInteger();
         break;
