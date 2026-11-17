@@ -665,6 +665,12 @@ struct CityPostFightScene : CityMissionCinematic {
         CityMissionCinematic script33Intro, script33RaceIntro, script33Closing;
         std::array<uint32_t, 2> script33UnlockedScripts{};
         std::array<std::optional<CityCheckpoint>, 2> script33UnlockedCheckpoints;
+        std::vector<uint8_t> script36EntranceWait, script36TravelWait;
+        uint32_t script36EntranceFadeMs = 0, script36ArrivalFadeMs = 0;
+        std::optional<CityMissionTitle> script36Title;
+        CityMissionCinematic script36Intro, script36Arrival;
+        std::optional<CityCheckpoint> script36TravelCheckpoint;
+        std::string script36TravelObjective;
         uint32_t script33RaceFadeMs = 0;
         std::optional<CityCheckpoint> script33RaceMarker;
         std::vector<std::array<float, 3>> script33RaceCourse, script33RivalPath;

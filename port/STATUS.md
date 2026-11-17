@@ -528,7 +528,10 @@ mission playthroughs for discovery or verification.
   and checks the finish order. Winning plays the retail Latisha cutscene,
   pays the race reward, and saves both Script 36 and 43 unlocks. Both
   markers appear in the world, with the nearer one on the minimap.
-  Their gameplay, rival collision, and passenger ejection remain pending.
+  The Script 36 marker plays its retail title and Latisha cutscene. The
+  next objective sends the player to Checkpoint_C3M2_01 and plays the
+  arrival scene. The ensuing fight, Script 43 gameplay, rival collision,
+  and passenger ejection remain pending.
   The chapter-three scripted actor
   cues, retail pursuit and target selection, and the fourth van arrival
   look cue also remain pending.
