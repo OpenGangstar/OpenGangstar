@@ -3176,6 +3176,31 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail objective after the Cooper cinematic.");
                 route.locoCooperObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                auto enableDriver = locoNext.record();
+                if (enableDriver.integer() != 21) throw std::runtime_error("Missing retail Cooper driver.");
+                const auto driver = readActorPlacement(enableDriver, 21);
+                const auto driverMarker = findObject(driver.marker);
+                auto enterCooper = locoNext.record();
+                if (driverMarker.type != 10 || enterCooper.integer() != 37 ||
+                    enterCooper.string() != driver.actor || enterCooper.string() != locoCooperDrives.front().actor)
+                    throw std::runtime_error("Invalid retail Cooper entry.");
+                enterCooper.finish();
+                route.cooperDriverPlacement = CityCinematicPlacement{0, driver.actor, driverMarker.position,
+                                                                   driverMarker.rotation, true};
+                for (const auto expected : {101u, 23u, 23u, 23u, 67u}) {
+                    auto command = locoNext.record();
+                    if (command.integer() != expected) throw std::runtime_error("Missing retail Cooper escape command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 101 && decodeCityWaitEscape({expected, payload}).target != driver.actor)
+                        throw std::runtime_error("Invalid retail Cooper escape target.");
+                    if (expected == 23) readScriptObject(command);
+                    if (expected == 67) command.finish();
+                    route.cooperEscapeCommands.emplace_back(expected, std::move(payload));
+                }
+                auto unlock = locoNext.record();
+                if (unlock.integer() != 3) throw std::runtime_error("Missing retail Cooper mission handoff.");
+                route.cooperUnlockedScript = unlock.integer();
+                unlock.finish();
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.

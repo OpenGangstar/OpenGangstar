@@ -318,7 +318,7 @@ struct CityPlayback {
     int32_t playerHealth = playerMaxHealth;
     int32_t playerArmor = 0;
     int32_t playerCash = 0;
-    std::array<bool, 3> openingMissionsPaid{};
+    std::array<bool, 4> openingMissionsPaid{};
     int32_t payphoneOpponentHealth = 100;
     double payphoneDefeatMs = 0;
     std::map<std::string, CityFightOpponent, std::less<>> locoOpponents;
@@ -432,6 +432,8 @@ const CityMissionCinematic::Motion* cityCinematicMotion(const CityMissionCinemat
                                                        std::string_view actor, double elapsedMs);
 std::optional<std::array<float, 3>> cityTailingActorPosition(const CityMissionCinematic& scene,
     std::string_view actor, const CityTerrain& terrain, double elapsedMs);
+void pursueCityVehicle(CityVehiclePose& vehicle, const CityTerrain& terrain,
+                       const std::array<float, 3>& target, float cruiseSpeedCmPerMs, double elapsedMs);
 std::optional<CityVehiclePose> cityStagedVehiclePose(const CityMissionCinematic& scene,
     std::string_view actor, const CityTerrain& terrain, double elapsedMs);
 std::optional<CityVehiclePose> cityCinematicVehiclePose(const CityMissionCinematic& scene,

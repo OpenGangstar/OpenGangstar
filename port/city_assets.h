@@ -482,6 +482,9 @@ struct CityPostFightScene : CityMissionCinematic {
         std::string locoNextObjective;
         CityMissionCinematic locoCooperIntro;
         std::string locoCooperObjective;
+        std::optional<CityCinematicPlacement> cooperDriverPlacement;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperEscapeCommands;
+        std::optional<uint32_t> cooperUnlockedScript;
         std::optional<CityCinematicPlacement> locoGuardPlacement;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> locoGuardCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postLcFightCommands;

@@ -32,6 +32,23 @@ void require(bool condition, const char* message)
     if (!condition) throw std::runtime_error(message);
 }
 
+void verifyVehiclePursuit()
+{
+    auto terrain = flatTerrain();
+    CityVehiclePose vehicle{{0, 0, 0}, 0};
+    pursueCityVehicle(vehicle, terrain, {1000, 0, 0}, 1, 50);
+    require(std::abs(vehicle.position[0] - 50) < 0.01f && vehicle.wheelTravel == 50,
+            "Vehicle pursuit did not advance toward its live target.");
+    for (int step = 0; step < 20; ++step)
+        pursueCityVehicle(vehicle, terrain, {1000, 0, 0}, 1, 50);
+    require(std::abs(vehicle.position[0] - 650) < 0.01f && vehicle.wheelTravel == 650,
+            "Vehicle pursuit did not stop at the following distance.");
+    terrain.walls.push_back({{{700, -2000, 0}, {700, 2000, 0}, {700, -2000, 500}}});
+    const auto before = vehicle.position;
+    pursueCityVehicle(vehicle, terrain, {1500, 0, 0}, 1, 50);
+    require(vehicle.position == before, "Vehicle pursuit drove into an impassable wall.");
+}
+
 void verifyScriptExecution()
 {
     RetailScriptExecution execution({
@@ -1665,6 +1682,12 @@ void poseRetailDoor(const std::filesystem::path& root)
             markerDraw.cooperGeometry->vehicleVertexCount > 0,
             "Retail Cooper cinematic data or independent geometry changed.");
     const CityTerrain cooperTerrain;
+    require(hummerRoute.cooperDriverPlacement &&
+            hummerRoute.cooperDriverPlacement->actor == "Loco_00" && hummerRoute.cooperUnlockedScript == 27 &&
+            hummerRoute.cooperEscapeCommands.size() == 5 &&
+            decodeCityWaitEscape({101, hummerRoute.cooperEscapeCommands.front().second}).distanceCm == 20000 &&
+            hummerRoute.locoNextTitle->cashReward == 300,
+            "Retail Cooper driver, escape threshold, or reward changed.");
     const auto& cooperDrive = cooperScene.vehicleDrives.front();
     const auto cooperParked = cityStagedVehiclePose(cooperScene, cooperDrive.actor, cooperTerrain, cooperDrive.startMs - 1.);
     const auto cooperMoving = cityStagedVehiclePose(cooperScene, cooperDrive.actor, cooperTerrain, cooperDrive.startMs + 500.);
@@ -3374,6 +3397,7 @@ int wmain(int argc, wchar_t** argv)
         walkAndSlide();
         driveAndReverse();
         simulateParticles();
+        verifyVehiclePursuit();
         verifyScriptExecution();
         verifyScriptChapterCommands();
         verifyWaitKilled();

@@ -2405,6 +2405,32 @@ std::optional<std::array<float, 3>> cityTailingActorPosition(const CityMissionCi
     return position;
 }
 
+void pursueCityVehicle(CityVehiclePose& vehicle, const CityTerrain& terrain,
+                      const std::array<float, 3>& target, float cruiseSpeedCmPerMs, double elapsedMs)
+{
+    const auto offset = add(target, scale(vehicle.position, -1));
+    const auto distance = std::hypot(offset[0], offset[1]);
+    constexpr float stoppingDistance = 350;
+    const float travel = std::min(distance - stoppingDistance,
+                                  cruiseSpeedCmPerMs * static_cast<float>(std::clamp(elapsedMs, 0., 50.)));
+    if (travel <= 0) return;
+
+    const float desiredYaw = std::atan2(offset[0], -offset[1]) / radians;
+    for (const float bias : {0.f, -40.f, 40.f, -75.f, 75.f}) {
+        const float angle = (desiredYaw + bias) * radians;
+        auto position = add(vehicle.position, {std::sin(angle) * travel, -std::cos(angle) * travel, 0});
+        const auto ground = terrain.groundContact(position, vehicle.groundTriangle, 70, 100);
+        if (!ground) continue;
+        position[2] = ground->height;
+        if (crossesWall(terrain, vehicle.position, position, 90)) continue;
+        vehicle.position = position;
+        vehicle.groundTriangle = ground->triangle;
+        vehicle.yaw = desiredYaw + bias;
+        vehicle.wheelTravel += travel;
+        return;
+    }
+}
+
 std::optional<CityVehiclePose> cityStagedVehiclePose(const CityMissionCinematic& scene,
     std::string_view actor, const CityTerrain& terrain, double elapsedMs)
 {

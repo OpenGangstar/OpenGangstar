@@ -549,7 +549,11 @@ struct CityRender {
     std::optional<RetailScriptExecution> postLcFightScript;
     CityTexture locoNextObjective, locoCooperObjective;
     bool locoCooperPending = false;
-    bool locoCooperIntroFinished = false;
+    std::optional<CityVehiclePose> locoCooper;
+    std::optional<RetailScriptExecution> locoCooperScript;
+    bool cooperRemovalPending = false;
+    bool hummerRemovalPending = false;
+    bool hummerRemovalReady = false;
     std::optional<CityVehicleGeometry> cooperGeometry;
     std::optional<size_t> cooperActor;
     std::vector<CityVertex> cooperVertices;
@@ -582,13 +586,13 @@ struct CityRender {
     uint32_t missionTitleLabelVertex = 0;
     std::optional<double> missionTitleMs;
     std::optional<double> missionRevealMs;
-    std::array<CityTexture, 3> missionCompleteObjectives;
+    std::array<CityTexture, 4> missionCompleteObjectives;
     std::array<HudAnimation, 2> missionObjectiveAnimations;
     uint32_t missionCompleteObjectiveVertex = 0;
     std::vector<CityTexture> missionRewardFrames;
     std::vector<uint32_t> missionRewardFrameEnds;
     std::optional<double> missionRewardMs;
-    std::array<CityTexture, 3> missionRewardCash;
+    std::array<CityTexture, 4> missionRewardCash;
     size_t missionRewardIndex = 0;
     static constexpr double missionCompleteMessageMs = 3000;
     double hudAnimationMs(const std::vector<uint32_t>& frameEnds) const
@@ -2019,13 +2023,12 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     std::optional<std::array<float, 2>> minimapMarker;
     size_t minimapMarkerStep = 0;
     const bool updateVehicle = vehicle && !city.vehicleVertices.empty();
-    std::optional<CityVehiclePose> cooperPose;
-    if (city.cooperActor && city.cooperGeometry) {
+    auto cooperPose = city.locoCooper;
+    if (city.cooperActor && city.cooperGeometry && postFightMs) {
         const auto& scene = city.opening.payphone->postFight.nextCheckpoint->locoCooperIntro;
-        if (city.locoCooperIntroFinished || (missionScene == &scene && postFightMs)) {
-            const auto time = city.locoCooperIntroFinished ? double(scene.durationMs) : *postFightMs;
+        if (missionScene == &scene) {
             const auto& actor = city.opening.actors[*city.cooperActor];
-            cooperPose = cityStagedVehiclePose(scene, actor.name, city.terrain, time);
+            cooperPose = cityStagedVehiclePose(scene, actor.name, city.terrain, *postFightMs);
         }
     }
     const auto wheelOffsets = updateVehicle
@@ -2197,7 +2200,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 if (found != city.playback.locoOpponents.end() && found->second.health > 0 && !found->second.disabled)
                     guard = &found->second;
             }
-            if (guard) {
+            if (city.locoCooperScript && cooperPose) {
+                target = Target::fightActor;
+                targetPosition = &cooperPose->position;
+            } else if (guard) {
                 target = Target::fightActor;
                 targetPosition = &guard->pose.position;
             } else if (walkMarker) {
@@ -2322,6 +2328,18 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     auto boundPipeline = city.pipeline;
     bool drewVehicleMarker = false;
     const auto frustum = cityFrustum(camera);
+    const auto outsideCamera = [&](const CityVehiclePose& car) {
+        const auto& p = car.position;
+        return !cityBoundsVisible({{p[0] - 350, p[1] - 350, p[2] - 50},
+                                   {p[0] + 350, p[1] + 350, p[2] + 250}}, frustum);
+    };
+    if (city.cooperRemovalPending && cooperPose && outsideCamera(*cooperPose)) {
+        cooperPose.reset();
+        city.locoCooper.reset();
+        city.cooperRemovalPending = false;
+    }
+    if (city.hummerRemovalPending && vehicle && !vehicle->occupied && !vehicle->doorAction && outsideCamera(*vehicle))
+        city.hummerRemovalReady = true;
     if (city.playback.payphoneDisablePending && city.playback.payphonePursuer && city.playback.payphoneAttack) {
         const auto& position = city.playback.payphonePursuer->position;
         const auto actor = std::find_if(city.opening.actors.begin(), city.opening.actors.end(), [&](const auto& entry) {
@@ -2590,7 +2608,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.postLcIntroFinished && city.hummerRouteScript && city.postLcDriveObjective.descriptor)
             overlay(city.postLcDriveObjective.descriptor, screen, city.captionVertex, 6);
-        else if (city.locoCooperIntroFinished && city.locoCooperObjective.descriptor)
+        else if (city.locoCooperScript && city.locoCooperObjective.descriptor)
             overlay(city.locoCooperObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.locoGuardScript && city.locoNextObjective.descriptor)
             overlay(city.locoNextObjective.descriptor, screen, city.captionVertex, 6);
@@ -2786,6 +2804,12 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
         if (cityRender) {
             if (!smokeTest) touch->pollGamepad(window);
             auto& playback = cityRender->playback;
+            if (cityRender->hummerRemovalReady) {
+                playback.vehicle.reset();
+                playback.postLcVehicleActive = false;
+                cityRender->hummerRemovalReady = false;
+                cityRender->hummerRemovalPending = false;
+            }
             const auto previous = playback.elapsedMs;
             const auto now = std::chrono::steady_clock::now();
             const auto delta = openingSmokeTest ? milliseconds :
@@ -3147,7 +3171,16 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->locoNextIntro) {
                         activateLocoGuard(*cityRender);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->locoCooperIntro) {
-                        cityRender->locoCooperIntroFinished = true;
+                        const auto& route = *handoff.nextCheckpoint;
+                        const auto& actor = cityRender->opening.actors.at(*cityRender->cooperActor);
+                        cityRender->locoCooper = cityStagedVehiclePose(scene, actor.name, cityRender->terrain, scene.durationMs);
+                        if (!cityRender->locoCooper || !route.cooperDriverPlacement)
+                            throw std::runtime_error("Missing retail Cooper or its driver at the chase handoff.");
+                        cityRender->locoCooper->occupied = true;
+                        CityScriptProgram program(1);
+                        for (const auto& [opcode, payload] : route.cooperEscapeCommands)
+                            program.front().push_back({opcode, payload});
+                        cityRender->locoCooperScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postLcFightIntro) {
                         CityScriptProgram program(1);
                         for (const auto& [opcode, payload] : handoff.nextCheckpoint->postLcFightCommands)
@@ -3253,6 +3286,30 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->locoGuardScript.reset();
                         cityRender->locoCooperPending = true;
                     }
+                }
+                if (cityRender->locoCooperScript && playback.player && cityRender->locoCooper) {
+                    const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                    auto& cooper = *cityRender->locoCooper;
+                    const auto& position = playback.vehicle && playback.vehicle->occupied
+                        ? playback.vehicle->position : playback.player->position;
+                    RetailTravelHooks travel;
+                    travel.escapePositions = [&](std::string_view name) -> std::optional<RetailEscapePositions> {
+                        if (name != route.cooperDriverPlacement->actor) return std::nullopt;
+                        return RetailEscapePositions{position, cooper.position};
+                    };
+                    RetailMissionHooks escape;
+                    escape.disableActor = [&](std::string_view name, bool) {
+                        if (name == cityRender->opening.actors.at(*cityRender->cooperActor).name)
+                            cityRender->cooperRemovalPending = true;
+                        else if (name == route.targetVehicle) cityRender->hummerRemovalPending = true;
+                    };
+                    escape.finishMission = [&] { completeOpeningMission(*cityRender, 3, *route.locoNextTitle); };
+                    auto& script = *cityRender->locoCooperScript;
+                    script.execute(0, 0, 0, [](const auto&, int32_t) { return false; }, [] {}, [] {},
+                                   false, &travel, {}, &escape);
+                    if (script.state(0) == RetailScriptState::locked) cityRender->locoCooperScript.reset();
+                    else pursueCityVehicle(cooper, cityRender->terrain, position,
+                                           route.locoCooperIntro.vehicleDrives.front().speedCmPerMs, delta);
                 }
                 if (cityRender->nextMissionScript) {
                     const auto& next = *cityRender->opening.payphone->postFight.nextCheckpoint;
@@ -4062,10 +4119,27 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             !render.cooperGeometry || !render.cooperActor || render.cooperVertices.empty())
                             throw std::runtime_error("Script 26 did not start the Cooper cinematic after the guard.");
                         for (int step = 0; step < 64 && render.postFightCinematic; ++step) update(250, true);
-                        if (render.postFightCinematic || !render.locoCooperIntroFinished ||
+                        if (render.postFightCinematic || !render.locoCooperScript || !render.locoCooper ||
                             !render.locoCooperObjective.descriptor || (!guard.disablePending && !guard.disabled) ||
                             !playback.vehicle)
                             throw std::runtime_error("Script 26 did not hand off the Cooper objective.");
+                        const auto chaseStart = render.locoCooper->position;
+                        const int cashBeforeEscape = playback.playerCash;
+                        playback.player->position = chaseStart;
+                        playback.player->position[0] += 19999;
+                        update(0);
+                        if (!render.locoCooperScript || playback.playerCash != cashBeforeEscape ||
+                            !render.locoCooper->occupied)
+                            throw std::runtime_error("Script 26 did not wait for the live Cooper escape distance.");
+                        playback.player->position[0] += 1;
+                        update(0);
+                        update(0);
+                        if (render.locoCooperScript || !playback.openingMissionsPaid[3] ||
+                            playback.playerCash != cashBeforeEscape + 300 ||
+                            !render.missionRewardCash[3].descriptor || !render.missionCompleteObjectives[3].descriptor ||
+                            !render.missionRewardMs || render.missionRewardIndex != 3 ||
+                            (render.achievements && render.achievements->stat(49) != 4))
+                            throw std::runtime_error("Script 26 did not pay the retail escape reward once.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

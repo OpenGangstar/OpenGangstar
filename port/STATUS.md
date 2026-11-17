@@ -350,7 +350,13 @@ mission playthroughs for discovery or verification.
   Cooper spawns independently of the Hummer, rolls toward the retail
   marker at 60 km/h, and holds its last pose. Windows samples that drive
   in a straight line and defers the guard's removal until it leaves view.
-  Retail NPC AI, Loco's entry into the Cooper, and the live escape remain open.
+  At the handoff, Loco takes control of the Cooper and pursues the
+  player. Windows uses direct steering with terrain and wall checks,
+  and evaluates the retail 200 m escape gate against the live car position.
+  The gate awards $300 once and queues the vehicles for removal offscreen.
+  Automated smoke checks both sides of the distance threshold and the payout.
+  Retail vehicle AI, Loco's seated model, and script 27 activation and
+  persistence remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
