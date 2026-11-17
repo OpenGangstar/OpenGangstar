@@ -22,15 +22,32 @@ struct CityAnimationClip;
 using CityCameraMatrix = std::array<std::array<float, 4>, 4>;
 using CityTriangle = std::array<std::array<float, 3>, 3>;
 
-struct CitySpawnGroup;
+class CitySpawnPool {
+public:
+    explicit CitySpawnPool(const std::map<uint8_t, CitySpawnGroup>& groups);
+
+    std::optional<size_t> acquire(uint8_t metatype);
+    bool release(size_t slot);
+    int spawnedCops() const { return activeCops; }
+    size_t capacity() const { return slots.size(); }
+
+private:
+    struct Slot {
+        uint8_t metatype;
+        bool active = false;
+    };
+    std::vector<Slot> slots;
+    int activeCops = 0;
+};
 
 class CitySpawnTimer {
 public:
     CitySpawnTimer(const CitySpawnGroup& group, uint32_t initialDraw);
 
     void advance(uint32_t elapsedMs, const CitySpawnGroup& group, bool eligible,
-                 int spawnedCops, int copLimit, bool alternateCopContext,
-                 const std::function<uint32_t()>& random, const std::function<void(uint8_t)>& spawn);
+                 CitySpawnPool& pool, int copLimit, bool alternateCopContext,
+                 const std::function<uint32_t()>& random,
+                 const std::function<void(size_t, uint8_t)>& spawn);
     uint32_t remainingMs() const { return remaining; }
 
 private:

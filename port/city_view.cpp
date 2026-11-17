@@ -873,22 +873,62 @@ CityParticleFrame cityParticleFrame(const CityScene& scene, size_t node, const C
     return {world[3], {world[0], world[1], world[2]}};
 }
 
+CitySpawnPool::CitySpawnPool(const std::map<uint8_t, CitySpawnGroup>& groups)
+{
+    constexpr size_t maximumSlots = 256;
+    std::array<unsigned, maximumSlots> counts{};
+    for (const auto& entry : groups)
+        for (const auto metatype : entry.second.metatypes)
+            counts[metatype] = isCityPoliceMetatype(metatype) ? 3 : 1;
+    // CreateAllSpawnInstances reserves metatype 161 even when no spawn group names it.
+    counts[161] = 3;
+    for (size_t metatype = 0; metatype < counts.size(); ++metatype) {
+        if (slots.size() + counts[metatype] > maximumSlots)
+            throw std::runtime_error("Retail spawn pool exceeds 256 slots.");
+        slots.insert(slots.end(), counts[metatype], Slot{static_cast<uint8_t>(metatype)});
+    }
+}
+
+std::optional<size_t> CitySpawnPool::acquire(uint8_t metatype)
+{
+    const auto slot = std::find_if(slots.begin(), slots.end(), [&](const Slot& candidate) {
+        return !candidate.active && candidate.metatype == metatype;
+    });
+    if (slot == slots.end()) return std::nullopt;
+    slot->active = true;
+    if (isCityPoliceMetatype(metatype)) ++activeCops;
+    return static_cast<size_t>(slot - slots.begin());
+}
+
+bool CitySpawnPool::release(size_t index)
+{
+    if (index >= slots.size() || !slots[index].active) return false;
+    auto& slot = slots[index];
+    slot.active = false;
+    if (isCityPoliceMetatype(slot.metatype)) --activeCops;
+    return true;
+}
+
 CitySpawnTimer::CitySpawnTimer(const CitySpawnGroup& group, uint32_t initialDraw)
     : remaining(group.spawnDelayMs(false, initialDraw))
 {
 }
 
 void CitySpawnTimer::advance(uint32_t elapsedMs, const CitySpawnGroup& group, bool eligible,
-                             int spawnedCops, int copLimit, bool alternateCopContext,
-                             const std::function<uint32_t()>& random, const std::function<void(uint8_t)>& spawn)
+                             CitySpawnPool& pool, int copLimit, bool alternateCopContext,
+                             const std::function<uint32_t()>& random,
+                             const std::function<void(size_t, uint8_t)>& spawn)
 {
     if (remaining > 0) {
         remaining -= std::min(remaining, elapsedMs);
         return;
     }
     if (eligible) {
-        const auto metatype = group.chooseForSpawn(random(), spawnedCops, copLimit, alternateCopContext);
-        if (metatype) spawn(*metatype);
+        const auto metatype = group.chooseForSpawn(random(), pool.spawnedCops(), copLimit, alternateCopContext);
+        if (metatype) {
+            const auto slot = pool.acquire(*metatype);
+            if (slot) spawn(*slot, *metatype);
+        }
     }
     remaining = group.spawnDelayMs(eligible, random());
 }

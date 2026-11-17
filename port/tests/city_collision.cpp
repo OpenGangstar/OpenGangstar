@@ -1039,6 +1039,14 @@ void poseRetailDoor(const std::filesystem::path& root)
     }
     const auto city = loadCityAssets(assets);
     require(!city.spawnGroups.empty(), "Retail spawn group table was empty.");
+    CitySpawnPool retailPool(city.spawnGroups);
+    for (const auto metatype : {38, 48, 161}) {
+        std::array<std::optional<size_t>, 3> police{};
+        for (auto& slot : police) slot = retailPool.acquire(static_cast<uint8_t>(metatype));
+        require(police[0] && police[1] && police[2] && !retailPool.acquire(static_cast<uint8_t>(metatype)),
+                "An authored police metatype did not resolve to exactly three spawn slots.");
+        for (const auto slot : police) require(retailPool.release(*slot), "Could not release a retail police slot.");
+    }
     for (const auto& district : city.districts) {
         for (const auto& point : district.spawnPoints) {
             const auto& group = city.spawnGroups.at(point.group);
@@ -3035,6 +3043,21 @@ static void checkSpawnRules()
 {
     const CitySpawnGroup car{3, {7, 9, 38}}, civilian{5, {7, 9, 48}};
     const CitySpawnGroup parked{11, {7, 9}}, prisoner{16, {7, 9}};
+    CitySpawnPool pool({{1, car}, {2, civilian}, {3, parked}, {4, prisoner}});
+    require(pool.capacity() == 11 && !pool.acquire(255), "Retail spawn pool allocated an unexpected metatype.");
+    const auto firstCop = pool.acquire(38);
+    const auto secondCop = pool.acquire(38);
+    const auto thirdCop = pool.acquire(38);
+    require(firstCop && secondCop && thirdCop && !pool.acquire(38) && pool.spawnedCops() == 3,
+            "Retail police pool must contain three instances per present police metatype.");
+    require(pool.release(*secondCop) && !pool.release(*secondCop) && pool.spawnedCops() == 2 &&
+            pool.acquire(38) == secondCop && pool.spawnedCops() == 3,
+            "Releasing a police instance did not return its slot and update the global count.");
+    const auto alternate = pool.acquire(161);
+    require(alternate && pool.spawnedCops() == 4 &&
+            pool.release(*alternate) && pool.release(*firstCop) &&
+            pool.release(*secondCop) && pool.release(*thirdCop) && pool.spawnedCops() == 0,
+            "Retail pool lost the reserved alternate officer or active police count.");
     CitySpawnTimer timer(car, 0);
     std::vector<int> calls;
     unsigned draw = 0;
@@ -3042,17 +3065,31 @@ static void checkSpawnRules()
         calls.push_back(-1);
         return draw++;
     };
-    const auto spawn = [&](uint8_t metatype) { calls.push_back(metatype); };
-    timer.advance(500, car, true, 0, 0, false, random, spawn);
+    const auto spawn = [&](size_t, uint8_t metatype) { calls.push_back(metatype); };
+    timer.advance(500, car, true, pool, 0, false, random, spawn);
     require(timer.remainingMs() == 0 && calls.empty(), "Spawn ran on the frame the timer expired.");
-    timer.advance(16, car, true, 0, 0, false, random, spawn);
+    timer.advance(16, car, true, pool, 0, false, random, spawn);
     require(calls == std::vector<int>{-1, 7, -1} && timer.remainingMs() == 2001,
             "Spawn attempt and respawn delay used the wrong random order.");
     calls.clear();
-    timer.advance(3000, car, false, 0, 0, false, random, spawn);
-    timer.advance(16, car, false, 0, 0, false, random, spawn);
+    timer.advance(3000, car, false, pool, 0, false, random, spawn);
+    timer.advance(16, car, false, pool, 0, false, random, spawn);
     require(calls == std::vector<int>{-1} && timer.remainingMs() == 502,
             "Blocked spawn did not use the retry delay.");
+    require(!pool.acquire(7), "Duplicate authored candidates created extra civilian slots.");
+    CitySpawnTimer policeTimer(car, 0);
+    const auto oddDraw = [] { return 1u; };
+    calls.clear();
+    policeTimer.advance(500, car, true, pool, 1, false, oddDraw, spawn);
+    policeTimer.advance(16, car, true, pool, 1, false, oddDraw, spawn);
+    require(calls == std::vector<int>{38} && pool.spawnedCops() == 1,
+            "Spawn timer did not reserve the substituted police vehicle.");
+    calls.clear();
+    const auto evenDraw = [] { return 2u; };
+    policeTimer.advance(3000, car, true, pool, 1, false, evenDraw, spawn);
+    policeTimer.advance(16, car, true, pool, 1, false, evenDraw, spawn);
+    require(calls.empty() && policeTimer.remainingMs() == 2002 && pool.spawnedCops() == 1,
+            "A police spawn above the global cap changed the pool or respawn delay.");
 
     require(car.chooseForSpawn(1, 0, 1, false) == 38 &&
             civilian.chooseForSpawn(1, 0, 1, false) == 48 &&

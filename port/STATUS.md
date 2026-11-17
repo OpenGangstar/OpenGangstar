@@ -763,8 +763,12 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   prefix, retains the first authored candidate list for each group, and
   supports modulo selection from that list. Offline checks cover every point.
   The native selection rules also implement the wanted-level police cap,
-  odd-draw substitutions, and retry and respawn delay ranges. Fixtures
-  exercise all four recovered spawn classes. Eligibility now checks the
+  odd-draw substitutions, and retry and respawn delay ranges. The spawn
+  timer acquires reusable slots from the retail pool: one per distinct
+  civilian or vehicle metatype and three per police metatype, including
+  the reserved alternate officer. Allocation and release update the
+  global spawned police count. Scene entity creation and despawn still
+  need to use these slots. Fixtures exercise all four recovered spawn classes. Eligibility now checks the
   retail class and total population caps, inner and outer sphere distances,
   and the 300 cm vertical clearance. Vehicle spawn points reject active
   non-checkpoint objects within the retail 1,000 cm horizontal radius. The

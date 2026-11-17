@@ -1777,9 +1777,9 @@ std::optional<uint8_t> CitySpawnGroup::chooseForSpawn(uint32_t random, int spawn
     if (spawnedCops < copLimit) {
         if (random & 1) {
             if (objectType == 3) return policeCar;
-            if (objectType != 11 && objectType != 16) return alternateCopContext ? alternateOfficer : policeOfficer;
+            if (objectType == 5) return alternateCopContext ? alternateOfficer : policeOfficer;
         }
-    } else if (metatype == policeCar || metatype == policeOfficer || metatype == alternateOfficer) {
+    } else if (isCityPoliceMetatype(metatype)) {
         return std::nullopt;
     }
     return metatype;

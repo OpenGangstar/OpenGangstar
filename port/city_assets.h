@@ -201,6 +201,11 @@ struct CitySpawnContext {
     std::optional<CitySpawnTraffic> traffic;
 };
 
+inline constexpr bool isCityPoliceMetatype(uint8_t metatype)
+{
+    return metatype == 38 || metatype == 48 || metatype == 161;
+}
+
 struct CitySpawnGroup {
     int32_t objectType;
     std::vector<uint8_t> metatypes;
