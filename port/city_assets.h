@@ -620,7 +620,10 @@ struct CityPostFightScene : CityMissionCinematic {
         uint32_t vanEscapeClearedObjectiveId = 0;
         CityMissionCinematic vanEscapeDebrief;
         std::optional<CityCheckpoint> vanFourthDriveCheckpoint;
-        std::vector<uint8_t> vanFourthDriveWait;
+        std::vector<uint8_t> vanFourthDriveWait, vanFinalEntryWait;
+        uint32_t vanFourthArrivalFadeMs = 0;
+        CityMissionCinematic vanFourthArrival;
+        std::string vanFinalEntryObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;

@@ -2329,6 +2329,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::string previousCinematicShot;
     std::optional<uint32_t> nextMissionObjectiveId;
     std::string weaponShopEntrance;
+    std::vector<NamedMove> vanFourthArrivalMoves;
+    std::vector<DialogueCommand> vanFourthArrivalDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> vanFourthArrivalPlacements;
+    std::vector<AnimationCommand> vanFourthArrivalAnimations;
+    std::vector<MotionCommand> vanFourthArrivalMotions;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4033,6 +4038,27 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (fourthCheckpoint.vehicle != "aVan_00")
                     throw std::runtime_error("Retail fourth van drive requires a different vehicle.");
                 route.vanFourthDriveCheckpoint = makeCheckpoint(fourthCheckpoint.object);
+                auto fourthExit = van.record(), fourthFade = van.record();
+                if (fourthExit.integer() != 99 || readScriptObject(fourthExit) != fourthCheckpoint.vehicle ||
+                    fourthFade.integer() != 42)
+                    throw std::runtime_error("Invalid retail fourth van arrival entrance.");
+                route.vanFourthArrivalFadeMs = readFadeCommand(fourthFade, 42, 0).durationMs;
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                route.vanFourthArrival.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, van, vanLength, 0, route.vanFourthArrival,
+                              vanFourthArrivalMoves, vanFourthArrivalDialogue, vanFourthArrivalPlacements,
+                              &vanFourthArrivalAnimations, &vanFourthArrivalMotions, nullptr, 66);
+                route.vanFourthArrival.dialogue = resolveDialogue(vanFourthArrivalDialogue);
+                if (!nextMissionObjectiveId)
+                    throw std::runtime_error("Missing retail final van entry objective.");
+                route.vanFinalEntryObjective = vanObjective(*nextMissionObjectiveId);
+                auto finalEntry = van.record();
+                if (finalEntry.integer() != 89)
+                    throw std::runtime_error("Missing retail final van entry wait.");
+                route.vanFinalEntryWait = finalEntry.remainingBytes();
+                if (readScriptObject(finalEntry) != fourthCheckpoint.vehicle)
+                    throw std::runtime_error("Unexpected vehicle for retail final van entry.");
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4102,6 +4128,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(vanHandshakePlacements, next->vanHandshake.placements);
                 resolvePlacements(vanHandshakeBriefingPlacements, next->vanHandshakeBriefing.placements);
                 resolvePlacements(vanThirdArrivalPlacements, next->vanThirdArrival.placements);
+                resolvePlacements(vanFourthArrivalPlacements, next->vanFourthArrival.placements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
             }
         }
@@ -4386,6 +4413,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.vanSecondArrival);
                 loadCinematicActors(next.vanHandshake);
                 loadCinematicActors(next.vanThirdArrival);
+                loadCinematicActors(next.vanFourthArrival);
                 loadCinematicActors(next.vanPoliceReveal);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
@@ -4491,6 +4519,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->vanArrival, vanArrivalAnimations);
                 bindCinematic(next->vanSecondArrival, vanSecondArrivalAnimations);
                 bindCinematic(next->vanHandshake, vanHandshakeAnimations);
+                bindCinematic(next->vanFourthArrival, vanFourthArrivalAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -4523,6 +4552,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->vanSecondArrival);
                 bindInitialIdle(next->vanHandshake);
                 bindInitialIdle(next->vanThirdArrival);
+                bindInitialIdle(next->vanFourthArrival);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -4563,7 +4593,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 [&](const auto& cue) { return cue.travel.actor == motion.actor; });
                             if (prior != scene.motions.rend()) start = prior->travel.to;
                         }
-                        if ((&scene == &next->elToroArrival || &scene == &next->vanHandshake) && !motion.followsPath) {
+                        if ((&scene == &next->elToroArrival || &scene == &next->vanHandshake ||
+                             &scene == &next->vanFourthArrival) && !motion.followsPath) {
                             const auto prior = std::find_if(scene.motions.rbegin(), scene.motions.rend(),
                                 [&](const auto& cue) {
                                     return cue.travel.actor == motion.actor && cue.travel.startMs >= origin->timeMs;
@@ -4618,6 +4649,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->vanArrival, vanArrivalMotions);
                 bindMotions(next->vanSecondArrival, vanSecondArrivalMotions);
                 bindMotions(next->vanHandshake, vanHandshakeMotions);
+                bindMotions(next->vanFourthArrival, vanFourthArrivalMotions);
                 for (const auto& approach : vanProtectionMotions) {
                     const auto& arrival = next->vanSecondArrival;
                     const auto origin = std::find_if(arrival.placements.rbegin(), arrival.placements.rend(),
@@ -4777,6 +4809,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : vanThirdArrivalMoves)
                             next->vanThirdArrival.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : vanFourthArrivalMoves)
+                            next->vanFourthArrival.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : vanPoliceMoves)
                             next->vanPoliceReveal.cameras.push_back(

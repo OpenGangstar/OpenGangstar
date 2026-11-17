@@ -473,7 +473,12 @@ mission playthroughs for discovery or verification.
   wait, then plays the debrief after the player exit animation.
   The fourth objective requires the van at CheckpointDrive_C2M903.
   The fixture checks the delay, debrief, and vehicle-only checkpoint.
-  The fourth arrival cinematic and mission closing remain pending.
+  The fourth arrival forces the van exit, applies the 250 ms entrance
+  fade, and plays the retail cameras, dialogue, actor walks, gestures,
+  and priority audio cues. The final objective stages the van at its
+  authored marker and waits for reentry. The Vulkan fixture checks
+  arrival and reentry. The mission closing and scripted look cue remain
+  pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.
