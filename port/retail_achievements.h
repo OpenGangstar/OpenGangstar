@@ -48,6 +48,9 @@ public:
     void recordDamage(int32_t healthLoss);
     void recordKilometerDriven();
     void recordChapterEnd();
+    void recordMissionCash(int32_t amount);
+    void recordMissionEnded();
+    void recordCashSpent(int32_t amount);
     void recordJumpRamps(uint32_t mask);
     void complete(size_t id);
     int32_t stat(size_t id) const { return stats.at(id); }
@@ -58,6 +61,7 @@ public:
 private:
     bool evaluateRule(size_t id);
     void updateProgress();
+    void incrementStat(size_t id, int32_t amount);
     void setMaxStat(size_t id, int32_t value);
 
     RetailAchievements catalog;

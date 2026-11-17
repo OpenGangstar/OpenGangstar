@@ -96,6 +96,13 @@ void verifyAchievementState()
     if (menuState.stat(0) != 33 || menuState.completedCount() != 1)
         throw std::runtime_error("Main menu recalculated saved progress before game load.");
     RetailAchievementState state(std::move(catalog));
+    state.recordMissionCash(250);
+    state.recordMissionEnded();
+    state.recordCashSpent(100);
+    state.recordCashSpent(200);
+    if (state.stat(8) != 250 || state.stat(9) != 250 || state.stat(11) != 300 ||
+        state.stat(49) != 1 || state.stat(0) != 8)
+        throw std::runtime_error("Mission completion or spending did not update retail stats and progress.");
     state.setStat(49, 63);
     state.recordJump(12);
     state.recordJump(7);

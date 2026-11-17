@@ -288,8 +288,9 @@ mission playthroughs for discovery or verification.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
-  Missions.gmap once. The balance is in memory. The completion presentation,
-  achievement updates, persistence, the remainder of script 18,
+  Missions.gmap once and updates earned cash, mission count, and progress
+  stats. Successful shop purchases update cash spent. The completion
+  presentation, persistence, the remainder of script 18,
   and Juan's dynamic movement remain open.
   Opcodes 80 and 81 dispatch the retail weapon
   HUD restriction and release. Live dialogue and weapon HUD hosts remain open.

@@ -2218,9 +2218,11 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     if (navigation.back || navigation.accept) cityRender->weaponShopConfirmPurchase = false;
                     if (navigation.accept && !navigation.back) {
                         const auto selected = cityRender->weaponShopSelection;
+                        const auto price = cityRender->weaponShopServicePrices[selected];
                         cityRender->weaponShopPurchaseDenied =
-                            !playback.buyShopService(selected == 0 ? CityShopService::health : CityShopService::vest,
-                                                     cityRender->weaponShopServicePrices[selected]);
+                            !playback.buyShopService(selected == 0 ? CityShopService::health : CityShopService::vest, price);
+                        if (!cityRender->weaponShopPurchaseDenied && cityRender->achievements)
+                            cityRender->achievements->recordCashSpent(static_cast<int32_t>(price));
                     }
                 } else if (navigation.back || interact || skip) {
                     cityRender->weaponShopOpen = false;
@@ -2416,8 +2418,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 const auto before = cinematicPlayback.elapsedMs();
                 const bool finished = cinematicPlayback.advance(scene, delta, pressed, playCue);
                 if (&scene == &handoff && handoff.missionOverMs &&
-                    cinematicPlayback.elapsedMs() >= *handoff.missionOverMs && cityRender->opening.missionTitle)
-                    playback.creditOpeningMission(cityRender->opening.missionTitle->cashReward);
+                    cinematicPlayback.elapsedMs() >= *handoff.missionOverMs && cityRender->opening.missionTitle) {
+                    const auto reward = cityRender->opening.missionTitle->cashReward;
+                    if (playback.creditOpeningMission(reward) && cityRender->achievements) {
+                        cityRender->achievements->recordMissionCash(reward);
+                        cityRender->achievements->recordMissionEnded();
+                    }
+                }
                 if (playback.vehicle && cityRender->opening.vehicleActor) {
                     const auto& actor = cityRender->opening.actors[*cityRender->opening.vehicleActor];
                     for (const auto& cue : scene.placements) {

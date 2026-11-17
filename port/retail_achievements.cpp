@@ -207,16 +207,36 @@ void RetailAchievementState::recordDamage(int32_t healthLoss)
 
 void RetailAchievementState::recordKilometerDriven()
 {
-    constexpr size_t distanceDrivenStat = 17;
-    if (distanceDrivenStat < stats.size() && stats[distanceDrivenStat] < std::numeric_limits<int32_t>::max())
-        setStat(distanceDrivenStat, stats[distanceDrivenStat] + 1);
+    incrementStat(17, 1);
 }
 
 void RetailAchievementState::recordChapterEnd()
 {
-    constexpr size_t chapterEndStat = 24;
-    if (chapterEndStat < stats.size() && stats[chapterEndStat] < std::numeric_limits<int32_t>::max())
-        setStat(chapterEndStat, stats[chapterEndStat] + 1);
+    incrementStat(24, 1);
+}
+
+void RetailAchievementState::recordMissionCash(int32_t amount)
+{
+    incrementStat(8, amount);
+    incrementStat(9, amount);
+}
+
+void RetailAchievementState::recordMissionEnded()
+{
+    incrementStat(49, 1);
+    updateProgress();
+}
+
+void RetailAchievementState::recordCashSpent(int32_t amount)
+{
+    incrementStat(11, amount);
+}
+
+void RetailAchievementState::incrementStat(size_t id, int32_t amount)
+{
+    if (id >= stats.size() || amount <= 0) return;
+    const auto value = std::min<int64_t>(int64_t(stats[id]) + amount, std::numeric_limits<int32_t>::max());
+    if (value != stats[id]) setStat(id, static_cast<int32_t>(value));
 }
 
 void RetailAchievementState::setMaxStat(size_t id, int32_t value)
