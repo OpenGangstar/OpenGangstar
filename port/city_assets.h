@@ -214,6 +214,7 @@ struct CitySpawnGroup {
     std::optional<uint8_t> chooseForSpawn(uint32_t random, int spawnedCops, int copLimit,
                                           bool alternateCopContext) const;
     uint32_t spawnDelayMs(bool eligible, uint32_t random) const;
+    size_t populationIndex() const;
     bool canSpawn(const CitySpawnPoint& point, const CitySpawnContext& context) const;
     std::array<std::array<float, 3>, 2> spawnCenters(const std::array<float, 3>& eye,
                                                    const std::array<float, 3>& target, float actorHeight,

@@ -1810,19 +1810,27 @@ std::array<std::array<float, 3>, 2> CitySpawnGroup::spawnCenters(
     return {center(inner + lead), center(outer + lead)};
 }
 
+size_t CitySpawnGroup::populationIndex() const
+{
+    switch (objectType) {
+    case 3: return 0;
+    case 11: return 2;
+    case 16: return 3;
+    default: return 1;
+    }
+}
+
 bool CitySpawnGroup::canSpawn(const CitySpawnPoint& point, const CitySpawnContext& context) const
 {
-    struct SpawnLimits { size_t countIndex; unsigned cap; float innerSquared, outerSquared; };
-    const auto limits = [&]() -> SpawnLimits {
-        switch (objectType) {
-        case 3: return {0, 3, 6250000, 32397042};
-        case 11: return {2, 2, 6250000, 10240000};
-        case 16: return {3, 5, 4000000, 9000000};
-        default: return {1, 3, 4000000, 9000000};
-        }
-    }();
+    struct SpawnLimits { unsigned cap; float innerSquared, outerSquared; };
+    constexpr std::array<SpawnLimits, 4> limitsByClass{{
+        {3, 6250000, 32397042}, {3, 4000000, 9000000},
+        {2, 6250000, 10240000}, {5, 4000000, 9000000}
+    }};
+    const auto index = populationIndex();
+    const auto& limits = limitsByClass[index];
     const auto& counts = context.activeCounts;
-    if (counts[limits.countIndex] >= limits.cap || counts[0] + counts[1] + counts[2] + counts[3] > 5)
+    if (counts[index] >= limits.cap || counts[0] + counts[1] + counts[2] + counts[3] > 5)
         return false;
 
     const auto distanceSquared = [&](const std::array<float, 3>& center) {

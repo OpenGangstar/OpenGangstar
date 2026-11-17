@@ -54,6 +54,33 @@ private:
     uint32_t remaining;
 };
 
+struct CityBounds;
+struct CityCameraPose;
+
+// The retail visibility pass advances timers only for spawn points in its query box.
+class CitySpawnScheduler {
+public:
+    using Spawn = std::function<bool(size_t, uint8_t, const CitySpawnPoint&)>;
+
+    CitySpawnScheduler(const CityAssets& city, const CityNavigation& navigation,
+                       const std::function<uint32_t()>& random);
+    void advance(uint32_t elapsedMs, const CityBounds& query, const CityCameraPose& camera,
+                 float actorHeight, std::optional<float> vehicleSpeed, CitySpawnContext context,
+                 int copLimit, bool alternateCopContext, const std::function<uint32_t()>& random,
+                 const Spawn& spawn);
+    bool release(size_t slot) { return pool.release(slot); }
+
+private:
+    struct Entry {
+        CitySpawnPoint point;
+        CitySpawnTimer timer;
+        std::optional<uint8_t> roadFlags;
+    };
+    std::map<uint8_t, CitySpawnGroup> groups;
+    CitySpawnPool pool;
+    std::vector<Entry> entries;
+};
+
 struct CityTerrain {
     struct VehicleFootprint {
         float lateralCenter = 0;

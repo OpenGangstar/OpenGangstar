@@ -774,8 +774,12 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   non-checkpoint objects within the retail 1,000 cm horizontal radius. The
   moving-vehicle check uses the top two road flag bits to choose a speed
   and compares relative velocity along the line to the actor. Fixtures
-  cover the road speed and spawn heading. The runtime road flag lookup
-  and actor state still need to feed that check. All 491 Santa Monica spawn
+  cover the road speed and spawn heading. The native spawn scheduler
+  combines the visibility query, camera-derived centers, per-point timers,
+  and authored road flags with the actor and population snapshot. An
+  accepted spawn updates the class count and clearance for later points
+  in the same pass. A rejected spawn restores the pool slot. The Vulkan
+  scene still needs to supply these inputs and create live entities. All 491 Santa Monica spawn
   points resolve to authored heightmap triangles by buffer and index offset.
   The loader reads the eight neighbor arrays per buffer and the 14,576
   road flag bytes from `nav_mesh_arrays.bin`. All 154 moving spawn points

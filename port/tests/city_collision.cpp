@@ -3151,6 +3151,39 @@ static void checkSpawnRules()
     require(!civilian.canSpawn(point, context), "Spawn height cutoff is exclusive.");
 }
 
+static void checkSpawnScheduler()
+{
+    CityAssets city;
+    city.spawnGroups.emplace(1, CitySpawnGroup{3, {7, 38}});
+    city.districts.resize(1);
+    auto& point = city.districts.front().spawnPoints.emplace_back();
+    point.group = 1;
+    CityNavigation navigation;
+    navigation.buffers.resize(1);
+    navigation.buffers.front().roadFlags = {0x80};
+    const auto draw = [] { return 1u; };
+    CitySpawnScheduler scheduler(city, navigation, draw);
+    const CityBounds excluded{{1, 1, 1}, {2, 2, 2}}, included{{0, 0, 0}, {2, 2, 2}};
+    const CityCameraPose camera{{0, -6000, 0}, {0, -5999, 0}};
+    CitySpawnContext context{};
+    context.traffic = CitySpawnTraffic{0, {0, -3000, 0}, {0, -1, 0}, 30};
+    std::vector<size_t> slots;
+    const auto spawn = [&](size_t slot, uint8_t model, const CitySpawnPoint& location) {
+        require(model == 38 && location.group == 1, "Spawn used the wrong point or wanted-level metatype.");
+        slots.push_back(slot);
+        return slots.size() > 1;
+    };
+    scheduler.advance(5000, excluded, camera, 0, std::nullopt, context, 1, false, draw, spawn);
+    scheduler.advance(501, included, camera, 0, std::nullopt, context, 1, false, draw, spawn);
+    require(slots.empty(), "Spawn timer advanced outside the visibility query or on the expiry tick.");
+    scheduler.advance(16, included, camera, 0, std::nullopt, context, 1, false, draw, spawn);
+    require(slots.size() == 1, "Moving spawn did not use the authored road flag.");
+    scheduler.advance(2001, included, camera, 0, std::nullopt, context, 1, false, draw, spawn);
+    scheduler.advance(16, included, camera, 0, std::nullopt, context, 1, false, draw, spawn);
+    require(slots.size() == 2 && slots[0] == slots[1] && scheduler.release(slots.back()),
+            "A rejected spawn did not return the slot or police capacity.");
+}
+
 static void checkNavigationWaypoint()
 {
     CityMesh mesh;
@@ -3529,6 +3562,7 @@ int wmain(int argc, wchar_t** argv)
         checkGroundLinks();
         checkIndexedWalls();
         checkSpawnRules();
+        checkSpawnScheduler();
         walkAndSlide();
         driveAndReverse();
         simulateParticles();

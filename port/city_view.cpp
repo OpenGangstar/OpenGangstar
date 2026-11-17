@@ -933,6 +933,51 @@ void CitySpawnTimer::advance(uint32_t elapsedMs, const CitySpawnGroup& group, bo
     remaining = group.spawnDelayMs(eligible, random());
 }
 
+CitySpawnScheduler::CitySpawnScheduler(const CityAssets& city, const CityNavigation& navigation,
+                                       const std::function<uint32_t()>& random)
+    : groups(city.spawnGroups), pool(groups)
+{
+    for (const auto& district : city.districts)
+        for (const auto& point : district.spawnPoints)
+            entries.push_back({point, CitySpawnTimer(groups.at(point.group), random()), navigation.roadFlags(point)});
+}
+
+void CitySpawnScheduler::advance(uint32_t elapsedMs, const CityBounds& query, const CityCameraPose& camera,
+                                float actorHeight, std::optional<float> vehicleSpeed, CitySpawnContext context,
+                                int copLimit, bool alternateCopContext, const std::function<uint32_t()>& random,
+                                const Spawn& spawn)
+{
+    const auto traffic = context.traffic;
+    for (auto& entry : entries) {
+        const auto& point = entry.point;
+        const auto& position = point.position;
+        if (position[0] < query.minimum[0] || position[0] > query.maximum[0] ||
+            position[1] < query.minimum[1] || position[1] > query.maximum[1] ||
+            position[2] < query.minimum[2] || position[2] > query.maximum[2])
+            continue;
+
+        const auto& group = groups.at(point.group);
+        bool eligible = false;
+        if (entry.timer.remainingMs() == 0) {
+            const auto centers = group.spawnCenters(camera.eye, camera.target, actorHeight, vehicleSpeed);
+            context.innerCenter = centers[0];
+            context.outerCenter = centers[1];
+            context.traffic = traffic && entry.roadFlags ? traffic : std::nullopt;
+            if (context.traffic) context.traffic->roadFlags = *entry.roadFlags;
+            eligible = group.canSpawn(point, context);
+        }
+        entry.timer.advance(elapsedMs, group, eligible, pool, copLimit, alternateCopContext, random,
+                            [&](size_t slot, uint8_t metatype) {
+            if (!spawn(slot, metatype, point)) {
+                pool.release(slot);
+                return;
+            }
+            ++context.activeCounts[group.populationIndex()];
+            context.nearbyObjects.push_back({position, group.objectType, 1});
+        });
+    }
+}
+
 CityFrustum cityFrustum(const CityCameraMatrix& camera)
 {
     const auto plane = [&](size_t axis, float sign) {
