@@ -116,6 +116,10 @@ class Launcher:
                         font=("Segoe UI", 11, "bold"), padding=(20, 10))
         style.map("Build.TButton", background=[("disabled", PANEL), ("active", "#ffe08f")],
                   foreground=[("disabled", MUTED)])
+        style.configure("Secondary.TButton", background=PANEL, foreground=TEXT,
+                        font=("Segoe UI", 11, "bold"), padding=(20, 10))
+        style.map("Secondary.TButton", background=[("active", "#37342d")],
+                  foreground=[("disabled", MUTED)])
         style.configure("Browse.TButton", background=PANEL, foreground=TEXT, padding=(10, 4))
         style.map("Browse.TButton", background=[("active", "#37342d")])
         style.configure("Path.TEntry", fieldbackground=RAIL, foreground=TEXT,
@@ -215,9 +219,11 @@ class Launcher:
             self.windows_inputs.grid_remove()
             self.android_inputs.grid()
         self.build_button.configure(text="Build for Windows" if windows else "Build for Android")
+        self.build_button.configure(style="Secondary.TButton" if windows else "Build.TButton")
         self.build_button.grid(row=0, column=int(windows), sticky="w", padx=(8 if windows else 0, 0))
         self.play_button.grid(row=0, column=int(not windows), sticky="w", padx=(0 if windows else 8, 0))
         self.play_button.configure(text="Play on Windows" if windows else "Play on Android")
+        self.play_button.configure(style="Build.TButton" if windows else "Secondary.TButton")
         if windows:
             self.update_windows_play()
         else:
@@ -435,7 +441,7 @@ class Launcher:
         except (OSError, ValueError) as error:
             self.events.put(("output", f"BUILD FAILED: {error}\n"))
             result = 2
-        self.events.put(("done", "Windows build ready" if result == 0 else result))
+        self.events.put(("done", result))
 
     def build_windows_executable(self):
         cmake = which("cmake")
@@ -470,8 +476,10 @@ class Launcher:
             elif event == "status":
                 self.status.set(value)
             elif event == "done":
-                if isinstance(value, str):
-                    self.status.set(value)
+                if value == 0 and self.operation == "Windows build":
+                    self.status.set("Build complete. Click Play on Windows to launch.")
+                elif value == 0 and self.operation == "Windows launch":
+                    self.status.set("Windows game closed")
                 else:
                     self.status.set(f"{self.operation} passed" if value == 0
                                     else f"{self.operation} failed (exit {value})")
@@ -480,11 +488,6 @@ class Launcher:
                 self.build_button.state(["!disabled"])
                 self.play_button.state(["!disabled"])
                 self.platform_picker.configure(state="readonly")
-                if self.platform.get() == WINDOWS_PLATFORM:
-                    status = self.status.get()
-                    self.update_windows_play()
-                    if value != "Windows build ready":
-                        self.status.set(status)
         if lines:
             follow = self.log.yview()[1] == 1.0
             self.log.configure(state="normal")
