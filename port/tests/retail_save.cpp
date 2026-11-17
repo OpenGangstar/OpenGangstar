@@ -384,6 +384,14 @@ void verifySaveDirectory()
         postVan->statUpdates.front().second != 9 || read() != encodeRetailSave(sampled))
         throw std::runtime_error("The van checkpoint did not preserve the payout and next mission.");
 
+    checkpoint.completedScripts = {{windowsPostScript19CheckpointScript, -1}};
+    writeWindowsOpeningCheckpoint(files, checkpoint);
+    const auto postScript19 = readWindowsOpeningCheckpoint(files);
+    if (!postScript19 || postScript19->cash != checkpoint.cash ||
+        postScript19->completedScripts.front().script != windowsPostScript19CheckpointScript ||
+        read() != encodeRetailSave(sampled))
+        throw std::runtime_error("Script 20 unlock did not survive a Windows checkpoint round trip.");
+
     if (files.openSavedFile("../retail/Gangstar2.sav") || files.openSavefile("../retail/Gangstar2.sav"))
         throw std::runtime_error("A save filename escaped the save directory.");
     bool overlapRejected = false;

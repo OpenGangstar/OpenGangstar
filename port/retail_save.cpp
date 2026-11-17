@@ -464,7 +464,8 @@ std::optional<RetailSavedState> readWindowsOpeningCheckpoint(const ResourceFileS
          state.completedScripts.front().script != windowsPostBasketballCheckpointScript &&
          state.completedScripts.front().script != windowsPostDeliveryCheckpointScript &&
          state.completedScripts.front().script != windowsPostCooperDeliveryCheckpointScript &&
-         state.completedScripts.front().script != windowsPostVanCheckpointScript) ||
+         state.completedScripts.front().script != windowsPostVanCheckpointScript &&
+         state.completedScripts.front().script != windowsPostScript19CheckpointScript) ||
         state.completedScripts.front().context != -1)
         throw std::runtime_error("Unsupported Windows opening checkpoint.");
     return state;

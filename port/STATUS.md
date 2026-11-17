@@ -495,8 +495,11 @@ mission playthroughs for discovery or verification.
   The second debrief stages and tags four Loco guards. After all
   four defeats and the one-second cleanup wait, Checkpoint_C2M101
   appears in the world and minimap. The automated fixture verifies
-  the guard gate and return trigger. The Script 19 closing scene and
-  the fourth van arrival look cue remain pending.
+  the guard gate and return trigger. The return checkpoint runs the
+  500 ms fade and 250 ms wait, clears protection, removes the mission
+  car, and plays the retail closing. MissionOver pays once, and the
+  Script 20 unlock saves and restores the El Toro checkpoint.
+  Script 20 gameplay and the fourth van arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.
