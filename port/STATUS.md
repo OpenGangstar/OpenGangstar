@@ -374,7 +374,11 @@ mission playthroughs for discovery or verification.
   $400 once and saves the script 28 handoff. Continue restores the LC
   checkpoint, which now starts script 28's retail title, opening scene,
   and first localized objective. Automated smoke covers the live payout
-  and a separate script 28 save fixture. The basketball checkpoint,
+  and a separate script 28 save fixture. The basketball checkpoint now
+  animates in the world and appears on the minimap. Reaching it on foot
+  or in the player's active vehicle starts the authored court scene after
+  any required exit. The scene blends back to the follow camera over
+  1,000 ms and displays the court fight objective. The live court fight,
   retail NPC and vehicle AI, and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.

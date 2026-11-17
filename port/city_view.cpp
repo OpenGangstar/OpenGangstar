@@ -235,10 +235,13 @@ CityCameraMatrix cityCameraMatrix(const CityOpening& opening, float aspect, doub
         opening.payphone && payphoneMs ? &opening.payphone->cinematicCameras : nullptr;
     const bool restoredFollow = missionMs && missionScene && missionScene->followCameraMs &&
         *missionMs >= *missionScene->followCameraMs;
-    const bool cinematicShot = sceneMs && cinematic && !restoredFollow && !cinematic->empty() &&
+    const bool blendingFollow = restoredFollow && missionScene->followCameraTransitionMs &&
+        *missionMs - *missionScene->followCameraMs < missionScene->followCameraTransitionMs;
+    const bool cinematicShot = sceneMs && cinematic && (!restoredFollow || blendingFollow) && !cinematic->empty() &&
         *sceneMs >= cinematic->front().startMs;
     const bool follow = !cinematicShot && opening.followCameraMs && elapsedMs >= *opening.followCameraMs;
-    const auto scriptedMs = cinematicShot ? *sceneMs : startup ? startup->elapsedMs() :
+    const auto scriptedMs = cinematicShot ? (blendingFollow ? double(*missionScene->followCameraMs) : *sceneMs) :
+        startup ? startup->elapsedMs() :
         follow ? double(*opening.followCameraMs) : elapsedMs;
     const auto& shots = cinematicShot ? *cinematic : opening.cameras;
     const auto next = std::upper_bound(shots.begin(), shots.end(), scriptedMs,
@@ -253,7 +256,13 @@ CityCameraMatrix cityCameraMatrix(const CityOpening& opening, float aspect, doub
         eye[i] = blend(camera.first.eye[i], camera.second.eye[i]);
         target[i] = blend(camera.first.target[i], camera.second.target[i]);
     }
-    if (follow) {
+    if (cinematicShot && blendingFollow) {
+        const CityCameraTransition handoff{{eye, target}, followCamera(opening, player, vehicle),
+            double(*missionScene->followCameraMs), double(missionScene->followCameraTransitionMs)};
+        const auto pose = handoff.sample(*missionMs);
+        eye = pose.eye;
+        target = pose.target;
+    } else if (follow) {
         const double handoffEnd = scriptedMs + opening.followCameraBlendMs;
         if (transition && transition->active(elapsedMs)) {
             const auto pose = transition->sample(elapsedMs);
@@ -1045,6 +1054,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
                 draw.postLcWalkFirstSurfaces[i] = appendCheckpoint(*next.postLcWalkCheckpoints[i], 10 + i);
         if (next.cooperNextDriveCheckpoint)
             draw.cooperNextDriveFirstSurface = appendCheckpoint(*next.cooperNextDriveCheckpoint, 13);
+        if (next.basketballCheckpoint)
+            draw.basketballFirstSurface = appendCheckpoint(*next.basketballCheckpoint, 14);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);

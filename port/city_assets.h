@@ -410,6 +410,7 @@ struct CityMissionCinematic {
     uint32_t durationMs = 0;
     uint32_t nextScript = 0;
     std::optional<uint32_t> followCameraMs;
+    uint32_t followCameraTransitionMs = 0;
 };
 
 struct CityPostFightScene : CityMissionCinematic {
@@ -501,6 +502,10 @@ struct CityPostFightScene : CityMissionCinematic {
         std::optional<CityMissionTitle> brawlNextTitle;
         CityMissionCinematic brawlNextIntro;
         std::string brawlNextObjective;
+        std::optional<CityCheckpoint> basketballCheckpoint;
+        std::vector<uint8_t> basketballWait;
+        CityMissionCinematic basketballArrival;
+        std::string basketballFightObjective;
         std::vector<std::string> cooperFightTargets;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperFightCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperNextDriveCommands;

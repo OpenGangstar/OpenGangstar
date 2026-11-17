@@ -1710,6 +1710,12 @@ void poseRetailDoor(const std::filesystem::path& root)
             hummerRoute.cooperNextDriveCheckpoint && hummerRoute.cooperNextDriveCheckpoint->name == "CheckpointDrive_C2M501" &&
             markerDraw.cooperNextDriveFirstSurface && !markerDraw.checkpointMeshes[13].empty(),
             "Retail script 27 lost its title, opening, or protected drive checkpoint.");
+    const auto& basketball = hummerRoute.basketballArrival;
+    require(hummerRoute.basketballCheckpoint && hummerRoute.basketballCheckpoint->name == "CheckpointDrive_bball" &&
+            markerDraw.basketballFirstSurface && !markerDraw.checkpointMeshes[14].empty() &&
+            basketball.cameras.size() == 3 && basketball.dialogue.size() == 2 && basketball.followCameraMs &&
+            basketball.followCameraTransitionMs == 1000 && !hummerRoute.basketballFightObjective.empty(),
+            "Retail basketball checkpoint, camera transition, or objective changed.");
     const auto& closing = hummerRoute.cooperNextClosing;
     require(hummerRoute.cooperNextTitle->cashReward == 400 && hummerRoute.brawlUnlockedScript == 28 &&
             closing.cameras.size() == 2 && closing.dialogue.size() == 2 && closing.followCameraMs &&
