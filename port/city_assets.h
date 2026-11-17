@@ -534,6 +534,11 @@ struct CityPostFightScene : CityMissionCinematic {
         std::optional<CityCheckpoint> repairShopApproach, repairShopEntrance;
         std::string repairPaymentPrompt;
         int32_t repairPriceAtZeroHealth = 0;
+        std::string deliveryObjective;
+        std::optional<CityCheckpoint> deliveryCheckpoint;
+        std::vector<uint8_t> deliveryWait;
+        CityMissionCinematic deliveryClosing;
+        std::vector<uint32_t> deliveryUnlockedScripts;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;

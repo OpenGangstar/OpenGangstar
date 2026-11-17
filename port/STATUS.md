@@ -408,9 +408,15 @@ mission playthroughs for discovery or verification.
   damage-based price, debits cash once, restores vehicle health and
   deformation, and records the retail repair stats. The fixture
   confirms payment through Win32 input and checks the resulting cash,
-  vehicle state, and stats. Retail payment presentation and audio,
-  unaffordable repair feedback, delivery, scripted look cue, NPC weapon
-  attacks, NPC and vehicle AI, and Loco's seated model remain open.
+  vehicle state, and stats. Leaving the shop activates the delivery
+  objective and marker for the required car. Arrival clears mission
+  conditions and plays the retail closing cameras, actors, and dialogue.
+  MissionOver removes the delivered car, credits the reward once, and
+  updates the mission count. The smoke fixture covers the delivery and
+  payout. The two unlock commands are decoded. Activating scripts 30 and
+  21 and saving the completion remain open, along with retail payment
+  presentation and audio, unaffordable repair feedback, the scripted
+  look cue, NPC weapon attacks, NPC and vehicle AI, and Loco's seated model.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

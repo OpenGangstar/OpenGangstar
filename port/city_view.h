@@ -177,12 +177,12 @@ struct CityDrawData : CityVehicleGeometry {
     std::optional<size_t> weaponShopApproachFirstSurface;
     std::optional<size_t> weaponShopEntranceFirstSurface;
     std::optional<size_t> returnToLcFirstSurface;
-    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface;
+    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface, deliveryFirstSurface;
     std::array<std::optional<size_t>, 3> postLcWalkFirstSurfaces;
     std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry, postBasketballVehicleGeometry;
     std::optional<size_t> cooperActor;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 18> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 19> checkpointMeshes;
     std::vector<CityVehicleLightMesh> vehicleLights;
 };
 
@@ -319,7 +319,7 @@ struct CityPlayback {
     int32_t playerHealth = playerMaxHealth;
     int32_t playerArmor = 0;
     int32_t playerCash = 0;
-    std::array<bool, 6> openingMissionsPaid{};
+    std::array<bool, 7> openingMissionsPaid{};
     int32_t payphoneOpponentHealth = 100;
     double payphoneDefeatMs = 0;
     std::map<std::string, CityFightOpponent, std::less<>> locoOpponents;
