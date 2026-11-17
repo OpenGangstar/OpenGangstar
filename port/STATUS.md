@@ -287,8 +287,10 @@ mission playthroughs for discovery or verification.
   and weapon purchases remain open.
   After the first shop visit, script 18 tracks the Hummer's live position,
   waits for the player to reenter it, then marks the retail drive checkpoint
-  at LC. Windows shows both localized objectives and requests a scripted exit
-  at arrival. The exit fade, LC cinematic, and mission completion remain open.
+  at LC. Arrival fades out and waits for the scripted exit before starting
+  LC's closing cameras, dialogue, audio, gestures, and actor movements.
+  Walking cues use straight-line motion. Final cleanup, mission completion,
+  and activation of script 25 remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

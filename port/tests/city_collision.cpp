@@ -1631,6 +1631,14 @@ void poseRetailDoor(const std::filesystem::path& root)
             returnGate.vehicle == hummerRoute.targetVehicle && markerDraw.returnToLcFirstSurface &&
             !markerDraw.checkpointMeshes[8].empty() && !hummerRoute.returnToHummerObjective.empty() &&
             !hummerRoute.returnToLcObjective.empty(), "Retail return to LC lost its Hummer gate or destination.");
+    const auto& lcClosing = hummerRoute.lcClosingCinematic;
+    require(hummerRoute.returnToLcFadeMs == 200 && hummerRoute.returnToLcWaitMs == 200 &&
+            cityTrackBrightness(lcClosing.fades, 0) == 0, "Retail LC arrival fade or wait changed.");
+    require(hummerRoute.lcUnlockedScript == 25, "Retail LC closing script link changed.");
+    require(lcClosing.cameras.size() >= 4 && lcClosing.dialogue.size() == 3,
+            "Retail LC camera or dialogue cues changed.");
+    require(lcClosing.motions.size() == 3 && lcClosing.actorAnimations.at("LC_00").size() == 4,
+            "Retail LC movement or gestures changed.");
     CityPlayback shopVisitor;
     const auto& missionEnd = opening.payphone->postFight;
     require(opening.missionTitle && opening.missionTitle->cashReward == 250 &&

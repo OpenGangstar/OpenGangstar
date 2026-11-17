@@ -442,6 +442,9 @@ struct CityPostFightScene : CityMissionCinematic {
         std::string returnToHummerObjective, returnToLcObjective;
         std::vector<uint8_t> returnToHummerWait, returnToLcWait;
         std::optional<CityCheckpoint> returnToLcCheckpoint;
+        uint32_t returnToLcFadeMs = 0, returnToLcWaitMs = 0;
+        CityMissionCinematic lcClosingCinematic;
+        std::optional<uint32_t> lcUnlockedScript;
         std::optional<std::array<CityVehicleCharacterClips, 2>> vehicleCharacterClips;
         std::optional<CityAnimationClip> vehicleSeated;
     };

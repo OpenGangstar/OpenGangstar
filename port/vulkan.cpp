@@ -642,6 +642,7 @@ struct CityRender {
     const CityMissionCinematic* pendingHummerCinematic = nullptr;
     bool weaponShopDrive = false;
     bool returningToLc = false;
+    std::optional<double> returnToLcFadeMs;
     bool weaponShopApproach = false;
     bool weaponShopUnlocked = false;
     bool weaponShopTutorialVisible = false;
@@ -1015,6 +1016,9 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* shopLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->weaponShopCinematic.dialogue : nullptr;
     const auto shopLineCount = shopLines ? shopLines->size() : 0;
+    const auto* closingLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->lcClosingCinematic.dialogue : nullptr;
+    const auto closingLineCount = closingLines ? closingLines->size() : 0;
     const bool hasPayphoneObjective = city.opening.payphone && !city.opening.payphone->gameplayObjective.empty();
     const bool hasBars = city.startup || !city.opening.dialogue.empty();
     for (const auto& dialogue : city.opening.dialogue)
@@ -1033,6 +1037,9 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
     if (shopLines)
         for (const auto& dialogue : *shopLines)
+            if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
+    if (closingLines)
+        for (const auto& dialogue : *closingLines)
             if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
     std::vector<RetailSpriteRasterStep> failure;
     const auto* next = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
@@ -1075,7 +1082,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount +
+                                             shopLineCount + closingLineCount +
                                              hasPayphoneObjective + (next ? 11 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() : 0) +
@@ -1233,7 +1240,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount);
+                         pierLineCount + shopLineCount + closingLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1308,22 +1315,29 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
+        const auto closingBase = city.captions.size() - closingLineCount;
+        const auto shopBase = closingBase - shopLineCount;
+        const auto pierBase = shopBase - pierLineCount;
         for (size_t i = 0; i < pierLineCount; ++i) {
             const auto& line = (*pierLines)[i];
-            upload(city.captions[city.captions.size() - shopLineCount - pierLineCount + i],
+            upload(city.captions[pierBase + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
         city.missionCaptionBases.emplace(&route->postFight, dialogues + tutorialCount + payphoneCount);
         if (const auto& nextMission = route->postFight.nextCheckpoint) {
             city.missionCaptionBases.emplace(&nextMission->cinematic,
                 dialogues + tutorialCount + payphoneCount + postFightCount);
-            city.missionCaptionBases.emplace(&nextMission->pierCinematic,
-                city.captions.size() - shopLineCount - pierLineCount);
-            const auto shopBase = city.captions.size() - shopLineCount;
+            city.missionCaptionBases.emplace(&nextMission->pierCinematic, pierBase);
             city.missionCaptionBases.emplace(&nextMission->weaponShopCinematic, shopBase);
             for (size_t i = 0; i < shopLineCount; ++i) {
                 const auto& line = (*shopLines)[i];
                 upload(city.captions[shopBase + i],
+                       rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
+            }
+            city.missionCaptionBases.emplace(&nextMission->lcClosingCinematic, closingBase);
+            for (size_t i = 0; i < closingLineCount; ++i) {
+                const auto& line = (*closingLines)[i];
+                upload(city.captions[closingBase + i],
                        rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
             }
         }
@@ -1668,6 +1682,7 @@ void activateNextMissionVehicle(CityRender& city)
     city.pendingHummerCinematic = nullptr;
     city.weaponShopDrive = false;
     city.returningToLc = false;
+    city.returnToLcFadeMs.reset();
     city.weaponShopApproach = false;
     city.weaponShopUnlocked = false;
     city.weaponShopTutorialVisible = false;
@@ -1903,6 +1918,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         (city.missionRevealMs ? retailMissionRevealBrightness(*city.missionRevealMs) : 1.f) *
         (city.nextMissionFadeMs ? 1.f - static_cast<float>(*city.nextMissionFadeMs /
             city.opening.payphone->postFight.nextCheckpoint->fadeMs) : 1.f) *
+        (city.returnToLcFadeMs ? 1.f - static_cast<float>(std::clamp(*city.returnToLcFadeMs /
+            city.opening.payphone->postFight.nextCheckpoint->returnToLcFadeMs, 0., 1.)) : 1.f) *
         (city.payphoneRevealMs
             ? static_cast<float>(*city.payphoneRevealMs / city.opening.payphone->gameplayFadeMs) : 1.f);
     const auto index = beginFrame(vk);
@@ -2425,6 +2442,14 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     cityRender->payphoneRevealMs.reset();
             }
             if (cityRender->payphoneGameplayMs) *cityRender->payphoneGameplayMs += delta;
+            if (cityRender->returnToLcFadeMs) {
+                const auto& mission = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                const auto exitMs = double(mission.returnToLcFadeMs) + mission.returnToLcWaitMs;
+                const auto previousFade = *cityRender->returnToLcFadeMs;
+                *cityRender->returnToLcFadeMs += delta;
+                if (previousFade < exitMs && *cityRender->returnToLcFadeMs >= exitMs)
+                    playback.scriptedVehicleExit = true;
+            }
             if (cityRender->missionRewardMs && !cityRender->postFightCinematic) {
                 *cityRender->missionRewardMs += delta;
                 if (*cityRender->missionRewardMs >=
@@ -2585,6 +2610,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             }
             if (cityRender->pendingHummerCinematic && !playback.missionFailure && !playback.scriptedVehicleExit &&
                 !(playback.vehicle && (playback.vehicle->occupied || playback.vehicle->doorAction))) {
+                if (cityRender->returnToLcFadeMs) {
+                    cityRender->returnToLcFadeMs.reset();
+                    playback.missionConditions.clear();
+                }
                 cityRender->activeMissionCinematic = std::exchange(cityRender->pendingHummerCinematic, nullptr);
                 cityRender->postFightCinematic.emplace();
             }
@@ -2683,17 +2712,19 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             }
             const bool walking = movement && playback.elapsedMs >= *movement && !cityRender->terrain.ground.empty();
             const bool occupied = playback.vehicle && playback.vehicle->occupied;
-            const auto input = touch->movement(occupied);
+            const auto input = cityRender->returnToLcFadeMs ? std::array<float, 2>{} : touch->movement(occupied);
             if (walking && !playback.missionFailure && !cinematic && !postFight &&
                 !cityRender->nextMissionFadeMs && !(cityRender->missionTitleIndex == 1 && cityRender->missionTitleMs)) {
                 const bool reached = playback.timeAfterCheckpointMs.has_value();
-                if (!cityRender->hummerTutorialVisible && !occupied && playback.playerHealth > 0 && !playback.playerPunchMs &&
+                if (!cityRender->returnToLcFadeMs && !cityRender->hummerTutorialVisible && !occupied &&
+                    playback.playerHealth > 0 && !playback.playerPunchMs &&
                     !(playback.vehicle && playback.vehicle->doorAction))
                     playback.walk(cityRender->opening, cityRender->terrain, input, delta);
                 const auto* shopEntrance = cityRender->weaponShopUnlocked
                     ? &*cityRender->opening.payphone->postFight.nextCheckpoint->weaponShopEntranceMarker
                     : nullptr;
-                const bool enterShop = interact && shopEntrance && playback.canEnterShop(*shopEntrance);
+                const bool enterShop = !cityRender->returnToLcFadeMs && interact && shopEntrance &&
+                    playback.canEnterShop(*shopEntrance);
                 if (enterShop && !cityRender->nextMissionScript) {
                     cityRender->weaponShopOpen = true;
                     touch->startMenuPointer();
@@ -2704,7 +2735,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 const auto previousDistance = playback.drivenKilometers;
                 const auto doorSounds = playback.playerHealth > 0 && !playback.playerPunchMs &&
                     !cityRender->hummerTutorialVisible
-                    ? playback.drive(cityRender->opening, cityRender->terrain, input, delta, interact && !enterShop)
+                    ? playback.drive(cityRender->opening, cityRender->terrain, input, delta,
+                                     interact && !enterShop && !cityRender->returnToLcFadeMs)
                     : CityDoorSounds{};
                 playback.pursuePayphoneTarget(cityRender->opening, cityRender->terrain, delta);
                 playback.punchPayphoneOpponent(cityRender->opening, cityRender->terrain, delta,
@@ -2825,12 +2857,15 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         playback.nextMissionVehicleAcquired = true;
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->hummerRouteScript.reset();
-                        playback.scriptedVehicleExit = true;
-                        if (cityRender->returningToLc)
-                            playback.missionConditions.clear();
-                        else
+                        if (cityRender->returningToLc) {
+                            cityRender->returnToLcFadeMs = 0;
+                            cityRender->pendingHummerCinematic = &mission.lcClosingCinematic;
+                            playback.vehicle->speed = 0;
+                        } else {
+                            playback.scriptedVehicleExit = true;
                             cityRender->pendingHummerCinematic = cityRender->weaponShopDrive
                                 ? &mission.weaponShopCinematic : &mission.pierCinematic;
+                        }
                     }
                 }
                 if (cityRender->radio) {
@@ -3549,8 +3584,21 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 presentCity(render, info.imageExtent);
                 render.hummerRouteScript.reset();
                 render.hummerRouteMarker.reset();
+                const auto& closing = route.postFight.nextCheckpoint->lcClosingCinematic;
+                render.returnToLcFadeMs = route.postFight.nextCheckpoint->returnToLcFadeMs / 2.;
+                presentCity(render, info.imageExtent);
+                render.returnToLcFadeMs.reset();
+                render.activeMissionCinematic = &closing;
+                auto& lcPlayback = render.postFightCinematic.emplace();
+                lcPlayback.advance(closing, closing.dialogue.front().startMs, false, {});
+                if (!lcPlayback.activeDialogue() || !render.missionCaptionBases.count(&closing))
+                    throw std::runtime_error("LC closing smoke frame did not prepare the first dialogue.");
+                presentCity(render, info.imageExtent);
+                render.postFightCinematic.reset();
+                render.activeMissionCinematic = nullptr;
                 render.returningToLc = false;
-                std::cout << "Submitted the retail return-to-LC objectives and checkpoint through Vulkan.\n" << std::flush;
+                std::cout << "Submitted the retail return-to-LC checkpoint, fade, and closing scene through Vulkan.\n"
+                          << std::flush;
                 render.payphoneGameplayMs.reset();
                 std::cout << "Submitted the retail payphone gameplay handoff through Vulkan.\n" << std::flush;
                 const auto& placements = route.postFight.placements;
