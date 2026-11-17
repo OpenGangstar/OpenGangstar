@@ -562,6 +562,7 @@ struct CityRender {
     std::optional<RetailScriptExecution> postLcFightScript;
     CityTexture locoNextObjective, locoCooperObjective, cooperNextDriveObjective, cooperNextFightObjective;
     std::optional<RetailScriptExecution> taggedFightScript;
+    const CityMissionCinematic* taggedFightNextScene = nullptr;
     CityTexture brawlNextObjective, postBasketballObjective, postBasketballAmbushObjective;
     std::optional<RetailScriptExecution> postBasketballEscapeScript, repairDriveScript, deliveryScript;
     CityTexture repairDriveObjective, repairTutorial, deliveryObjective, elToroObjective, elToroFightObjective;
@@ -1143,8 +1144,11 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* elToroArrivalLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->elToroArrival.dialogue : nullptr;
     const auto elToroArrivalLineCount = elToroArrivalLines ? elToroArrivalLines->size() : 0;
+    const auto* elToroInterludeLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->elToroInterlude.dialogue : nullptr;
+    const auto elToroInterludeLineCount = elToroInterludeLines ? elToroInterludeLines->size() : 0;
     for (const auto* lines : {cooperClosingLines, brawlNextLines, basketballLines, basketballClosingLines,
-                             postBasketballLines, ambush29Lines, briefing29Lines, repairArrivalLines, deliveryLines, elToroLines, elToroArrivalLines})
+                             postBasketballLines, ambush29Lines, briefing29Lines, repairArrivalLines, deliveryLines, elToroLines, elToroArrivalLines, elToroInterludeLines})
         if (lines)
             for (const auto& dialogue : *lines)
                 if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
@@ -1249,7 +1253,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount +
                                              hasPayphoneObjective + (next ? 30 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
@@ -1416,7 +1420,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1527,7 +1531,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto elToroArrivalBase = city.captions.size() - elToroArrivalLineCount;
+        const auto elToroInterludeBase = city.captions.size() - elToroInterludeLineCount;
+        const auto elToroArrivalBase = elToroInterludeBase - elToroArrivalLineCount;
         const auto elToroBase = elToroArrivalBase - elToroLineCount;
         const auto deliveryBase = elToroBase - deliveryLineCount;
         const auto repairArrivalBase = deliveryBase - repairArrivalLineCount;
@@ -1595,6 +1600,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             uploadSceneCaptions(nextMission->deliveryClosing, deliveryBase);
             uploadSceneCaptions(nextMission->elToroIntro, elToroBase);
             uploadSceneCaptions(nextMission->elToroArrival, elToroArrivalBase);
+            uploadSceneCaptions(nextMission->elToroInterlude, elToroInterludeBase);
             uploadSceneCaptions(nextMission->brawlNextIntro, brawlNextBase);
             uploadSceneCaptions(nextMission->cooperNextClosing, cooperClosingBase);
             city.missionCaptionBases.emplace(&nextMission->cooperNextArrival, cooperArrivalBase);
@@ -3375,6 +3381,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->repairShop = CityRender::RepairShop::inactive;
                         cityRender->repairShopMarker.reset();
                         cityRender->taggedFightScript.reset();
+                        cityRender->taggedFightNextScene = nullptr;
                         playback.locoOpponents.clear();
                         playback.locoLockTarget.reset();
                         playback.playerPunchMs.reset();
@@ -3714,13 +3721,17 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     } else if (handoff.nextCheckpoint &&
                                (&scene == &handoff.nextCheckpoint->basketballArrival ||
                                 &scene == &handoff.nextCheckpoint->cooperNextArrival ||
-                                &scene == &handoff.nextCheckpoint->elToroArrival)) {
+                                &scene == &handoff.nextCheckpoint->elToroArrival ||
+                                &scene == &handoff.nextCheckpoint->elToroInterlude)) {
                         const auto& route = *handoff.nextCheckpoint;
                         const bool basketball = &scene == &route.basketballArrival;
                         const bool elToro = &scene == &route.elToroArrival;
-                        const auto& targets = elToro ? route.elToroFightTargets :
+                        const bool secondFight = &scene == &route.elToroInterlude;
+                        const auto& targets = secondFight ? route.elToroSecondFightTargets :
+                            elToro ? route.elToroFightTargets :
                             basketball ? route.basketballFightTargets : route.cooperFightTargets;
-                        const auto& commands = elToro ? route.elToroFightCommands :
+                        const auto& commands = secondFight ? route.elToroSecondFightCommands :
+                            elToro ? route.elToroFightCommands :
                             basketball ? route.basketballFightCommands : route.cooperFightCommands;
                         playback.locoOpponents.clear();
                         playback.locoLockTarget.reset();
@@ -3741,6 +3752,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         for (const auto& [opcode, payload] : commands)
                             program.front().push_back({opcode, payload});
                         cityRender->taggedFightScript.emplace(std::move(program)).unlock(0, 0, 0);
+                        cityRender->taggedFightNextScene = elToro ? &route.elToroInterlude :
+                            secondFight ? nullptr : basketball ? &route.basketballClosing : &route.cooperNextClosing;
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextIntro) {
                         playback.missionConditions.clear();
                         playback.nextMissionVehicleAcquired = false;
@@ -3933,11 +3946,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                    [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &fight);
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->taggedFightScript.reset();
-                        const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
-                        if (cityRender->missionTitleIndex != 7) {
+                        if (cityRender->taggedFightNextScene) {
                             playback.scriptedVehicleExit = playback.vehicle && playback.vehicle->occupied;
-                            cityRender->pendingHummerCinematic = cityRender->missionTitleIndex == 5
-                                ? &route.basketballClosing : &route.cooperNextClosing;
+                            cityRender->pendingHummerCinematic = std::exchange(cityRender->taggedFightNextScene, nullptr);
                         }
                     }
                 }
@@ -5341,8 +5352,30 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         last.health = 0;
                         update(16);
                         update(1000);
-                        if (render.taggedFightScript || last.taggedForKill)
-                            throw std::runtime_error("Script 30 did not clear the fight after its authored wait.");
+                        if (render.taggedFightScript || last.taggedForKill ||
+                            render.pendingHummerCinematic != &route.elToroInterlude)
+                            throw std::runtime_error("Script 30 did not queue the interlude after its authored wait.");
+                        update(0);
+                        if (render.activeMissionCinematic != &route.elToroInterlude || !render.postFightCinematic ||
+                            route.elToroInterlude.cameras.size() != 2 || route.elToroInterlude.dialogue.size() != 3)
+                            throw std::runtime_error("Script 30 did not start Latisha's interlude.");
+                        for (int step = 0; step < 120 && render.postFightCinematic; ++step) update(250, true);
+                        update(0);
+                        if (render.postFightCinematic || !render.taggedFightScript || playback.locoOpponents.size() != 3 ||
+                            !std::all_of(playback.locoOpponents.begin(), playback.locoOpponents.end(),
+                                         [](const auto& entry) { return entry.second.taggedForKill && entry.second.health > 0; }))
+                            throw std::runtime_error("Script 30 did not restage and tag the second group.");
+                        auto& lastSecond = playback.locoOpponents.at("Loco_02");
+                        playback.locoOpponents.at("Loco_00").health = 0;
+                        playback.locoOpponents.at("Loco_01").health = 0;
+                        update(16);
+                        if (!render.taggedFightScript || !lastSecond.taggedForKill)
+                            throw std::runtime_error("Script 30 cleared the second fight before all three fell.");
+                        lastSecond.health = 0;
+                        update(16);
+                        update(1000);
+                        if (render.taggedFightScript || lastSecond.taggedForKill)
+                            throw std::runtime_error("Script 30 did not finish the second fight after its authored wait.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

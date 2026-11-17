@@ -419,11 +419,15 @@ mission playthroughs for discovery or verification.
   shows the localized objective and destination in the city and minimap.
   The arrival plays the confrontation with its authored camera, actor
   motion, dialogue, and music. Two opponents enter the melee fight from
-  their cinematic endpoints. The automated fixture exercises the marker
-  handoff, the two-target gate, and the delay after defeat. The following
-  scene and the parallel script 21 race remain open, along with retail
-  payment presentation and audio, unaffordable repair feedback, scripted
-  look cues, NPC weapon attacks, NPC and vehicle AI, and Loco's seated model.
+  their cinematic endpoints. Defeating both and passing the authored
+  delay starts Latisha's interlude. It moves the first two opponents
+  back to their authored marks, adds the third, and returns to the
+  follow camera. All three are tagged and must fall before the next
+  delay. The automated fixture checks both fight gates and the interlude.
+  The Cooper departure, delivery, and parallel script 21 race remain
+  open, along with retail payment presentation and audio, unaffordable
+  repair feedback, scripted look cues, NPC weapon attacks, NPC and
+  vehicle AI, and Loco's seated model.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
