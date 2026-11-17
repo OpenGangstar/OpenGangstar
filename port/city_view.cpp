@@ -1450,12 +1450,26 @@ bool CityPlayback::creditOpeningMission(int32_t reward)
     return true;
 }
 
-bool CityPlayback::buyShopHealth(uint32_t price)
+bool CityPlayback::buyShopService(CityShopService service, uint32_t price)
 {
     if (playerHealth <= 0 || playerCash < 0 || price > static_cast<uint32_t>(playerCash)) return false;
-    playerHealth = playerMaxHealth;
+    if (service == CityShopService::vest)
+        playerArmor = 200;
+    else
+        playerHealth = playerMaxHealth;
     playerCash -= static_cast<int32_t>(price);
     return true;
+}
+
+void CityPlayback::damagePlayer(int32_t amount, bool bypassArmor)
+{
+    if (amount <= 0) return;
+    if (!bypassArmor && playerArmor > 0) {
+        const auto absorbed = std::min(amount, playerArmor);
+        playerArmor -= absorbed;
+        amount -= absorbed;
+    }
+    playerHealth -= std::min(amount, playerHealth);
 }
 
 CityDoorSounds CityPlayback::drive(const CityOpening& opening, const CityTerrain& terrain,
@@ -2098,7 +2112,7 @@ void CityPlayback::pursuePayphoneTarget(const CityOpening& opening, const CityTe
             // Approximate contact until the retail punch collision query is ported.
             const double impactMs = duration * 0.5;
             if (previous < impactMs && *payphonePunchMs >= impactMs && canReach())
-                playerHealth -= std::clamp(route.handDamage, 0, playerHealth);
+                damagePlayer(route.handDamage);
             if (*payphonePunchMs < duration) return;
             payphonePunchMs.reset();
             payphonePunchIndex = (payphonePunchIndex + 1) % clips.size();

@@ -272,12 +272,14 @@ mission playthroughs for discovery or verification.
   retail yellow entrance marker and shows an adapted Shops tutorial.
   At the entrance, press E or gamepad A on foot to clear the tutorial and
   open a Windows inventory panel. It pauses gameplay and shows all eight
-  retail items with their prices and localized labels. Enter or gamepad A
-  opens the health purchase confirmation. Confirming spends $100 to restore
-  full health if funds are available. Escape or gamepad B closes the panel.
+  retail items with their prices and localized labels. Use Up and Down to
+  select health or the vest. Enter or gamepad A opens confirmation. Health
+  costs $100 and restores full health. The $200 vest refills armor to 200, which
+  absorbs damage before health unless the hit bypasses armor. Windows clamps
+  depleted armor to zero. Escape or gamepad B closes the panel.
   The entrance stays active for repeat visits. The Windows confirmation and
-  error prompts use English. The original shop layout, armor and weapon
-  purchases, and an on-screen cash balance remain open.
+  error prompts use English. The original shop layout, weapon purchases,
+  and on-screen cash and armor indicators remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

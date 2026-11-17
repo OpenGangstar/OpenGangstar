@@ -1616,12 +1616,23 @@ void poseRetailDoor(const std::filesystem::path& root)
     }
     shopVisitor.playerHealth = 35;
     const auto healthPrice = shopInventory.front().price;
-    require(shopVisitor.buyShopHealth(healthPrice) && shopVisitor.playerHealth == CityPlayback::playerMaxHealth &&
+    require(shopVisitor.buyShopService(CityShopService::health, healthPrice) &&
+            shopVisitor.playerHealth == CityPlayback::playerMaxHealth &&
             shopVisitor.playerCash == 150, "Retail health purchase did not restore health and charge $100.");
     shopVisitor.playerCash = 99;
     shopVisitor.playerHealth = 35;
-    require(!shopVisitor.buyShopHealth(healthPrice) && shopVisitor.playerCash == 99 &&
+    require(!shopVisitor.buyShopService(CityShopService::health, healthPrice) && shopVisitor.playerCash == 99 &&
             shopVisitor.playerHealth == 35, "An unaffordable purchase changed player state.");
+    const auto vestPrice = shopInventory[1].price;
+    shopVisitor.playerCash = 250;
+    require(shopVisitor.buyShopService(CityShopService::vest, vestPrice) && shopVisitor.playerArmor == 200 &&
+            shopVisitor.playerCash == 50 && shopVisitor.playerHealth == 35, "Vest purchase did not equip armor.");
+    shopVisitor.damagePlayer(180);
+    require(shopVisitor.playerArmor == 20 && shopVisitor.playerHealth == 35, "Armor did not absorb the hit.");
+    shopVisitor.damagePlayer(5, true);
+    require(shopVisitor.playerArmor == 20 && shopVisitor.playerHealth == 30, "Bypass hit did not reach health.");
+    shopVisitor.damagePlayer(35);
+    require(shopVisitor.playerArmor == 0 && shopVisitor.playerHealth == 15, "Damage beyond armor was lost.");
     require(shopScene.cameras.size() == 2 && shopScene.cameras.front().startMs == 1000 &&
             shopScene.dialogue.size() == 1 && shopScene.dialogue.front().startMs == 2500 &&
             shopScene.followCameraMs == 3000 && shopScene.durationMs == 3250 &&

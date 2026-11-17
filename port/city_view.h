@@ -276,6 +276,8 @@ struct CityCameraShake {
     void update(double deltaMs, bool explosion, bool suspended);
 };
 
+enum class CityShopService { health, vest };
+
 struct CityPlayback {
     double elapsedMs = 0;
     size_t nextDialogue = 0;
@@ -298,6 +300,7 @@ struct CityPlayback {
     size_t payphonePunchIndex = 0;
     static constexpr int32_t playerMaxHealth = 100;
     int32_t playerHealth = playerMaxHealth;
+    int32_t playerArmor = 0;
     int32_t playerCash = 0;
     bool openingMissionPaid = false;
     int32_t payphoneOpponentHealth = 100;
@@ -326,7 +329,8 @@ struct CityPlayback {
               std::array<float, 2> input, double deltaMs);
     bool canEnterShop(const CityCheckpoint& entrance) const;
     bool creditOpeningMission(int32_t reward);
-    bool buyShopHealth(uint32_t price);
+    bool buyShopService(CityShopService service, uint32_t price);
+    void damagePlayer(int32_t amount, bool bypassArmor = false);
     CityDoorSounds drive(const CityOpening& opening, const CityTerrain& terrain,
                          std::array<float, 2> input, double deltaMs, bool interact);
     void orbitCamera(const CityOpening& opening, std::array<float, 2> drag, double deltaMs);
