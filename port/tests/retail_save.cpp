@@ -374,6 +374,16 @@ void verifySaveDirectory()
         postBrawl->statUpdates.front().second != 5 || read() != encodeRetailSave(sampled))
         throw std::runtime_error("The C2M501 checkpoint did not preserve the payout and next mission.");
 
+    checkpoint.cash = 3950;
+    checkpoint.completedScripts = {{windowsPostVanCheckpointScript, -1}};
+    checkpoint.statUpdates = {{49, 9}};
+    writeWindowsOpeningCheckpoint(files, checkpoint);
+    const auto postVan = readWindowsOpeningCheckpoint(files);
+    if (!postVan || postVan->cash != 3950 ||
+        postVan->completedScripts.front().script != windowsPostVanCheckpointScript ||
+        postVan->statUpdates.front().second != 9 || read() != encodeRetailSave(sampled))
+        throw std::runtime_error("The van checkpoint did not preserve the payout and next mission.");
+
     if (files.openSavedFile("../retail/Gangstar2.sav") || files.openSavefile("../retail/Gangstar2.sav"))
         throw std::runtime_error("A save filename escaped the save directory.");
     bool overlapRejected = false;

@@ -476,9 +476,11 @@ mission playthroughs for discovery or verification.
   The fourth arrival forces the van exit, applies the 250 ms entrance
   fade, and plays the retail cameras, dialogue, actor walks, gestures,
   and priority audio cues. The final objective stages the van at its
-  authored marker and waits for reentry. The Vulkan fixture checks
-  arrival and reentry. The mission closing and scripted look cue remain
-  pending.
+  authored marker and waits for reentry. The closing sequence clears
+  the van protection, plays the final dialogue and fades, removes the
+  van, and applies the retail reward once. The Script 19 unlock restores
+  through Continue and displays the authored El Toro checkpoint.
+  Script 19 gameplay and the fourth arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

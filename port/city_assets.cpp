@@ -4059,6 +4059,34 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.vanFinalEntryWait = finalEntry.remainingBytes();
                 if (readScriptObject(finalEntry) != fourthCheckpoint.vehicle)
                     throw std::runtime_error("Unexpected vehicle for retail final van entry.");
+                auto closingFade = van.record(), clearVanProtection = van.record();
+                if (closingFade.integer() != 42 || clearVanProtection.integer() != 68)
+                    throw std::runtime_error("Invalid retail van closing entrance.");
+                route.vanClosingFadeMs = readFadeCommand(closingFade, 42, 0).durationMs;
+                clearVanProtection.finish();
+                std::vector<NamedMove> vanClosingMoves;
+                std::vector<DialogueCommand> vanClosingDialogue;
+                std::vector<std::pair<uint32_t, CityScriptActorPlacement>> vanClosingPlacements;
+                route.vanClosing.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, van, vanLength, 0, route.vanClosing, vanClosingMoves,
+                              vanClosingDialogue, vanClosingPlacements, nullptr, nullptr, nullptr, 67,
+                              nullptr, nullptr, true);
+                route.vanClosing.dialogue = resolveDialogue(vanClosingDialogue);
+                auto unlockAfterVan = van.record();
+                if (unlockAfterVan.integer() != 3)
+                    throw std::runtime_error("Missing retail mission unlock after the van.");
+                route.vanUnlockedScript = unlockAfterVan.integer();
+                unlockAfterVan.finish();
+                if (!vanClosingMoves.empty() || !vanClosingPlacements.empty())
+                    throw std::runtime_error("Unexpected retail van closing staging.");
+                auto unlockedVanScript = scripts.script(route.vanUnlockedScript);
+                unlockedVanScript.integer();
+                auto unlockedVanGate = unlockedVanScript.record();
+                if (unlockedVanGate.integer() != 64)
+                    throw std::runtime_error("Missing retail checkpoint after the van.");
+                route.vanUnlockedWait = unlockedVanGate.remainingBytes();
+                if (readCheckpointCommand(unlockedVanGate, 64).object != route.elToroCheckpoint->name)
+                    throw std::runtime_error("Unexpected retail checkpoint after the van.");
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
