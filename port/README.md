@@ -47,8 +47,9 @@ Use `--language english`, `french`, `german`, `italian`, `japanese`, or
 default. Keep `fontall.ttf` in the resource directory for Japanese menu glyphs.
 Windows uses `%LOCALAPPDATA%\OpenGangstar\Saves` for writable save files.
 Use `--save-dir <folder>` to override it with a directory outside the retail
-game data. Completing the opening mission writes `OpenGangstar.sav` there.
-**Continue** resumes from that handoff. Later checkpoints and resuming
+game data. Completing either of the first two missions writes
+`OpenGangstar.sav` there. **Continue** resumes at the corresponding handoff.
+The next mission after LC currently stops at its entrance marker. Later checkpoints and resuming
 arbitrary retail saves are still pending.
 The port builds without the Android APK or ARM toolchain.
 CMake applies the Win32 compatibility patches to copies of the state-machine

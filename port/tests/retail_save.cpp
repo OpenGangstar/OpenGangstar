@@ -339,6 +339,14 @@ void verifySaveDirectory()
     if (!resumed || resumed->cash != checkpoint.cash || resumed->position != checkpoint.position ||
         resumed->armor != checkpoint.armor || resumed->statUpdates.size() != 1 || read() != encodeRetailSave(sampled))
         throw std::runtime_error("Windows checkpoint lost state or replaced the imported retail save.");
+    checkpoint.cash = 350;
+    checkpoint.completedScripts = {{windowsPostLcCheckpointScript, -1}};
+    checkpoint.statUpdates = {{49, 2}};
+    writeWindowsOpeningCheckpoint(files, checkpoint);
+    const auto postLc = readWindowsOpeningCheckpoint(files);
+    if (!postLc || postLc->cash != 350 || postLc->completedScripts.front().script != windowsPostLcCheckpointScript ||
+        postLc->statUpdates.front().second != 2 || read() != encodeRetailSave(sampled))
+        throw std::runtime_error("The LC checkpoint did not preserve the new handoff.");
 
     if (files.openSavedFile("../retail/Gangstar2.sav") || files.openSavefile("../retail/Gangstar2.sav"))
         throw std::runtime_error("A save filename escaped the save directory.");

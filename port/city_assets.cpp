@@ -2927,6 +2927,19 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (unlockNext.integer() != 3) throw std::runtime_error("Missing retail LC mission handoff.");
                 route.lcUnlockedScript = unlockNext.integer();
                 unlockNext.finish();
+                auto postLc = scripts.script(*route.lcUnlockedScript);
+                if (postLc.integer() < 3) throw std::runtime_error("Incomplete retail post-LC mission script.");
+                auto gate = postLc.record();
+                auto postLcFade = postLc.record();
+                auto postLcStart = postLc.record();
+                if (gate.integer() != 64 || postLcFade.integer() != 42 || postLcStart.integer() != 65)
+                    throw std::runtime_error("Invalid retail post-LC mission entrance.");
+                route.postLcCheckpointWait = gate.remainingBytes();
+                if (readCheckpointCommand(gate, 64).object != route.marker.name)
+                    throw std::runtime_error("Retail post-LC mission entrance changed location.");
+                route.postLcFadeMs = readFadeCommand(postLcFade, 42, 0).durationMs;
+                route.postLcTitle = missionTitle(postLcStart.integer());
+                postLcStart.finish();
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.

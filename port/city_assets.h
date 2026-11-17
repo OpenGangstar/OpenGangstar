@@ -445,6 +445,9 @@ struct CityPostFightScene : CityMissionCinematic {
         uint32_t returnToLcFadeMs = 0, returnToLcWaitMs = 0;
         CityMissionCinematic lcClosingCinematic;
         std::optional<uint32_t> lcUnlockedScript;
+        std::optional<CityMissionTitle> postLcTitle;
+        std::vector<uint8_t> postLcCheckpointWait;
+        uint32_t postLcFadeMs = 0;
         std::optional<std::array<CityVehicleCharacterClips, 2>> vehicleCharacterClips;
         std::optional<CityAnimationClip> vehicleSeated;
     };

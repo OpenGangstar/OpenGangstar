@@ -292,8 +292,9 @@ mission playthroughs for discovery or verification.
   Walking cues use straight-line motion. The Hummer is hidden at its retail
   disable cue and removed from live playback when the scene ends. MissionOver
   awards the retail $100 once, updates progress, and presents the localized
-  completion objective, reward animation, and audio. Script 25 activation
-  and persistence after this handoff remain open.
+  completion objective, reward animation, and audio. Windows then activates
+  script 25's LC marker and saves the handoff. The marker's mission-start
+  commands and script 25's remaining route are pending.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
@@ -430,8 +431,8 @@ mission playthroughs for discovery or verification.
   district activation beyond the opening remain open.
 - [ ] Port save application, game-state capture, settings, and persistence UI.
   The Windows port writes an opening-mission checkpoint to `OpenGangstar.sav`
-  at the script 17 handoff. Continue restores the position, cash, armor, and
-  achievement stats and activates the retail script 18 entrance. The
+  at the script 17 and script 18 handoffs. Continue restores the position,
+  cash, armor, achievement stats, and the corresponding LC entrance. The
   checkpoint uses the retail block codec and a separate filename to preserve
   imported `Gangstar2.sav` files. Arbitrary retail saves and subsequent
   Windows checkpoints remain open.

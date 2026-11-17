@@ -1598,6 +1598,30 @@ void activateNextMissionCheckpoint(CityRender& city)
     script.unlock(0, 0, 0);
 }
 
+void activatePostLcCheckpoint(CityRender& city)
+{
+    city.nextMissionMarker = city.payphoneGameplayMs.value_or(0);
+    city.weaponShopUnlocked = true;
+}
+
+void saveOpeningCheckpoint(CityRender& city, const ResourceFileSystem& assets, int32_t script)
+{
+    const auto& playback = city.playback;
+    if (!playback.player) return;
+    RetailSavedState save;
+    save.cash = playback.playerCash;
+    save.context = 0;
+    save.position = playback.player->position;
+    save.armor[0] = playback.playerArmor;
+    save.completedScripts.push_back({script, -1});
+    if (city.achievements) city.achievements->capture(save);
+    try {
+        writeWindowsOpeningCheckpoint(assets, save);
+    } catch (const std::runtime_error& error) {
+        std::cerr << "Could not save the Windows checkpoint: " << error.what() << '\n';
+    }
+}
+
 void completeOpeningMission(CityRender& city, size_t mission, const CityMissionTitle& title)
 {
     if (!city.playback.creditOpeningMission(mission, title.cashReward)) return;
@@ -1636,7 +1660,12 @@ void restoreOpeningCheckpoint(CityRender& city, const RetailSavedState& checkpoi
     auto& playback = city.playback;
     playback = CityPlayback{};
     const auto& route = *opening.payphone;
-    const auto& placements = route.postFight.placements;
+    const auto& next = *route.postFight.nextCheckpoint;
+    const bool postLc = checkpoint.completedScripts.size() == 1 &&
+        checkpoint.completedScripts.front().script == windowsPostLcCheckpointScript;
+    if (postLc && next.lcUnlockedScript != windowsPostLcCheckpointScript)
+        throw std::runtime_error("This game data does not contain the saved LC handoff.");
+    const auto& placements = postLc ? next.lcClosingCinematic.placements : route.postFight.placements;
     const auto player = std::find_if(placements.rbegin(), placements.rend(), [](const auto& cue) {
         return cue.actor == "Player" && cue.visible;
     });
@@ -1660,7 +1689,14 @@ void restoreOpeningCheckpoint(CityRender& city, const RetailSavedState& checkpoi
     city.startup.reset();
     if (city.achievements)
         city.achievements->restore(sampleRetailSave(checkpoint, windowsOpeningCheckpointVersion, 0));
-    activateNextMissionCheckpoint(city);
+    if (postLc) {
+        playback.openingMissionsPaid[1] = true;
+        playback.nextMissionVehicleActive = true;
+        playback.nextMissionVehicleAcquired = true;
+        activatePostLcCheckpoint(city);
+    } else {
+        activateNextMissionCheckpoint(city);
+    }
 }
 
 void activateNextMissionVehicle(CityRender& city)
@@ -1761,7 +1797,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                    !city.playback.payphoneReached;
     const auto vehicleObjective = city.playback.vehicleObjectivePosition(city.opening);
     const bool updateVehicleMarker = !failed && vehicleObjective && !city.checkpointMeshes[2].empty();
-    const size_t footMarkerIndex = city.weaponShopUnlocked ? 7 : city.weaponShopApproach ? 6 : 3;
+    const bool postLc = city.playback.openingMissionsPaid[1];
+    const size_t footMarkerIndex = !postLc && city.weaponShopUnlocked ? 7 :
+        !postLc && city.weaponShopApproach ? 6 : 3;
     const bool updateNextMissionMarker = city.nextMissionMarker && !failed && !city.checkpointMeshes[footMarkerIndex].empty();
     const bool updateHummerMarker = city.hummerRouteMarker && !failed && !city.checkpointMeshes[4].empty();
     const bool updateShopMarker = city.hummerRouteMarker && city.weaponShopDrive && !failed &&
@@ -1769,7 +1807,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const bool updateLcMarker = city.hummerRouteMarker && city.returningToLc && !failed &&
         !city.checkpointMeshes[8].empty();
     const std::array updateMarkers{updateWalkMarker, updateRouteMarker, updateVehicleMarker,
-                                   updateNextMissionMarker && !city.weaponShopApproach,
+                                   updateNextMissionMarker && footMarkerIndex == 3,
                                    updateHummerMarker && !city.weaponShopDrive && !city.returningToLc, updateShopMarker,
                                    updateNextMissionMarker && footMarkerIndex == 6,
                                    updateNextMissionMarker && footMarkerIndex == 7, updateLcMarker};
@@ -1796,8 +1834,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                      city.vertices.data());
         if (updateNextMissionMarker) {
             const auto& next = *city.opening.payphone->postFight.nextCheckpoint;
-            const auto& destination = city.weaponShopUnlocked ? *next.weaponShopEntranceMarker :
-                city.weaponShopApproach ? *next.weaponShopApproach : next.marker;
+            const auto& destination = footMarkerIndex == 7 ? *next.weaponShopEntranceMarker :
+                footMarkerIndex == 6 ? *next.weaponShopApproach : next.marker;
             poseCityCheckpoint(destination,
                                city.checkpointMeshes[footMarkerIndex],
                                city.payphoneGameplayMs.value_or(0) - *city.nextMissionMarker, city.vertices.data());
@@ -1893,8 +1931,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             } else if (city.nextMissionMarker) {
                 target = Target::nextMission;
                 const auto& next = *city.opening.payphone->postFight.nextCheckpoint;
-                targetPosition = &(city.weaponShopUnlocked ? *next.weaponShopEntranceMarker :
-                    city.weaponShopApproach ? *next.weaponShopApproach : next.marker).position;
+                targetPosition = &(footMarkerIndex == 7 ? *next.weaponShopEntranceMarker :
+                    footMarkerIndex == 6 ? *next.weaponShopApproach : next.marker).position;
             } else if (city.payphoneLockMarker) {
                 target = Target::fightActor;
                 targetPosition = &city.payphoneLockMarker->position;
@@ -2034,7 +2072,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         else if (atOrAfter(city.hummerRouteFirstSurface))
             marker = !city.weaponShopDrive && !city.returningToLc && city.hummerRouteMarker;
         else if (atOrAfter(city.nextMissionFirstSurface))
-            marker = !city.weaponShopApproach && city.nextMissionMarker;
+            marker = footMarkerIndex == 3 && city.nextMissionMarker;
         else if (atOrAfter(city.vehicleObjectiveFirstSurface)) {
             marker = updateVehicleMarker;
             vehicleMarker = true;
@@ -2691,21 +2729,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     cityRender->activeMissionCinematic = nullptr;
                     if (&scene == &handoff && handoff.nextCheckpoint) {
                         activateNextMissionCheckpoint(*cityRender);
-                        if (!smokeTest && playback.openingMissionsPaid[0] && playback.player &&
-                            handoff.unlockedScript == windowsOpeningCheckpointScript) {
-                            RetailSavedState save;
-                            save.cash = playback.playerCash;
-                            save.context = 0;
-                            save.position = playback.player->position;
-                            save.armor[0] = playback.playerArmor;
-                            save.completedScripts.push_back({windowsOpeningCheckpointScript, -1});
-                            if (cityRender->achievements) cityRender->achievements->capture(save);
-                            try {
-                                writeWindowsOpeningCheckpoint(*assets, save);
-                            } catch (const std::runtime_error& error) {
-                                std::cerr << "Could not save the Windows checkpoint: " << error.what() << '\n';
-                            }
-                        }
+                        if (!smokeTest && playback.openingMissionsPaid[0] &&
+                            handoff.unlockedScript == windowsOpeningCheckpointScript)
+                            saveOpeningCheckpoint(*cityRender, *assets, windowsOpeningCheckpointScript);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cinematic) {
                         activateNextMissionVehicle(*cityRender);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->pierCinematic &&
@@ -2727,6 +2753,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         completeOpeningMission(*cityRender, 1, handoff.nextCheckpoint->title);
                         playback.vehicle.reset();
                         cityRender->returningToLc = false;
+                        if (handoff.nextCheckpoint->lcUnlockedScript == windowsPostLcCheckpointScript) {
+                            activatePostLcCheckpoint(*cityRender);
+                            if (!smokeTest) saveOpeningCheckpoint(*cityRender, *assets, windowsPostLcCheckpointScript);
+                        }
                     }
                 }
             }
@@ -3282,6 +3312,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         !cityRender->achievements || !savedAchievements ||
                         cityRender->achievements->stat(49) != savedAchievements->stat(49))
                         throw std::runtime_error("Continue did not restore the saved player, stats, and next objective.");
+                    const bool postLc = checkpoint->completedScripts.front().script == windowsPostLcCheckpointScript;
+                    if (cityRender->playback.openingMissionsPaid[1] != postLc ||
+                        (postLc && (cityRender->playback.vehicle || !cityRender->weaponShopUnlocked)))
+                        throw std::runtime_error("Continue restored the wrong opening mission handoff.");
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;
                     return;
@@ -3625,7 +3659,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     render.playback.playerCash != beforeCash + 100 || render.missionRewardIndex != 1 ||
                     !render.missionRewardCash[1].descriptor || !render.missionCompleteObjectives[1].descriptor ||
                     !render.achievements || render.achievements->stat(49) != beforeMissions + 1 ||
-                    render.playback.vehicle)
+                    render.playback.vehicle || !render.nextMissionMarker)
                     throw std::runtime_error("LC closing did not apply the reward, statistics, and Hummer cleanup.");
                 update(1000);
                 if (render.playback.vehicle)
