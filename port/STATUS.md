@@ -451,9 +451,14 @@ mission playthroughs for discovery or verification.
   delay. It simulates defeating the attackers. Full NPC weapon
   presentation, ammunition, targeting and gunfire AI, and player
   ranged combat remain open, so encounter balance is unverified.
-  The subsequent scene, passenger seating, parallel script 21 race,
-  retail payment presentation and audio, unaffordable repair feedback,
-  and scripted look cues also remain open.
+  The completed protection gate plays Juan's second handshake scene.
+  The retail entry cue seats the player in the van during the fade,
+  and the handoff removes the defeated attackers, restores van
+  protection, and starts El Toro's next briefing. The fixture verifies
+  the seated player, actor cleanup, and briefing timing. The third
+  destination is decoded. Its live checkpoint, passenger seating,
+  parallel script 21 race, retail payment presentation and audio,
+  unaffordable repair feedback, and scripted look cues remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

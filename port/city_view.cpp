@@ -1160,7 +1160,7 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
         }
         const auto& next = opening.payphone->postFight.nextCheckpoint;
         if ((!missionScene || (next && (missionScene == &next->locoCooperIntro || missionScene == &next->elToroInterlude ||
-                                      missionScene == &next->elToroDeparture))) &&
+                                      missionScene == &next->elToroDeparture || missionScene == &next->vanHandshake))) &&
             loco != playback.locoOpponents.end()) return !loco->second.disabled;
         if (playback.nextMissionVehicleActive && next &&
             (actor.name == next->postBasketballVehicle || actor.name == "aCooper_00" || actor.name == "aVan_00"))
@@ -2572,7 +2572,7 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         ? &*opening.payphone->postFight.nextCheckpoint : nullptr;
     const bool tailing = route && missionScene == &route->postLcTail;
     const bool showLiveOpponents = !missionScene || (route && (missionScene == &route->locoCooperIntro || missionScene == &route->elToroInterlude ||
-                                                     missionScene == &route->elToroDeparture));
+                                                     missionScene == &route->elToroDeparture || missionScene == &route->vanHandshake));
     for (const auto& range : skins) {
         const auto& actor = opening.actors[range.actor];
         const auto elapsedMs = actor.payphoneOnly ? payphoneMs.value_or(-1) : playback.elapsedMs;
