@@ -289,6 +289,7 @@ struct CityFightOpponent {
     int32_t health = 100;
     double defeatMs = 0;
     bool attacking = true;
+    bool taggedForKill = false;
     bool disablePending = false;
     bool disabled = false;
 };

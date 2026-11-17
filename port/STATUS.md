@@ -364,8 +364,13 @@ mission playthroughs for discovery or verification.
   leads into the confrontation. Windows renders the authored camera,
   dialogue, staging and gestures. The three walks use animation-derived
   straight-line motion. The cutscene queues the Hummer for offscreen
-  removal and returns control with the fight objective. The live fight,
-  retail vehicle AI, and Loco's seated model remain open.
+  removal and returns control with the fight objective. The three Locos
+  spawn with their authored health and minimap tags. The native fight
+  uses lock-on melee and retaliation after damage. The script clears
+  the tags only after all three opponents are defeated, queues offscreen
+  removal, and honors the 3-second wait. Automated checks cover the
+  multi-target gate and delay. The closing cutscene, retail NPC and
+  vehicle AI, and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

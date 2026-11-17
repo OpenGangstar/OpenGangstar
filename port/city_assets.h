@@ -494,6 +494,8 @@ struct CityPostFightScene : CityMissionCinematic {
         uint32_t cooperNextArrivalFadeMs = 0;
         CityMissionCinematic cooperNextArrival;
         std::string cooperNextFightObjective;
+        std::vector<std::string> cooperFightTargets;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperFightCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperNextDriveCommands;
         std::optional<CityCinematicPlacement> locoGuardPlacement;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> locoGuardCommands;
@@ -681,6 +683,7 @@ struct CityWaitEscape {
 CityWaitEscape decodeCityWaitEscape(const CityScriptCommand& command);
 std::string decodeCityWaitStolen(const CityScriptCommand& command);
 std::string decodeCityActorGetOut(const CityScriptCommand& command);
+std::string decodeCityKillTarget(const CityScriptCommand& command);
 std::string decodeCityWaitKilled(const CityScriptCommand& command);
 std::string decodeCityWaitForLock(const CityScriptCommand& command);
 std::string decodeCityDeferredDisable(const CityScriptCommand& command);

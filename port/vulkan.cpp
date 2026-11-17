@@ -550,7 +550,7 @@ struct CityRender {
     std::optional<RetailScriptExecution> postLcWalkScript;
     std::optional<RetailScriptExecution> postLcFightScript;
     CityTexture locoNextObjective, locoCooperObjective, cooperNextDriveObjective, cooperNextFightObjective;
-    bool cooperNextArrivalFinished = false;
+    std::optional<RetailScriptExecution> cooperBrawlScript;
     bool locoCooperPending = false;
     std::optional<CityVehiclePose> locoCooper;
     std::optional<RetailScriptExecution> locoCooperScript;
@@ -2071,6 +2071,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const bool showMinimap = city.minimapWidth && player && !city.playback.activeDialogue && !failed &&
         !payphoneMs && !postFightMs;
     std::optional<std::array<float, 2>> minimapMarker;
+    std::vector<std::array<float, 2>> killTargetMarkers;
     size_t minimapMarkerStep = 0;
     const bool updateVehicle = vehicle && !city.vehicleVertices.empty();
     auto cooperPose = city.locoCooper;
@@ -2312,6 +2313,15 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 const auto markerMs = routeStart ? city.payphoneGameplayMs.value_or(0) - *routeStart
                     : nextPlacement ? city.payphoneGameplayMs.value_or(0) : elapsedMs - city.minimapTargetStartMs;
                 minimapMarkerStep = retailMinimapAnimationStep(city.minimapCheckpointAnimation, markerMs * 0.03);
+            }
+            if (city.cooperBrawlScript) {
+                for (const auto& [name, opponent] : city.playback.locoOpponents) {
+                    if (!opponent.taggedForKill || opponent.disabled || opponent.health <= 0) continue;
+                    const auto& p = opponent.pose.position;
+                    const auto uv = retailMinimapUv(RetailMap::city, p[0], p[1]);
+                    killTargetMarkers.push_back(retailMinimapMarkerOffset(center, uv, right, city.minimapMarkerLimits,
+                                                                   zoom, city.minimapWidth, city.minimapHeight));
+                }
             }
             const auto base = city.minimapVertices[1];
             for (size_t i = 0; i < 6; ++i) {
@@ -2594,12 +2604,17 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     if (showMinimap) {
         for (const size_t i : {1u, 0u})
             overlay(city.minimapTextures[i].descriptor, screen, city.minimapVertices[i], 6);
-        if (minimapMarker) {
+        const auto drawMarker = [&](const std::array<float, 2>& position, size_t step) {
             auto markerTransform = screen;
-            markerTransform[0][3] = (*minimapMarker)[0] / 240;
-            markerTransform[1][3] = (*minimapMarker)[1] / 160;
-            overlay(city.minimapCheckpointTextures[minimapMarkerStep].descriptor, markerTransform,
-                    city.minimapCheckpointVertices[minimapMarkerStep], 6);
+            markerTransform[0][3] = position[0] / 240;
+            markerTransform[1][3] = position[1] / 160;
+            overlay(city.minimapCheckpointTextures[step].descriptor, markerTransform,
+                    city.minimapCheckpointVertices[step], 6);
+        };
+        if (minimapMarker) drawMarker(*minimapMarker, minimapMarkerStep);
+        if (!killTargetMarkers.empty()) {
+            const auto step = retailMinimapAnimationStep(city.minimapCheckpointAnimation, elapsedMs * 0.03);
+            for (const auto& marker : killTargetMarkers) drawMarker(marker, step);
         }
         overlay(city.minimapTextures[2].descriptor, screen, city.minimapVertices[2], 6);
     }
@@ -2666,7 +2681,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         else if (city.returningToLc && city.hummerRouteScript)
             overlay(city.returnToLcObjectives[city.hummerRouteMarker ? 1 : 0].descriptor,
                     screen, city.captionVertex, 6);
-        else if (city.cooperNextArrivalFinished && city.cooperNextFightObjective.descriptor)
+        else if (city.cooperBrawlScript && city.cooperNextFightObjective.descriptor)
             overlay(city.cooperNextFightObjective.descriptor, screen, city.captionVertex, 6);
         else if (cooperNextDrive && city.hummerRouteMarker && city.cooperNextDriveObjective.descriptor)
             overlay(city.cooperNextDriveObjective.descriptor, screen, city.captionVertex, 6);
@@ -3015,7 +3030,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     if (cityRender->audio) cityRender->audio->stopAll();
                     cityRender->fireSoundActive = false;
                     if (cityRender->missionTitleIndex == 4) {
-                        cityRender->cooperNextArrivalFinished = false;
+                        cityRender->cooperBrawlScript.reset();
+                        playback.locoOpponents.clear();
+                        playback.locoLockTarget.reset();
+                        playback.playerPunchMs.reset();
                         cityRender->pendingHummerCinematic = nullptr;
                         cityRender->hummerArrivalFadeMs.reset();
                         cityRender->hummerRouteScript.reset();
@@ -3257,7 +3275,20 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         auto& script = cityRender->postLcWalkScript.emplace(CityScriptProgram{{{64, wait}}});
                         script.unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextArrival) {
-                        cityRender->cooperNextArrivalFinished = true;
+                        playback.locoOpponents.clear();
+                        playback.locoLockTarget.reset();
+                        playback.playerPunchMs.reset();
+                        for (const auto& target : handoff.nextCheckpoint->cooperFightTargets) {
+                            const auto origin = std::find_if(scene.placements.rbegin(), scene.placements.rend(),
+                                [&](const auto& cue) { return cue.actor == target; });
+                            if (origin == scene.placements.rend() || !origin->visible)
+                                throw std::logic_error("Missing retail C2M501 fight actor placement.");
+                            playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, *origin, false);
+                        }
+                        CityScriptProgram program(1);
+                        for (const auto& [opcode, payload] : handoff.nextCheckpoint->cooperFightCommands)
+                            program.front().push_back({opcode, payload});
+                        cityRender->cooperBrawlScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextIntro) {
                         playback.missionConditions.clear();
                         playback.nextMissionVehicleAcquired = false;
@@ -3318,7 +3349,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                      interact && !enterShop && !scriptedArrival)
                     : CityDoorSounds{};
                 playback.pursuePayphoneTarget(cityRender->opening, cityRender->terrain, delta);
-                if (cityRender->postLcFightScript || cityRender->locoGuardScript)
+                if (cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->cooperBrawlScript)
                     playback.punchLocoOpponent(cityRender->opening, cityRender->terrain, delta, punchPressed, lockPressed);
                 else playback.punchPayphoneOpponent(cityRender->opening, cityRender->terrain, delta,
                                                    punchPressed, cityRender->payphoneTargetLocked);
@@ -3383,6 +3414,40 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->locoGuardScript.reset();
                         cityRender->locoCooperPending = true;
                     }
+                }
+                if (cityRender->cooperBrawlScript) {
+                    const auto getOpponent = [&](std::string_view name) -> CityFightOpponent& {
+                        const auto found = playback.locoOpponents.find(name);
+                        if (found == playback.locoOpponents.end())
+                            throw std::logic_error("Missing retail C2M501 fight target.");
+                        return found->second;
+                    };
+                    RetailMissionHooks fight;
+                    fight.clearActorAttacks = [&] {
+                        for (auto& [name, opponent] : playback.locoOpponents) {
+                            opponent.attacking = false;
+                            opponent.punchMs.reset();
+                            opponent.pose.walking = false;
+                        }
+                    };
+                    fight.tagKillTarget = [&](std::string_view name) {
+                        getOpponent(name).taggedForKill = true;
+                    };
+                    fight.actorKilled = [&](std::string_view name) {
+                        return getOpponent(name).health == 0;
+                    };
+                    fight.clearKilledTarget = [&](std::string_view name) {
+                        getOpponent(name).taggedForKill = false;
+                    };
+                    fight.disableActor = [&](std::string_view name, bool immediate) {
+                        auto& opponent = getOpponent(name);
+                        opponent.disabled = immediate;
+                        opponent.disablePending = !immediate;
+                    };
+                    auto& script = *cityRender->cooperBrawlScript;
+                    script.execute(0, static_cast<int32_t>(std::clamp(delta, 0., 1000.)), 0,
+                                   [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &fight);
+                    if (script.state(0) == RetailScriptState::locked) cityRender->cooperBrawlScript.reset();
                 }
                 if (cityRender->locoCooperScript && playback.player && cityRender->locoCooper) {
                     const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
@@ -3683,7 +3748,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     std::cerr << error.what() << '\n';
                 }
             }
-            if ((cityRender->postLcFightScript || cityRender->locoGuardScript) && !playback.missionFailure &&
+            if ((cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->cooperBrawlScript) &&
+                !playback.missionFailure &&
                 playback.playerHealth == 0) {
                 playback.missionFailure = -1;
                 ++playback.missionFailureCount;
@@ -4294,9 +4360,36 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         if (render.activeMissionCinematic != &route.cooperNextArrival || !render.postFightCinematic)
                             throw std::runtime_error("Script 27 did not play the C2M501 arrival cinematic.");
                         for (int step = 0; step < 96 && render.postFightCinematic; ++step) update(250, true);
-                        if (render.postFightCinematic || !render.cooperNextArrivalFinished ||
+                        if (render.postFightCinematic || !render.cooperBrawlScript ||
                             !render.cooperNextFightObjective.descriptor || playback.missionFailure)
                             throw std::runtime_error("Script 27 did not reach the next objective after C2M501.");
+                        update(0);
+                        if (playback.locoOpponents.size() != 3)
+                            throw std::runtime_error("Script 27 did not spawn all three kill targets.");
+                        for (const auto& [name, opponent] : playback.locoOpponents) {
+                            if (!opponent.taggedForKill || opponent.health <= 0 || opponent.disabled)
+                                throw std::runtime_error("Script 27 did not tag an active fight target.");
+                        }
+                        playback.locoOpponents.at("Loco_00").health = 0;
+                        playback.locoOpponents.at("Loco_01").health = 0;
+                        auto& lastOpponent = playback.locoOpponents.at("Loco_02");
+                        update(1000);
+                        if (!render.cooperBrawlScript || !lastOpponent.taggedForKill ||
+                            lastOpponent.disablePending || lastOpponent.disabled)
+                            throw std::runtime_error("Script 27 released the fight while a target was alive.");
+                        playback.player->position = lastOpponent.pose.position;
+                        lastOpponent.health = 1;
+                        playback.punchLocoOpponent(render.opening, render.terrain, 0, true, true);
+                        for (int step = 0; step < 20 && lastOpponent.health > 0; ++step)
+                            playback.punchLocoOpponent(render.opening, render.terrain, 50, false, false);
+                        if (lastOpponent.health != 0) throw std::runtime_error("Script 27 last target survived lethal damage.");
+                        update(0);
+                        if (!render.cooperBrawlScript || lastOpponent.taggedForKill)
+                            throw std::runtime_error("Script 27 did not clear tags before its retail wait.");
+                        for (int step = 0; step < 3; ++step) update(1000);
+                        if (!render.cooperBrawlScript) throw std::runtime_error("Script 27 fight wait ended too early.");
+                        update(1);
+                        if (render.cooperBrawlScript) throw std::runtime_error("Script 27 fight did not finish its retail wait.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

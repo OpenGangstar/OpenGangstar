@@ -49,6 +49,36 @@ void verifyVehiclePursuit()
     require(vehicle.position == before, "Vehicle pursuit drove into an impassable wall.");
 }
 
+void verifyTaggedKillTargets()
+{
+    const CityScriptCommand first{85, {0, 0, 0, 1, 'A'}};
+    const CityScriptCommand second{85, {0, 0, 0, 1, 'B'}};
+    RetailScriptExecution script({{{46, {}}, first, second, first, {91, {}}}});
+    script.unlock(0, 0, 0);
+    std::vector<std::string> tagged, cleared;
+    std::set<std::string, std::less<>> dead;
+    size_t clears = 0;
+    RetailMissionHooks mission;
+    mission.clearActorAttacks = [&] { ++clears; };
+    mission.tagKillTarget = [&](std::string_view target) { tagged.emplace_back(target); };
+    mission.actorKilled = [&](std::string_view target) { return dead.count(target) != 0; };
+    mission.clearKilledTarget = [&](std::string_view target) { cleared.emplace_back(target); };
+    const auto tick = [&] {
+        script.execute(0, 0, 0, [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &mission);
+    };
+    tick();
+    require(clears == 1 && tagged == std::vector<std::string>{"A", "B"} && cleared.empty(),
+            "Tagged kill target commands did not run once in script order.");
+    dead.insert("A");
+    tick();
+    require(script.state(0) == RetailScriptState::active && cleared.empty(),
+            "Tagged kill target wait passed with a surviving target.");
+    dead.insert("B");
+    tick();
+    require(script.state(0) == RetailScriptState::locked && cleared == tagged,
+            "Tagged kill target wait did not clear completed tags.");
+}
+
 void verifyScriptExecution()
 {
     RetailScriptExecution execution({
@@ -3410,6 +3440,7 @@ int wmain(int argc, wchar_t** argv)
         driveAndReverse();
         simulateParticles();
         verifyVehiclePursuit();
+        verifyTaggedKillTargets();
         verifyScriptExecution();
         verifyScriptChapterCommands();
         verifyWaitKilled();

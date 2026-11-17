@@ -283,6 +283,21 @@ void RetailScriptExecution::execute(uint32_t id, int32_t elapsedMs, int32_t play
             mission->disableActor(decodeCityDeferredDisable(command), skipBlockingCommands);
         } else if (command.opcode == 29 && mission && mission->actorAttack) {
             mission->actorAttack(decodeCityActorAttack(command));
+        } else if (command.opcode == 46 && mission && mission->clearActorAttacks) {
+            if (!command.payload.empty()) throw std::runtime_error("Invalid retail clear actor attacks payload.");
+            mission->clearActorAttacks();
+        } else if (command.opcode == 85 && mission && mission->tagKillTarget) {
+            auto target = decodeCityKillTarget(command);
+            if (std::find(script.killTargets.begin(), script.killTargets.end(), target) == script.killTargets.end()) {
+                mission->tagKillTarget(target);
+                script.killTargets.push_back(std::move(target));
+            }
+        } else if (command.opcode == 91 && mission && mission->actorKilled && mission->clearKilledTarget) {
+            if (!command.payload.empty()) throw std::runtime_error("Invalid retail wait for kill targets payload.");
+            if (!skipBlockingCommands && std::any_of(script.killTargets.begin(), script.killTargets.end(),
+                    [&](const auto& target) { return !mission->actorKilled(target); })) break;
+            for (const auto& target : script.killTargets) mission->clearKilledTarget(target);
+            script.killTargets.clear();
         } else if (command.opcode == 87 && mission && mission->actorKilled && mission->clearKilledTarget) {
             const auto target = decodeCityWaitKilled(command);
             if (!skipBlockingCommands && !mission->actorKilled(target)) break;

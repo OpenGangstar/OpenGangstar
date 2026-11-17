@@ -67,6 +67,8 @@ struct RetailMissionHooks {
     std::function<void()> hideTutorial;
     std::function<void(int32_t)> blinkHud;
     std::function<void()> recordChapterEnd;
+    std::function<void()> clearActorAttacks;
+    std::function<void(std::string_view)> tagKillTarget;
 };
 
 class RetailScriptExecution {
@@ -103,6 +105,7 @@ private:
         std::optional<CityScriptCheckpoint> checkpoint;
         std::optional<std::string> trackedVehicle;
         bool dialogueShown = false;
+        std::vector<std::string> killTargets;
     };
     static void releaseCheckpoint(Script& script, const RetailTravelHooks* travel);
     void freezeRunningScripts(uint32_t except, int32_t playerContext, const RetailTravelHooks* travel);

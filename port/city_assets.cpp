@@ -1986,6 +1986,14 @@ std::string decodeCityActorGetOut(const CityScriptCommand& command)
     return readScriptObject(reader);
 }
 
+std::string decodeCityKillTarget(const CityScriptCommand& command)
+{
+    if (command.opcode != 85) throw std::runtime_error("Expected the retail kill target opcode.");
+    const std::string path = "retail kill target";
+    CityDataReader reader(path, command.payload);
+    return readScriptObject(reader);
+}
+
 std::string decodeCityWaitKilled(const CityScriptCommand& command)
 {
     if (command.opcode != 87) throw std::runtime_error("Expected the retail WaitKilled opcode.");
@@ -3266,6 +3274,16 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail C2M501 fight objective.");
                 route.cooperNextFightObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expected : {46u, 85u, 85u, 85u, 91u, 23u, 23u, 23u, 57u}) {
+                    auto command = cooperNext.record();
+                    if (command.integer() != expected) throw std::runtime_error("Missing retail C2M501 fight command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 85) route.cooperFightTargets.push_back(decodeCityKillTarget({expected, payload}));
+                    else if (expected == 23) readScriptObject(command);
+                    else if (expected == 57) command.integer();
+                    if (expected != 85 && expected != 23) command.finish();
+                    route.cooperFightCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3602,6 +3620,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     if (attack.target != "Player") throw std::runtime_error("Invalid retail Loco attack target.");
                     prepareFightActor(attack.attacker);
                 }
+                for (const auto& target : next.cooperFightTargets) prepareFightActor(target);
                 if (next.locoGuardPlacement) {
                     loadCinematicActor(*next.locoGuardPlacement);
                     prepareFightActor(next.locoGuardPlacement->actor);
