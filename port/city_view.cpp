@@ -1434,6 +1434,14 @@ void CityPlayback::walk(const CityOpening& opening, const CityTerrain& terrain,
     }
 }
 
+bool CityPlayback::canEnterShop(const CityCheckpoint& entrance) const
+{
+    if (!player || playerHealth <= 0 || playerPunchMs || (vehicle && (vehicle->occupied || vehicle->doorAction)))
+        return false;
+    const auto offset = add(player->position, scale(entrance.position, -1));
+    return std::sqrt(dot(offset, offset)) < entrance.radius;
+}
+
 CityDoorSounds CityPlayback::drive(const CityOpening& opening, const CityTerrain& terrain,
                                   std::array<float, 2> input, double deltaMs, bool interact)
 {

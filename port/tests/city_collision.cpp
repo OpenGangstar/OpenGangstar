@@ -1589,6 +1589,17 @@ void poseRetailDoor(const std::filesystem::path& root)
             decodeCityShopLock({77, hummerRoute.weaponShopUnlock}) == enterShop.object &&
             decodeCityScriptTutorial({47, hummerRoute.weaponShopTutorialCommand}).title == 0x3072,
             "Weapon shop unlock did not resolve the retail entrance checkpoint and tutorial.");
+    const auto& entrance = *hummerRoute.weaponShopEntranceMarker;
+    CityPlayback shopVisitor;
+    require(!shopVisitor.canEnterShop(entrance), "Shop opened before the player spawned.");
+    shopVisitor.player = CityPlayerPose{entrance.position, 0};
+    require(shopVisitor.canEnterShop(entrance), "Player on foot could not enter the shop.");
+    shopVisitor.vehicle.emplace();
+    shopVisitor.vehicle->occupied = true;
+    require(!shopVisitor.canEnterShop(entrance), "Shop opened while driving.");
+    shopVisitor.vehicle.reset();
+    shopVisitor.player->position[0] += 2 * entrance.radius;
+    require(!shopVisitor.canEnterShop(entrance), "Shop opened from outside the marker.");
     const auto& shopInventory = hummerRoute.weaponShopInventory;
     require(shopInventory.size() == 8, "Weapon shop inventory lost retail rows.");
     const std::array<uint32_t, 8> shopPrices{100, 200, 250, 750, 1000, 1500, 2500, 5000};

@@ -273,7 +273,8 @@ mission playthroughs for discovery or verification.
   At the entrance, press E or gamepad A on foot to clear the tutorial and
   open a Windows inventory panel. It pauses gameplay and shows all eight
   retail items with their prices and localized labels. Press E, A, or Escape
-  to resume. The original shop layout, repeat visits, and purchasing remain open.
+  to resume. The entrance stays active for repeat visits. The original shop
+  layout and purchasing remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   formal mission completion and persistence, the remainder of script 18,

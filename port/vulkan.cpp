@@ -2371,13 +2371,19 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 if (!cityRender->hummerTutorialVisible && !occupied && playback.playerHealth > 0 && !playback.playerPunchMs &&
                     !(playback.vehicle && playback.vehicle->doorAction))
                     playback.walk(cityRender->opening, cityRender->terrain, input, delta);
+                const auto* shopEntrance = cityRender->weaponShopUnlocked
+                    ? &*cityRender->opening.payphone->postFight.nextCheckpoint->weaponShopEntranceMarker
+                    : nullptr;
+                const bool enterShop = interact && shopEntrance && playback.canEnterShop(*shopEntrance);
+                if (enterShop && !cityRender->nextMissionScript)
+                    cityRender->weaponShopOpen = true;
                 const auto previousJump = playback.longestJumpMeters;
                 const auto previousRamps = playback.visitedJumpRamps;
                 const auto previousSpeed = playback.highestVehicleSpeedKmh;
                 const auto previousDistance = playback.drivenKilometers;
                 const auto doorSounds = playback.playerHealth > 0 && !playback.playerPunchMs &&
                     !cityRender->hummerTutorialVisible
-                    ? playback.drive(cityRender->opening, cityRender->terrain, input, delta, interact)
+                    ? playback.drive(cityRender->opening, cityRender->terrain, input, delta, interact && !enterShop)
                     : CityDoorSounds{};
                 playback.pursuePayphoneTarget(cityRender->opening, cityRender->terrain, delta);
                 playback.punchPayphoneOpponent(cityRender->opening, cityRender->terrain, delta,
@@ -2392,14 +2398,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     travel.setActive = [&](std::string_view name, bool active) {
                         if (name != currentCheckpoint().name) return;
                         if (active) cityRender->nextMissionMarker = cityRender->payphoneGameplayMs.value_or(0);
-                        else cityRender->nextMissionMarker.reset();
+                        else if (!cityRender->weaponShopUnlocked) cityRender->nextMissionMarker.reset();
                     };
                     travel.reached = [&](const CityScriptCheckpoint& target) {
                         const auto& checkpoint = currentCheckpoint();
                         if (target.object != checkpoint.name || !playback.player || !playback.playerHealth)
                             return false;
-                        if (cityRender->weaponShopUnlocked && (!interact || occupied))
-                            return false;
+                        if (cityRender->weaponShopUnlocked) return enterShop;
                         const auto& position = playback.vehicle && playback.vehicle->occupied
                             ? playback.vehicle->position : playback.player->position;
                         return std::hypot(position[0] - checkpoint.position[0], position[1] - checkpoint.position[1],
