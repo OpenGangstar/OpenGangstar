@@ -564,6 +564,32 @@ void verifyScriptTick()
             "Script tick did not finish the earlier script and resume the parent in index order.");
 }
 
+void verifyWantedEscape()
+{
+    RetailWantedState wanted;
+    wanted.setLevel(2);
+    wanted.setPursuers(1);
+    if (wanted.update(20000) || wanted.escaping())
+        throw std::runtime_error("Wanted level dropped during active pursuit.");
+    wanted.setPursuers(0);
+    wanted.update(0);
+    wanted.update(10000);
+    if (wanted.escaping() || wanted.update(0) || !wanted.escaping())
+        throw std::runtime_error("Wanted level did not begin blinking on the retail tick.");
+    wanted.setPursuers(1);
+    if (wanted.update(5000) || wanted.escaping() || wanted.level() != 2)
+        throw std::runtime_error("Renewed pursuit did not reset the wanted timer.");
+    wanted.setPursuers(0);
+    for (int32_t expected = 1; expected >= 0; --expected) {
+        wanted.update(0);
+        wanted.update(10000);
+        wanted.update(0);
+        if (!wanted.escaping() || wanted.update(5000) || !wanted.update(0) ||
+            wanted.level() != expected || wanted.escaping())
+            throw std::runtime_error("Wanted level did not drop one star after the retail escape delay.");
+    }
+}
+
 void verifyCinematicCommands()
 {
     RetailScriptExecution execution({{{15, {}}, {16, {}}, {17, {}}, {18, {}}}});
@@ -3471,6 +3497,7 @@ int wmain(int argc, wchar_t** argv)
         verifyMissionCompletion();
         verifyScriptReset();
         verifyScriptTick();
+        verifyWantedEscape();
         verifyCinematicCommands();
         verifyScriptCameras();
         verifyScriptFades();

@@ -3962,6 +3962,26 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size() || !route.vanPoliceWantedLevel)
                     throw std::runtime_error("Missing retail police reveal objective or wanted level.");
                 route.vanPoliceObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expected : {89u, 66u, 90u}) {
+                    auto command = van.record();
+                    if (command.integer() != expected)
+                        throw std::runtime_error("Invalid retail script 31 police escape command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 89) {
+                        if (readScriptObject(command) != "aVan_00")
+                            throw std::runtime_error("Invalid retail police escape vehicle.");
+                    } else if (expected == 66) {
+                        const auto id = readMissionObjective(command);
+                        if ((id >> 12 & 0xf) != 4 || (id & 0xfff) >= chapterText.size())
+                            throw std::runtime_error("Invalid retail lose-police objective.");
+                        route.vanLosePoliceObjective = chapterText[id & 0xfff];
+                    } else {
+                        if (command.signedInteger() != 0)
+                            throw std::runtime_error("Invalid retail wanted level escape target.");
+                        command.finish();
+                    }
+                    route.vanPoliceEscapeCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.

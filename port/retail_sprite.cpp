@@ -173,6 +173,8 @@ RetailStatusHud loadRetailStatusHud(FileSystemBase& assets)
         loadGaugeLayer(names[i], hud.gauges[i / 3].layers[i % 3]);
     constexpr std::array spyNames{"SPY_GAUGE_BG", "SPY_GAUGE", "SPY_GAUGE_ICON", "SPY_GAUGE_INDICATOR"};
     for (size_t i = 0; i < spyNames.size(); ++i) loadGaugeLayer(spyNames[i], hud.spyLayers[i]);
+    constexpr std::array starNames{"STAR_01", "STAR_02", "STAR_03", "STAR_04", "STAR_05"};
+    for (size_t i = 0; i < starNames.size(); ++i) loadGaugeLayer(starNames[i], hud.wantedStars[i]);
     // The default CHudManager cash widget uses LITTLEY digits and separators.
     constexpr std::array<size_t, retailCashCharacters.size()> cashFrames{
         96, 87, 88, 89, 90, 91, 92, 93, 94, 95, 86, 97, 172};

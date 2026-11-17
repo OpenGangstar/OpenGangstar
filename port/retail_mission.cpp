@@ -54,6 +54,49 @@ bool retailEscapeReached(const RetailEscapePositions& positions, float distanceC
     return std::sqrt(x * x + y * y + z * z) >= distanceCm;
 }
 
+void RetailWantedState::setLevel(int32_t value)
+{
+    const auto next = std::clamp(value, 0, 5);
+    if (next > stars) phase = Phase::start;
+    else if (next == 0) phase = Phase::inactive;
+    stars = next;
+}
+
+void RetailWantedState::setPursuers(unsigned count)
+{
+    if (count > pursuers && stars > 0) phase = Phase::start;
+    pursuers = count;
+}
+
+bool RetailWantedState::update(double deltaMs)
+{
+    // WantedLevelManager arms the lost-contact timer on a separate tick.
+    if (stars == 0 || pursuers) return false;
+    switch (phase) {
+    case Phase::inactive:
+        break;
+    case Phase::start:
+        phase = Phase::waiting;
+        phaseMs = 0;
+        break;
+    case Phase::waiting:
+        if (phaseMs >= 10000) {
+            phase = Phase::blinking;
+            phaseMs = 0;
+        } else phaseMs += std::max(0., deltaMs);
+        break;
+    case Phase::blinking:
+        if (phaseMs >= 5000) {
+            --stars;
+            phase = stars ? Phase::start : Phase::inactive;
+            return true;
+        }
+        phaseMs += std::max(0., deltaMs);
+        break;
+    }
+    return false;
+}
+
 RetailScriptExecution::RetailScriptExecution(CityScriptProgram program)
     : program(std::move(program)), scripts(this->program.size())
 {
@@ -207,6 +250,9 @@ void RetailScriptExecution::execute(uint32_t id, int32_t elapsedMs, int32_t play
                 travel->trackVehicle(*script.trackedVehicle, false);
                 script.trackedVehicle.reset();
             }
+        } else if (command.opcode == 90 && mission && mission->wantedLevel) {
+            const auto target = signedScriptWord(command);
+            if (!skipBlockingCommands && mission->wantedLevel() != target) break;
         } else if (command.opcode == 66 && mission && mission->showObjective) {
             mission->showObjective(decodeCityMissionObjective(command));
         } else if (command.opcode == 65 && mission && mission->missionState && mission->startMission) {

@@ -597,6 +597,8 @@ struct CityPostFightScene : CityMissionCinematic {
         std::string vanPoliceWaitObjective, vanPoliceObjective;
         std::vector<uint8_t> vanPoliceWait;
         std::optional<int32_t> vanPoliceWantedLevel;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> vanPoliceEscapeCommands;
+        std::string vanLosePoliceObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;

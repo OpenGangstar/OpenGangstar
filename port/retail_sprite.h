@@ -49,6 +49,7 @@ inline constexpr std::string_view retailCashCharacters = "0123456789$,.";
 struct RetailStatusHud {
     std::array<RetailHudGauge, statusGaugeCount> gauges;
     std::array<RetailHudGauge::Layer, 4> spyLayers;
+    std::array<RetailHudGauge::Layer, 5> wantedStars;
     std::array<Image, retailCashCharacters.size()> cashGlyphs;
 };
 RetailStatusHud loadRetailStatusHud(FileSystemBase& assets);

@@ -34,6 +34,22 @@ enum class RetailCinematicPhase {
     gameplay, enteringMission, mission, leavingMission, enteringStartup, startup, leavingStartup
 };
 
+class RetailWantedState {
+public:
+    void setLevel(int32_t value);
+    void setPursuers(unsigned count);
+    bool update(double deltaMs);
+    int32_t level() const { return stars; }
+    bool escaping() const { return phase == Phase::blinking; }
+
+private:
+    enum class Phase { inactive, start, waiting, blinking };
+    Phase phase = Phase::inactive;
+    unsigned pursuers = 0;
+    int32_t stars = 0;
+    double phaseMs = 0;
+};
+
 struct RetailMissionHooks {
     RetailMissionConditions* conditions = nullptr;
     std::function<void(uint32_t)> showObjective;
@@ -69,6 +85,7 @@ struct RetailMissionHooks {
     std::function<void()> recordChapterEnd;
     std::function<void()> clearActorAttacks;
     std::function<void(std::string_view)> tagKillTarget;
+    std::function<int32_t()> wantedLevel;
 };
 
 class RetailScriptExecution {

@@ -482,6 +482,8 @@ struct CityRender {
         destroyTexture(vanDriveObjective);
         destroyTexture(vanProtectObjective);
         destroyTexture(vanPoliceWaitObjective);
+        destroyTexture(vanPoliceObjective);
+        destroyTexture(vanLosePoliceObjective);
         destroyTexture(basketballFightObjective);
         destroyTexture(basketballTutorial);
         destroyTexture(weaponShopTutorial);
@@ -491,6 +493,7 @@ struct CityRender {
         for (const auto& gauge : statusGauges)
             for (const auto& texture : gauge.layers) destroyTexture(texture);
         for (const auto& texture : spyLayers) destroyTexture(texture);
+        for (const auto& texture : wantedStars) destroyTexture(texture);
         for (const auto& texture : cashGlyphs) destroyTexture(texture);
         destroyTexture(failureTitle);
         for (const auto& texture : missionCompleteObjectives) destroyTexture(texture);
@@ -573,8 +576,10 @@ struct CityRender {
     CityTexture repairDriveObjective, repairTutorial, deliveryObjective, elToroObjective, elToroFightObjective;
     std::optional<RetailScriptExecution> elToroDestinationScript, elToroDriveScript;
     CityTexture elToroDriveObjective, vanMissionObjective, vanDriveObjective, vanProtectObjective;
-    std::optional<RetailScriptExecution> vanProtectionScript, vanHandshakeScript, vanPoliceWaitScript;
-    CityTexture vanPoliceWaitObjective;
+    std::optional<RetailScriptExecution> vanProtectionScript, vanHandshakeScript, vanPoliceWaitScript, vanPoliceEscapeScript;
+    CityTexture vanPoliceWaitObjective, vanPoliceObjective, vanLosePoliceObjective;
+    RetailWantedState wanted;
+    bool vanEnteredForEscape = false;
     double vanProtectionMs = 0;
     std::optional<RetailScriptExecution> vanAcquisitionScript, vanDriveScript, vanReentryScript;
     std::optional<double> vanDriveMarker;
@@ -618,6 +623,8 @@ struct CityRender {
     };
     std::array<StatusGauge, statusGaugeCount> statusGauges;
     std::array<CityTexture, 4> spyLayers;
+    std::array<CityTexture, 5> wantedStars;
+    std::array<uint32_t, 5> wantedStarVertices{};
     std::array<uint32_t, 4> spyVertices{};
     uint32_t spyWidth = 0;
     RetailHealthBlink healthBlink;
@@ -1300,9 +1307,9 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount + vanSecondArrivalLineCount + vanHandshakeLineCount + vanHandshakeBriefingLineCount + vanPoliceLineCount +
-                                             hasPayphoneObjective + (next ? 35 : 0) +
+                                             hasPayphoneObjective + (next ? 37 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
-                                                          statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
+                                                          statusHud->cashGlyphs.size() + statusHud->spyLayers.size() + statusHud->wantedStars.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
                                              failure.size() + hasFailureTitle + hasFailurePrompt +
                                              rewardFrames.size() + cashLabels + completionLabels +
@@ -1380,6 +1387,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         for (size_t i = 0; i < statusHud->spyLayers.size(); ++i)
             upload(city.spyLayers[i], statusHud->spyLayers[i].image);
         city.spyWidth = statusHud->spyLayers.front().image.width;
+        for (size_t i = 0; i < statusHud->wantedStars.size(); ++i)
+            upload(city.wantedStars[i], statusHud->wantedStars[i].image);
         city.cashLanguage = language;
         for (size_t i = 0; i < statusHud->cashGlyphs.size(); ++i) {
             upload(city.cashGlyphs[i], statusHud->cashGlyphs[i]);
@@ -1518,6 +1527,10 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.elToroObjective}, true, false, 432, 68, font.family()));
             upload(city.vanMissionObjective,
                    rasterCaption({0, 0, {}, next.vanMissionObjective}, true, false, 432, 68, font.family()));
+            upload(city.vanPoliceObjective,
+                   rasterCaption({0, 0, {}, next.vanPoliceObjective}, true, false, 432, 68, font.family()));
+            upload(city.vanLosePoliceObjective,
+                   rasterCaption({0, 0, {}, next.vanLosePoliceObjective}, true, false, 432, 68, font.family()));
             upload(city.vanPoliceWaitObjective,
                    rasterCaption({0, 0, {}, next.vanPoliceWaitObjective}, true, false, 432, 68, font.family()));
             upload(city.vanProtectObjective,
@@ -2650,7 +2663,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 target = Target::fightActor;
                 targetPosition = &city.payphoneLockMarker->position;
             } else if (vehicle && (city.postBasketballVehicleScript ||
-                                  ((city.vanAcquisitionScript || city.vanReentryScript) &&
+                                  ((city.vanAcquisitionScript || city.vanReentryScript || city.vanPoliceEscapeScript) &&
                                    !city.playback.nextMissionVehicleAcquired))) {
                 target = Target::nextVehicle;
                 targetPosition = &vehicle->position;
@@ -2992,6 +3005,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         drawStatusGauge(lifeGauge, city.playback.playerHealth, CityPlayback::playerMaxHealth, city.healthBlink.hideFill);
         if (city.playback.playerArmor > 0 && !(vehicle && vehicle->occupied))
             drawStatusGauge(armorGauge, city.playback.playerArmor, CityPlayback::playerMaxArmor, false);
+        for (size_t i = 0; i < static_cast<size_t>(city.wanted.level()); ++i)
+            if (city.wantedStars[i].descriptor)
+                overlay(city.wantedStars[i].descriptor, screen, city.wantedStarVertices[i], 6);
         if (city.spyGauge && city.spyWidth) {
             for (size_t i = 0; i < city.spyLayers.size() - 1; ++i)
                 overlay(city.spyLayers[i].descriptor, screen, city.spyVertices[i], 6);
@@ -3083,6 +3099,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.repairTutorialVisible && city.repairTutorial.descriptor)
             overlay(city.repairTutorial.descriptor, screen, city.captionVertex, 6);
+        else if (city.vanPoliceEscapeScript)
+            overlay((city.vanEnteredForEscape ? city.vanLosePoliceObjective : city.vanPoliceObjective).descriptor,
+                    screen, city.captionVertex, 6);
         else if (city.vanPoliceWaitScript && city.vanPoliceWaitObjective.descriptor)
             overlay(city.vanPoliceWaitObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.vanProtectionScript && city.vanProtectObjective.descriptor)
@@ -3522,6 +3541,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->vanDriveMarker.reset();
                         cityRender->vanDriveLeg = 0;
                         cityRender->vanPoliceWaitScript.reset();
+                        cityRender->vanPoliceEscapeScript.reset();
+                        cityRender->wanted = {};
                         cityRender->vanReentryScript.reset();
                         cityRender->vanProtectionScript.reset();
                         cityRender->vanHandshakeScript.reset();
@@ -3882,6 +3903,16 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         for (const auto& [opcode, payload] : route.vanAcquisitionCommands)
                             program.front().push_back({opcode, payload});
                         cityRender->vanAcquisitionScript.emplace(std::move(program)).unlock(0, 0, 0);
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->vanPoliceReveal) {
+                        const auto& route = *handoff.nextCheckpoint;
+                        cityRender->wanted.setLevel(*route.vanPoliceWantedLevel);
+                        if (cityRender->achievements) cityRender->achievements->setStat(26, cityRender->wanted.level());
+                        cityRender->vanEnteredForEscape = false;
+                        playback.nextMissionVehicleAcquired = false;
+                        CityScriptProgram program(1);
+                        for (const auto& [opcode, payload] : route.vanPoliceEscapeCommands)
+                            program.front().push_back({opcode, payload});
+                        cityRender->vanPoliceEscapeScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->vanThirdArrival) {
                         const auto& route = *handoff.nextCheckpoint;
                         const auto juan = std::find_if(scene.placements.rbegin(), scene.placements.rend(),
@@ -4495,6 +4526,21 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         stagePostBasketballVehicle(*cityRender);
                     }
                 }
+                if (cityRender->vanPoliceEscapeScript) {
+                    RetailTravelHooks travel;
+                    travel.occupiedVehicle = [&]() -> std::string_view {
+                        return nowOccupied ? cityRender->opening.actors.at(*cityRender->opening.vehicleActor).name
+                                           : std::string_view{};
+                    };
+                    travel.trackVehicle = [&](std::string_view, bool tracked) { playback.nextMissionVehicleAcquired = !tracked; };
+                    RetailMissionHooks mission;
+                    mission.wantedLevel = [&] { return cityRender->wanted.level(); };
+                    mission.showObjective = [&](uint32_t) { cityRender->vanEnteredForEscape = true; };
+                    auto& script = *cityRender->vanPoliceEscapeScript;
+                    script.execute(0, 0, 0, [](const auto&, int32_t) { return false; }, [] {}, [] {},
+                                   false, &travel, {}, &mission);
+                    if (script.state(0) == RetailScriptState::locked) cityRender->vanPoliceEscapeScript.reset();
+                }
                 if (cityRender->vanPoliceWaitScript) {
                     auto& script = *cityRender->vanPoliceWaitScript;
                     script.execute(0, static_cast<int32_t>(std::clamp(delta, 0., 1000.)), 0,
@@ -4998,6 +5044,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             const auto& layer = statusHud->spyLayers[i];
                             render->spyVertices[i] = appendOverlay(layer.x / 240.f - 1,
                                 (layer.x + int32_t(layer.image.width)) / 240.f - 1, layer.y / 160.f - 1,
+                                (layer.y + int32_t(layer.image.height)) / 160.f - 1);
+                        }
+                        for (size_t i = 0; i < statusHud->wantedStars.size(); ++i) {
+                            const auto& layer = statusHud->wantedStars[i];
+                            const auto x = layer.x - (568 - 480);
+                            render->wantedStarVertices[i] = appendOverlay(x / 240.f - 1,
+                                (x + int32_t(layer.image.width)) / 240.f - 1, layer.y / 160.f - 1,
                                 (layer.y + int32_t(layer.image.height)) / 160.f - 1);
                         }
                         for (size_t i = 0; i < statusHud->cashGlyphs.size(); ++i) {
@@ -5990,6 +6043,17 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             route.vanPoliceReveal.dialogue.size() != 2 || route.vanPoliceWantedLevel != 2 ||
                             route.vanPoliceObjective.empty())
                             throw std::runtime_error("Script 31 did not start the authored police reveal.");
+                        for (int step = 0; step < 120 && render.postFightCinematic; ++step) update(250, true);
+                        update(0);
+                        if (!render.vanPoliceEscapeScript || render.vanEnteredForEscape || render.wanted.level() != 2 ||
+                            render.achievements->stat(26) != 2 || !render.wantedStars[1].descriptor)
+                            throw std::runtime_error("Script 31 did not apply its wanted level and van objective.");
+                        playback.player->position = van.position;
+                        touch->message(window, WM_KEYDOWN, 'E', 0);
+                        update(0);
+                        touch->message(window, WM_KEYUP, 'E', 0);
+                        if (!van.occupied || !render.vanEnteredForEscape || !render.vanPoliceEscapeScript)
+                            throw std::runtime_error("Script 31 did not wait for zero stars after van entry.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

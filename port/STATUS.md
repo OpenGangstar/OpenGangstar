@@ -458,8 +458,11 @@ mission playthroughs for discovery or verification.
   the seated player, actor cleanup, and briefing timing. The third van
   checkpoint plays Juan's arrival scene, then runs the authored six-second
   wait and police reveal. The automated fixture checks the checkpoint,
-  the wait boundary, and both police dialogue lines. The two-star command
-  and next objective are decoded. Live wanted behavior and pursuit,
+  the wait boundary, both police dialogue lines, the two-star HUD, and van
+  reentry. The next objective waits for zero stars. The retail escape timer
+  has isolated coverage. The city runtime still needs police pursuit input
+  to drive that timer and a blinking HUD during escape.
+  Remaining work includes
   passenger seating, the parallel script 21 race, retail payment
   presentation and audio, unaffordable repair feedback, and scripted
   look cues remain open.
