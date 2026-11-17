@@ -452,6 +452,9 @@ struct CityPostFightScene : CityMissionCinematic {
         std::string postLcDriveObjective;
         std::vector<uint8_t> postLcVehicleWait, postLcVehicleProtection, postLcDriveWait;
         std::optional<CityCheckpoint> postLcDriveCheckpoint;
+        uint32_t postLcArrivalFadeMs = 0;
+        CityMissionCinematic postLcAmbush;
+        std::string postLcAmbushObjective;
         std::optional<std::array<CityVehicleCharacterClips, 2>> vehicleCharacterClips;
         std::optional<CityAnimationClip> vehicleSeated;
     };

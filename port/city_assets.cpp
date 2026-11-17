@@ -2190,6 +2190,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> shopMoves;
     std::vector<NamedMove> lcClosingMoves;
     std::vector<NamedMove> postLcMoves;
+    std::vector<NamedMove> postLcAmbushMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2211,6 +2212,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<AnimationCommand> pierAnimations;
     std::vector<AnimationCommand> lcClosingAnimations;
     std::vector<AnimationCommand> postLcAnimations;
+    std::vector<AnimationCommand> postLcAmbushAnimations;
     struct MotionCommand {
         uint32_t time;
         std::string actor;
@@ -2244,6 +2246,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> shopDialogue;
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
+    std::vector<DialogueCommand> postLcAmbushDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2252,6 +2255,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> shopPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -2971,6 +2975,20 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 auto exitPostLc = postLc.record();
                 if (exitPostLc.integer() != 99 || readScriptObject(exitPostLc) != route.targetVehicle)
                     throw std::runtime_error("Invalid retail post-LC vehicle exit.");
+                auto postLcArrivalFade = postLc.record();
+                if (postLcArrivalFade.integer() != 42)
+                    throw std::runtime_error("Missing retail Loco scene fade.");
+                route.postLcArrivalFadeMs = readFadeCommand(postLcArrivalFade, 42, 0).durationMs;
+                if (!route.postLcArrivalFadeMs) throw std::runtime_error("Invalid retail Loco scene fade duration.");
+                previousCinematicShot.clear();
+                route.postLcAmbush.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, postLc, postLcLength, 0, route.postLcAmbush, postLcAmbushMoves,
+                              postLcAmbushDialogue, postLcAmbushPlacements, &postLcAmbushAnimations, nullptr, nullptr, 66);
+                route.postLcAmbush.dialogue = resolveDialogue(postLcAmbushDialogue);
+                if (!nextMissionObjectiveId || (*nextMissionObjectiveId >> 12 & 0xf) != 4 ||
+                    (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
+                    throw std::runtime_error("Invalid retail Loco objective.");
+                route.postLcAmbushObjective = chapterText[*nextMissionObjectiveId & 0xfff];
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3009,6 +3027,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(shopPlacements, next->weaponShopCinematic.placements);
                 resolvePlacements(lcClosingPlacements, next->lcClosingCinematic.placements);
                 resolvePlacements(postLcPlacements, next->postLcIntro.placements);
+                resolvePlacements(postLcAmbushPlacements, next->postLcAmbush.placements);
             }
         }
     }
@@ -3267,6 +3286,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.weaponShopCinematic);
                 loadCinematicActors(next.lcClosingCinematic);
                 loadCinematicActors(next.postLcIntro);
+                loadCinematicActors(next.postLcAmbush);
             }
             const auto bindCinematic = [&](CityMissionCinematic& scene, const auto& commands) {
                 for (const auto& command : commands) {
@@ -3288,6 +3308,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->pierCinematic, pierAnimations);
                 bindCinematic(next->lcClosingCinematic, lcClosingAnimations);
                 bindCinematic(next->postLcIntro, postLcAnimations);
+                bindCinematic(next->postLcAmbush, postLcAmbushAnimations);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
                     if (!cue.visible || cue.actor == next->targetVehicle) continue;
                     const auto actor = findCinematicActor(cue.actor);
@@ -3389,6 +3410,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : postLcMoves)
                             next->postLcIntro.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : postLcAmbushMoves)
+                            next->postLcAmbush.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                     }
                 }

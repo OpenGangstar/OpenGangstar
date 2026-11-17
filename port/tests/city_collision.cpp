@@ -1651,6 +1651,11 @@ void poseRetailDoor(const std::filesystem::path& root)
             drivePostLc.object == "CheckpointDrive_C2M201" && drivePostLc.vehicle == hummerRoute.targetVehicle &&
             hummerRoute.postLcDriveCheckpoint && markerDraw.postLcDriveFirstSurface &&
             !markerDraw.checkpointMeshes[9].empty(), "Script 25 lost its playable drive gates.");
+    const auto& ambush = hummerRoute.postLcAmbush;
+    require(hummerRoute.postLcArrivalFadeMs == 300 && !ambush.cameras.empty() &&
+            ambush.dialogue.size() == 3 && !ambush.placements.empty() &&
+            !hummerRoute.postLcAmbushObjective.empty(),
+            "Script 25 lost its arrival fade, Loco cinematic or objective.");
     require(lcClosing.cameras.size() >= 4 && lcClosing.dialogue.size() == 3,
             "Retail LC camera or dialogue cues changed.");
     require(lcClosing.motions.size() == 3 && lcClosing.actorAnimations.at("LC_00").size() == 4,

@@ -298,7 +298,12 @@ mission playthroughs for discovery or verification.
   localized drive objective. The cinematic uses straight-line walking.
   The Hummer spawns at its authored position. The live script waits for
   entry, registers ProtectCar, and activates the drive checkpoint. Arrival
-  requests the scripted exit. The following fade and Loco scene are pending.
+  requests the scripted exit, then starts the authored 300 ms fade and
+  plays the Loco cinematic with its cameras, cast, dialogue, and animation
+  cues. The handoff removes the Hummer and shows the localized objective.
+  Authored path following, scripted Hummer motion, and the ensuing combat
+  remain open. Automated Continue smoke covers the drive checkpoint,
+  cinematic rendering, and objective handoff.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
