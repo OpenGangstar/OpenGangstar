@@ -2475,8 +2475,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         }
                         if (cityRender->audio) {
                             try {
-                                cityRender->audio->stop(14);
-                                cityRender->audio->playPriority(25, false);
+                                // The live opening route uses PlayerTest's street context.
+                                cityRender->audio->playMissionCompletion(0);
                             } catch (const std::runtime_error& error) {
                                 std::cerr << error.what() << '\n';
                             }

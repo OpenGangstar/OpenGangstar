@@ -96,9 +96,23 @@ try {
     if (audio.mixGain(119) != 0.4f)
         throw std::runtime_error("Stopping priority audio did not restore the restricted effect.");
     audio.stopAll();
-    audio.playPriority(25, false, 0);
-    if (!audio.playing(25)) throw std::runtime_error("The retail mission completion cue did not start.");
+    audio.setBusVolumes(0, 0);
+    audio.play(14, true);
+    audio.playMissionCompletion(0);
+    if (audio.playing(14) || !audio.playing(25) || !audio.playing(101) || audio.playing(100))
+        throw std::runtime_error("Mission completion did not replace the old music and start street ambience.");
     audio.stop(25);
+    audio.update();
+    if (!audio.playing(101)) throw std::runtime_error("Street ambience did not outlast the priority cue.");
+    audio.stopAll();
+    audio.playMissionCompletion(1);
+    if (!audio.playing(25) || !audio.playing(100) || audio.playing(101))
+        throw std::runtime_error("Mission completion did not select prison ambience in context 1.");
+    audio.stopAll();
+    audio.playMissionCompletion(-1);
+    if (!audio.playing(25) || audio.playing(100) || audio.playing(101))
+        throw std::runtime_error("Mission completion selected ambience for an invalid context.");
+    audio.stopAll();
     audio.play(131, false, 0);
     if (audio.playing(131)) throw std::runtime_error("An empty retail audio slot started playback.");
     audio.play(4, false, 0);

@@ -20,6 +20,7 @@ public:
     void setBusVolumes(float effects, float music);
     void playPriority(unsigned id, bool loop, float gain = 1);
     void playScriptCue(const CityAudioCue& cue);
+    void playMissionCompletion(int playerContext);
     void updateV6Engine(bool running, int rpm, float load);
     float mixGain(unsigned id) const;
     void setPitch(unsigned id, float pitch);

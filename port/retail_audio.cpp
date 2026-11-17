@@ -248,6 +248,17 @@ void RetailAudio::playScriptCue(const CityAudioCue& cue)
     }
 }
 
+void RetailAudio::playMissionCompletion(int playerContext)
+{
+    // Mission::end starts priority music and loops PlayerTest::getAmbientSound().
+    stop(14);
+    playPriority(25, false);
+    if (playerContext == 0)
+        play(101, true);
+    else if (playerContext == 1)
+        play(100, true);
+}
+
 void RetailAudio::startVoice(unsigned id, bool loop, float gain, float pitch, bool priority)
 {
     stop(id);

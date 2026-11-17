@@ -291,8 +291,10 @@ mission playthroughs for discovery or verification.
   Missions.gmap once and updates earned cash, mission count, and progress
   stats. Successful shop purchases update cash spent. The completion
   presentation uses the retail localized objective text, reward animation,
-  and priority audio cue. Windows uses its caption renderer and smaller
-  cash glyphs. Original objective-message artwork, ambient audio handoff,
+  and priority audio cue. The audio mixer starts the retail ambient loop
+  selected by the player context. The opening route uses street ambience.
+  Windows uses its caption renderer and smaller cash glyphs.
+  Original objective-message artwork, live prison context transitions,
   persistence, the remainder of script 18,
   and Juan's dynamic movement remain open.
   Opcodes 80 and 81 dispatch the retail weapon
