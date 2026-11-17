@@ -2206,7 +2206,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> lcClosingMoves;
     std::vector<NamedMove> postLcMoves;
     std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves, postLcFightIntroMoves, locoNextMoves, locoCooperMoves, cooperNextMoves, cooperArrivalMoves, cooperClosingMoves, brawlNextMoves, basketballMoves;
-    std::vector<NamedMove> basketballClosingMoves, postBasketballMoves, postBasketballAmbushMoves, repairArrivalMoves, deliveryMoves, elToroMoves, elToroArrivalMoves, elToroInterludeMoves, elToroDepartureMoves, elToroClosingMoves, vanIntroMoves;
+    std::vector<NamedMove> basketballClosingMoves, postBasketballMoves, postBasketballAmbushMoves, repairArrivalMoves, deliveryMoves, elToroMoves, elToroArrivalMoves, elToroInterludeMoves, elToroDepartureMoves, elToroClosingMoves, vanIntroMoves, vanBriefingMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2271,7 +2271,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
     std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue, cooperNextDialogue, cooperArrivalDialogue, cooperClosingDialogue, brawlNextDialogue, basketballDialogue;
-    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue, postBasketballAmbushDialogue, postBasketballBriefingDialogue, repairArrivalDialogue, deliveryDialogue, elToroDialogue, elToroArrivalDialogue, elToroInterludeDialogue, elToroDepartureDialogue, elToroClosingDialogue, vanIntroDialogue;
+    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue, postBasketballAmbushDialogue, postBasketballBriefingDialogue, repairArrivalDialogue, deliveryDialogue, elToroDialogue, elToroArrivalDialogue, elToroInterludeDialogue, elToroDepartureDialogue, elToroClosingDialogue, vanIntroDialogue, vanBriefingDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2281,7 +2281,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements, cooperNextPlacements, cooperArrivalPlacements, cooperClosingPlacements, brawlNextPlacements, basketballPlacements;
-    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements, postBasketballApproach, postBasketballAmbushPlacements, repairArrivalPlacements, deliveryPlacements, elToroPlacements, elToroArrivalPlacements, elToroInterludePlacements, elToroDeparturePlacements, elToroClosingPlacements, vanIntroPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements, postBasketballApproach, postBasketballAmbushPlacements, repairArrivalPlacements, deliveryPlacements, elToroPlacements, elToroArrivalPlacements, elToroInterludePlacements, elToroDeparturePlacements, elToroClosingPlacements, vanIntroPlacements, vanBriefingPlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -3736,6 +3736,40 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail script 31 opening objective.");
                 route.vanMissionObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expected : {70u, 89u, 57u, 99u}) {
+                    auto command = van.record();
+                    if (command.integer() != expected)
+                        throw std::runtime_error("Invalid retail van acquisition command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 70) {
+                        const auto condition = readMissionCondition(command, expected);
+                        if (!condition || condition->target != "aVan_00")
+                            throw std::runtime_error("Invalid retail van protection.");
+                    } else if (expected == 57) {
+                        command.integer();
+                        command.finish();
+                    } else if (readScriptObject(command) != "aVan_00") {
+                        throw std::runtime_error("Invalid retail van acquisition target.");
+                    }
+                    route.vanAcquisitionCommands.emplace_back(expected, std::move(payload));
+                }
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                readCinematic(readCinematic, van, vanLength, 0, route.vanBriefing,
+                              vanBriefingMoves, vanBriefingDialogue, vanBriefingPlacements,
+                              nullptr, nullptr, nullptr, 66);
+                route.vanBriefing.dialogue = resolveDialogue(vanBriefingDialogue);
+                if (!nextMissionObjectiveId || (*nextMissionObjectiveId >> 12 & 0xf) != 4 ||
+                    (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
+                    throw std::runtime_error("Invalid retail script 31 drive objective.");
+                route.vanDriveObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                auto vanDrive = van.record();
+                if (vanDrive.integer() != 105) throw std::runtime_error("Missing retail van drive checkpoint.");
+                route.vanDriveWait = vanDrive.remainingBytes();
+                const auto vanTarget = readCheckpointCommand(vanDrive, 105);
+                if (vanTarget.vehicle != "aVan_00")
+                    throw std::runtime_error("Retail van drive checkpoint requires a different vehicle.");
+                route.vanDriveCheckpoint = makeCheckpoint(vanTarget.object);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3798,6 +3832,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(elToroDeparturePlacements, next->elToroDeparture.placements);
                 resolvePlacements(elToroClosingPlacements, next->elToroClosing.placements);
                 resolvePlacements(vanIntroPlacements, next->vanMissionIntro.placements);
+                resolvePlacements(vanBriefingPlacements, next->vanBriefing.placements);
             }
         }
     }
@@ -4114,6 +4149,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (!postBasketballVehicle || approachPlayer == opening.actors.end())
                     throw std::runtime_error("Missing retail script 29 vehicle or player model.");
                 bindVehiclePlayer(*cooper, approachPlayer->model, next.elToroCooperSeated, next.elToroCooperClips);
+                const auto van = findObject("aVan_00").vehicle;
+                if (!van) throw std::runtime_error("Missing retail van vehicle definition.");
+                bindVehiclePlayer(*van, approachPlayer->model, next.vanVehicleSeated, next.vanVehicleClips);
                 bindVehiclePlayer(*postBasketballVehicle, approachPlayer->model,
                                   next.postBasketballVehicleSeated, next.postBasketballVehicleClips);
                 if (next.locoGuardPlacement) {
@@ -4402,6 +4440,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : vanIntroMoves)
                             next->vanMissionIntro.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : vanBriefingMoves)
+                            next->vanBriefing.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : basketballClosingMoves)
                             next->basketballClosing.cameras.push_back(

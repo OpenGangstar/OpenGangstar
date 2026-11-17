@@ -432,10 +432,15 @@ mission playthroughs for discovery or verification.
   mission payout once. Completion saves the script 31 handoff at El Toro.
   Continue restores the new entrance, title, and van introduction.
   Automated fixtures verify the Cooper gate, payout, and restored entrance.
-  Van acquisition and the rest of script 31, passenger seating, and the
-  parallel script 21 race remain open, along with retail payment presentation
-  and audio, unaffordable repair feedback, scripted look cues, NPC weapon
-  attacks, NPC and vehicle AI, and Loco's seated model.
+  Script 31 stages the playable van, applies the retail protection
+  condition, and waits for entry. After the authored seven-second wait,
+  the player exits for El Toro's briefing. The drive objective and
+  marker then require the van at the destination. The smoke fixture
+  enters the van through Win32 input and checks the wait and vehicle gate.
+  The post-arrival sequence, passenger seating, and parallel script 21 race
+  remain open, along with retail payment presentation and audio,
+  unaffordable repair feedback, scripted look cues, NPC weapon attacks,
+  NPC and vehicle AI, and Loco's seated model.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

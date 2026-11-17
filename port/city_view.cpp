@@ -1001,11 +1001,13 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             ? &*opening.payphone->postFight.nextCheckpoint : nullptr;
         const bool nextVehicle = actor.payphoneOnly && nextMission && actor.name == nextMission->targetVehicle;
         const bool postBasketballVehicle = nextMission && actor.name == nextMission->postBasketballVehicle;
+        const bool van = actor.payphoneOnly && nextMission && actor.name == "aVan_00";
         const bool cooper = actor.payphoneOnly && nextMission && !nextMission->locoCooperIntro.vehicleDrives.empty() &&
             actor.name == nextMission->locoCooperIntro.vehicleDrives.front().actor;
         CityVehicleGeometry* vehicle = opening.vehicleActor == i ? &draw :
             nextVehicle ? &draw.nextVehicleGeometry.emplace() : cooper ? &draw.cooperGeometry.emplace() :
-            postBasketballVehicle ? &draw.postBasketballVehicleGeometry.emplace() : nullptr;
+            postBasketballVehicle ? &draw.postBasketballVehicleGeometry.emplace() :
+            van ? &draw.vanGeometry.emplace() : nullptr;
         if (cooper) draw.cooperActor = i;
         appendScene(draw, city, actor.model, actorTransform(actor), actor.startMs, &actor, i, vehicle);
         if (vehicle) {
@@ -1015,6 +1017,7 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             if (nextVehicle) draw.nextVehicleFootprint = footprint;
             else if (postBasketballVehicle) draw.postBasketballVehicleFootprint = footprint;
             else if (cooper) draw.cooperFootprint = footprint;
+            else if (van) draw.vanFootprint = footprint;
             else draw.terrain.vehicleFootprint = footprint;
             for (auto& wheel : vehicle->wheels) wheel.firstVertex -= first;
             for (auto& morph : vehicle->vehicleMorphs) morph.firstVertex -= first;
@@ -1072,6 +1075,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.elToroDestinationFirstSurface = appendCheckpoint(*next.elToroDestination, 20);
         if (next.elToroDriveCheckpoint)
             draw.elToroDriveFirstSurface = appendCheckpoint(*next.elToroDriveCheckpoint, 21);
+        if (next.vanDriveCheckpoint)
+            draw.vanDriveFirstSurface = appendCheckpoint(*next.vanDriveCheckpoint, 22);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);
@@ -1156,7 +1161,7 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
                                       missionScene == &next->elToroDeparture))) &&
             loco != playback.locoOpponents.end()) return !loco->second.disabled;
         if (playback.nextMissionVehicleActive && next &&
-            (actor.name == next->postBasketballVehicle || actor.name == "aCooper_00"))
+            (actor.name == next->postBasketballVehicle || actor.name == "aCooper_00" || actor.name == "aVan_00"))
             return opening.vehicleActor == surface.payphoneActor && playback.vehicle.has_value();
         if (playback.nextMissionVehicleActive && next && actor.name == next->targetVehicle)
             return (!opening.vehicleActor || !opening.actors[*opening.vehicleActor].payphoneOnly ||
