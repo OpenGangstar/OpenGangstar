@@ -2379,6 +2379,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script33Placements;
     std::vector<AnimationCommand> script33Animations;
     std::vector<MotionCommand> script33Motions;
+    std::vector<NamedMove> script33RaceMoves;
+    std::vector<DialogueCommand> script33RaceDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script33RacePlacements;
+    std::vector<AnimationCommand> script33RaceAnimations;
+    std::string raceCourseName;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -2419,6 +2424,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     cooperHandoff->cooperNextDriveCommands.emplace_back(opcode, std::move(payload));
                 } else if (opcode == 66) nextMissionObjectiveId = readMissionObjective(command);
                 else if (opcode == 76) weaponShopEntrance = readScriptObject(command);
+                else if (opcode == 102) raceCourseName = readScriptObject(command);
                 else command.finish();
                 return;
             }
@@ -4545,6 +4551,30 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (readScriptObject(entry33) != "aLincoln_00" || checkpoint33.vehicle != "aLincoln_00")
                     throw std::runtime_error("Invalid Script 33 mission vehicle.");
                 route.script33DriveCheckpoint = makeCheckpoint(checkpoint33.object);
+                auto raceClearSeats = script33.record(), raceFade = script33.record();
+                if (raceClearSeats.integer() != 99 || readScriptObject(raceClearSeats) != "aLincoln_00" ||
+                    raceFade.integer() != 42)
+                    throw std::runtime_error("Invalid Script 33 race entrance.");
+                route.script33RaceFadeMs = readFadeCommand(raceFade, 42, 0).durationMs;
+                previousCinematicShot.clear();
+                route.script33RaceIntro.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, script33, script33Count, 0, route.script33RaceIntro,
+                              script33RaceMoves, script33RaceDialogue, script33RacePlacements,
+                              &script33RaceAnimations, nullptr, nullptr, 102);
+                auto racer = script33.record(), raceStart = script33.record();
+                if (racer.integer() != 103 || raceStart.integer() != 104)
+                    throw std::runtime_error("Invalid Script 33 race setup.");
+                raceStart.finish();
+                route.script33Rival = racer.string();
+                route.script33RivalSpeedKmh = racer.signedInteger();
+                const auto rivalPathName = racer.string();
+                racer.finish();
+                const auto course = findObject(raceCourseName), rivalPath = findObject(rivalPathName);
+                if (route.script33RivalSpeedKmh <= 0 || course.type != 14 || rivalPath.type != 14 ||
+                    course.waypoints.size() < 2 || rivalPath.waypoints.size() < 2)
+                    throw std::runtime_error("Invalid Script 33 race course or opponent path.");
+                route.script33RaceCourse = course.waypoints;
+                route.script33RivalPath = rivalPath.waypoints;
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4624,6 +4654,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script20RetreatPlacements, next->script20Retreat.placements);
                 resolvePlacements(script32Placements, next->script32Intro.placements);
                 resolvePlacements(script33Placements, next->script33Intro.placements);
+                resolvePlacements(script33RacePlacements, next->script33RaceIntro.placements);
                 resolvePlacements(script19SecondFightPlacements, next->script19SecondFightPlacements);
                 resolvePlacements(script19ThirdFightPlacements, next->script19ThirdFightPlacements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
@@ -4918,6 +4949,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.script20Arrival);
                 loadCinematicActors(next.script32Intro);
                 loadCinematicActors(next.script33Intro);
+                loadCinematicActors(next.script33RaceIntro);
                 loadCinematicActors(next.vanPoliceReveal);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
@@ -5052,6 +5084,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script20Retreat, script20RetreatAnimations);
                 bindCinematic(next->script32Intro, script32Animations);
                 bindCinematic(next->script33Intro, script33Animations);
+                bindCinematic(next->script33RaceIntro, script33RaceAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -5376,6 +5409,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script19ClosingMoves)
                             next->script19Closing.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script33RaceMoves)
+                            next->script33RaceIntro.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script33Moves)
                             next->script33Intro.cameras.push_back(

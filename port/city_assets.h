@@ -662,7 +662,11 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> script33CheckpointWait;
         uint32_t script33EntranceFadeMs = 0;
         std::optional<CityMissionTitle> script33Title;
-        CityMissionCinematic script33Intro;
+        CityMissionCinematic script33Intro, script33RaceIntro;
+        uint32_t script33RaceFadeMs = 0;
+        std::vector<std::array<float, 3>> script33RaceCourse, script33RivalPath;
+        std::string script33Rival;
+        int32_t script33RivalSpeedKmh = 0;
         std::string script33EntryObjective, script33DriveObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script33DriveCommands;
         std::optional<CityAnimationClip> lincolnSeated;

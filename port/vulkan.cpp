@@ -2510,6 +2510,7 @@ uint32_t hummerArrivalFadeDuration(const CityRender& city)
     if (city.pendingHummerCinematic == &route.vanThirdArrival) return route.vanThirdArrivalFadeMs;
     if (city.pendingHummerCinematic == &route.vanFourthArrival) return route.vanFourthArrivalFadeMs;
     if (city.pendingHummerCinematic == &route.vanClosing) return route.vanClosingFadeMs;
+    if (city.pendingHummerCinematic == &route.script33RaceIntro) return route.script33RaceFadeMs;
     if (city.pendingHummerCinematic == &route.script33Intro) return route.script33EntranceFadeMs;
     if (city.pendingHummerCinematic == &route.script32Intro) return route.script32EntranceFadeMs;
     if (city.pendingHummerCinematic == &route.script20Arrival) return route.script20ArrivalFadeMs;
@@ -3953,6 +3954,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->postBasketballEscapeScript.reset();
                         cityRender->missionCarDriveScript.reset();
                         cityRender->missionCarDriveMarker.reset();
+                        playback.script33RaceGridActive = false;
                         cityRender->script20RetreatScript.reset();
                         cityRender->script19FightObjectiveActive = false;
                         cityRender->script19FightFadeMs.reset();
@@ -4105,6 +4107,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 cityRender->pendingHummerCinematic == &pendingRoute->script19Interlude;
             const bool pendingScript20Arrival = pendingRoute &&
                 cityRender->pendingHummerCinematic == &pendingRoute->script20Arrival;
+            const bool pendingScript33Race = pendingRoute &&
+                cityRender->pendingHummerCinematic == &pendingRoute->script33RaceIntro;
             const bool pendingScript32 = pendingRoute &&
                 cityRender->pendingHummerCinematic == &pendingRoute->script32Intro;
             const bool fadeBeforeExit = pendingBriefing || pendingScript19Arrival || pendingScript19Interlude ||
@@ -4132,7 +4136,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 cityRender->pendingHummerCinematic == &pendingRoute->script19Closing;
             if (cityRender->pendingHummerCinematic && !playback.missionFailure && !playback.scriptedVehicleExit &&
                 !(playback.vehicle && (playback.vehicle->doorAction ||
-                    (playback.vehicle->occupied && !pendingVanClosing && !pendingScript19Closing)))) {
+                    (playback.vehicle->occupied && !pendingVanClosing && !pendingScript19Closing &&
+                     !pendingScript33Race)))) {
                 bool fadeComplete = true;
                 if (const auto duration = hummerArrivalFadeDuration(*cityRender)) {
                     auto& fade = cityRender->hummerArrivalFadeMs;
@@ -4165,6 +4170,17 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         vehicle.yaw = checkpoint.rotationDegrees[2];
                         vehicle.speed = 0;
                         vehicle.groundTriangle.reset();
+                    }
+                    if (pendingScript33Race && playback.vehicle) {
+                        auto& lincoln = *playback.vehicle;
+                        const auto& scene = route.script33RaceIntro;
+                        const auto staged = cityStagedVehiclePose(scene, "aLincoln_00", cityRender->terrain, scene.durationMs);
+                        if (!staged) throw std::runtime_error("Missing Script 33 Lincoln race-grid placement.");
+                        lincoln.position = staged->position;
+                        lincoln.yaw = staged->yaw;
+                        lincoln.speed = 0;
+                        lincoln.groundTriangle = staged->groundTriangle;
+                        playback.cameraTransition.reset();
                     }
                     if (cityRender->activeMissionCinematic == &route.script33Intro) {
                         cityRender->activeMissionCinematic = nullptr;
@@ -4458,6 +4474,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             program.front().push_back(std::move(command));
                         }
                         cityRender->script20RetreatScript.emplace(std::move(program)).unlock(0, 0, 0);
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->script33RaceIntro) {
+                        playback.script33RaceGridActive = true;
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->script32Intro) {
                         const auto& route = *handoff.nextCheckpoint;
                         if (cityRender->achievements) cityRender->achievements->recordChapterEnd();
@@ -5381,10 +5399,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                    &travel, {}, &mission);
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->missionCarDriveScript.reset();
-                        if (!script33) {
-                            cityRender->pendingHummerCinematic = script20 ? &route.script20Arrival : &route.script19Arrival;
-                            cityRender->hummerArrivalFadeMs = 0;
-                        }
+                        cityRender->pendingHummerCinematic = script33 ? &route.script33RaceIntro :
+                            script20 ? &route.script20Arrival : &route.script19Arrival;
+                        cityRender->hummerArrivalFadeMs = 0;
                         playback.vehicle->speed = 0;
                     }
                 }
@@ -7363,11 +7380,28 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             render.checkpointMeshes[31].empty() || !render.script33Objectives[1].descriptor ||
                             route.script33DriveCheckpoint->name != "CheckpointDrive_C3M01_START")
                             throw std::runtime_error("Script 33 did not activate its first drive checkpoint.");
+                        for (int step = 0; step < 360 && car.doorAction; ++step) update(16);
+                        if (car.doorAction) throw std::runtime_error("Script 33 Lincoln entry did not finish.");
                         car.position = route.script33DriveCheckpoint->position;
                         update(0);
-                        if (render.missionCarDriveScript || render.missionCarDriveMarker)
-                            throw std::runtime_error("Script 33 did not accept the Lincoln at the race start.");
-                        std::cout << "Verified Script 33's opening, Lincoln acquisition, and first drive checkpoint.\n" << std::flush;
+                        if (render.missionCarDriveScript || render.missionCarDriveMarker ||
+                            render.pendingHummerCinematic != &route.script33RaceIntro)
+                            throw std::runtime_error("Script 33 did not queue the race introduction.");
+                        update(499);
+                        if (!car.occupied || render.postFightCinematic)
+                            throw std::runtime_error("Script 33 skipped its 500 ms race-introduction fade.");
+                        update(1);
+                        const auto& race = route.script33RaceIntro;
+                        if (!render.postFightCinematic || render.activeMissionCinematic != &race || !car.occupied)
+                            throw std::runtime_error("Script 33 did not start the race cutscene after its fade.");
+                        if (race.cameras.size() != 3 || race.fades.size() != 4 || !race.followCameraMs ||
+                            route.script33Rival != "aPimpCar_00" || route.script33RivalSpeedKmh != 100 ||
+                            route.script33RaceCourse.size() < 2 || route.script33RivalPath.size() < 2)
+                            throw std::runtime_error("Script 33 did not stage its race introduction and course.");
+                        for (int step = 0; step < 60 && render.postFightCinematic; ++step) update(250, true);
+                        if (render.postFightCinematic || !playback.script33RaceGridActive || !car.occupied)
+                            throw std::runtime_error("Script 33 did not leave both vehicles staged for the race.");
+                        std::cout << "Verified Script 33's opening, Lincoln checkpoint, and race introduction.\n" << std::flush;
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

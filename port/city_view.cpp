@@ -1399,6 +1399,8 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
                 return cue->visible;
         }
         const auto& next = opening.payphone->postFight.nextCheckpoint;
+        if (!missionScene && next && playback.script33RaceGridActive && actor.name == next->script33Rival)
+            return true;
         if ((!missionScene || (next && (missionScene == &next->locoCooperIntro || missionScene == &next->elToroInterlude ||
                                       missionScene == &next->elToroDeparture || missionScene == &next->vanHandshake || missionScene == &next->vanPoliceReveal))) &&
             loco != playback.locoOpponents.end()) return !loco->second.disabled;

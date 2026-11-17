@@ -380,6 +380,7 @@ struct CityFightOpponent {
 
 struct CityPlayback {
     double elapsedMs = 0;
+    bool script33RaceGridActive = false;
     size_t nextDialogue = 0;
     std::optional<size_t> activeDialogue;
     std::vector<double> dialogueHoldMs;

@@ -520,8 +520,10 @@ mission playthroughs for discovery or verification.
   The nested MissionOver command pays Script 20's reward, and the Windows
   save restores the Script 33 mission marker at CheckpointMission_C3M1.
   Entering that marker plays Script 33's title and opening cutscene,
-  then requires the Lincoln at CheckpointDrive_C3M01_START. The race
-  introduction and race are pending. The chapter-three scripted actor
+  then requires the Lincoln at CheckpointDrive_C3M01_START. Reaching it
+  fades into the race introduction, stages the Lincoln and rival car,
+  and loads the retail course, rival path, and speed. The race itself
+  and passenger ejection remain pending. The chapter-three scripted actor
   cues, retail pursuit and target selection, and the fourth van arrival
   look cue also remain pending.
   Other open work includes passenger seating, the parallel script 21
