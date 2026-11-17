@@ -63,6 +63,7 @@ inline constexpr int32_t windowsPostCooperDeliveryCheckpointScript = 31;
 inline constexpr int32_t windowsPostVanCheckpointScript = 19;
 inline constexpr int32_t windowsPostScript19CheckpointScript = 20;
 inline constexpr int32_t windowsPostScript20CheckpointScript = 32;
+inline constexpr int32_t windowsPostScript32CheckpointScript = 33;
 inline constexpr int32_t windowsOpeningCheckpointVersion = 0x30500;
 RetailAudioPreferences readRetailAudioPreferences(IFileStream& file);
 std::optional<RetailLanguage> readRetailLanguagePreference(IFileStream& file);

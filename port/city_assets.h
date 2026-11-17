@@ -431,7 +431,7 @@ struct CityMissionCinematic {
     std::vector<std::pair<uint32_t, std::string>> deferredDisables;
     uint32_t durationMs = 0;
     uint32_t nextScript = 0;
-    std::optional<uint32_t> followCameraMs;
+    std::optional<uint32_t> followCameraMs, missionOverMs;
     uint32_t followCameraTransitionMs = 0;
 };
 
@@ -443,7 +443,6 @@ struct CityPostFightScene : CityMissionCinematic {
         std::string label;
     };
     std::optional<uint32_t> unlockedScript;
-    std::optional<uint32_t> missionOverMs;
     struct MissionCheckpoint {
         CityCheckpoint marker;
         std::vector<uint8_t> payload;
@@ -658,6 +657,8 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> script32CheckpointWait;
         uint32_t script32EntranceFadeMs = 0;
         CityMissionCinematic script32Intro;
+        uint32_t script32UnlockedScript = 0;
+        std::optional<CityCheckpoint> script33Checkpoint;
         uint32_t script20ArrivalFadeMs = 0;
         std::string script20DriveObjective, script20FightObjective, script20RetreatObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script20FightCommands, script20SecondFightCommands, script20RetreatCommands;

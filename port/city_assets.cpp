@@ -2502,9 +2502,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 const auto weaponType = command.signedInteger();
                 command.finish();
                 scene.npcWeapons.insert_or_assign(std::move(actor), weaponType);
-            } else if (!depth && postFightTail && opcode == 67) {
+            } else if (opcode == 67 && (!postFightTail || !depth)) {
                 command.finish();
-                postFightTail->missionOverMs = time;
+                scene.missionOverMs = time;
             }
             if (duration > UINT32_MAX - time)
                 throw std::runtime_error("Retail cinematic timeline overflow.");
@@ -4489,6 +4489,17 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                         throw std::runtime_error("Invalid retail Script 32 dialogue.");
                     route.script32Intro.dialogue.push_back({time, duration, {}, chapterThree[entry], portrait});
                 }
+                if (!route.script32Intro.missionOverMs)
+                    throw std::runtime_error("Missing Script 32 MissionOver command.");
+                auto script32Unlock = unlockedScript.record();
+                if (script32Unlock.integer() != 3) throw std::runtime_error("Missing Script 32 unlock command.");
+                route.script32UnlockedScript = script32Unlock.integer();
+                script32Unlock.finish();
+                auto script33 = scripts.script(route.script32UnlockedScript);
+                if (!script33.integer()) throw std::runtime_error("Truncated Script 33.");
+                auto script33Gate = script33.record();
+                if (script33Gate.integer() != 64) throw std::runtime_error("Missing Script 33 checkpoint.");
+                route.script33Checkpoint = makeCheckpoint(readCheckpointCommand(script33Gate, 64).object);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
