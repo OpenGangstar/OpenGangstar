@@ -313,9 +313,13 @@ mission playthroughs for discovery or verification.
   both Locos along the authored paths and draws the retail spy gauge.
   Automated Continue smoke verifies the handoff, live movement, and
   failure when the target falls out of range. Movement is sampled
-  from the script timeline and animation speeds. NPC damage, the closing
-  fade, and the next stage after MissionClearConditions remain open. Automated Continue smoke covers the drive checkpoint,
-  cinematic rendering, and objective handoff.
+  from the script timeline and animation speeds. The 250 ms tailing
+  fade clears mission conditions, then the confrontation plays its retail
+  cameras, dialogue, actor movements and animations. The player returns
+  to the follow camera with the next localized objective. Automated
+  Continue smoke covers the drive checkpoint, live tailing, closing fade,
+  and the confrontation handoff. NPC damage and the subsequent walking
+  checkpoints remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

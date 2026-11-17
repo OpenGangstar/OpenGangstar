@@ -464,6 +464,8 @@ struct CityPostFightScene : CityMissionCinematic {
         CityMissionCinematic postLcAmbush;
         std::string postLcAmbushObjective;
         CityMissionCinematic postLcTail;
+        CityMissionCinematic postLcConfrontation;
+        std::string postLcConfrontationObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postLcTailConditions;
         std::optional<std::array<CityVehicleCharacterClips, 2>> vehicleCharacterClips;
         std::optional<CityAnimationClip> vehicleSeated;

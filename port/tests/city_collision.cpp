@@ -1652,6 +1652,15 @@ void poseRetailDoor(const std::filesystem::path& root)
             hummerRoute.postLcDriveCheckpoint && markerDraw.postLcDriveFirstSurface &&
             !markerDraw.checkpointMeshes[9].empty(), "Script 25 lost its playable drive gates.");
     const auto& ambush = hummerRoute.postLcAmbush;
+    const auto& tail = hummerRoute.postLcTail;
+    const auto& confrontation = hummerRoute.postLcConfrontation;
+    require(!tail.fades.empty() && !tail.fades.back().fadeIn && tail.fades.back().durationMs == 250 &&
+            tail.fades.back().startMs + tail.fades.back().durationMs == tail.durationMs,
+            "Script 25 lost the tailing fade before clearing conditions.");
+    require(confrontation.cameras.size() == 4 && confrontation.dialogue.size() == 2 &&
+            confrontation.motions.size() == 4 && confrontation.actorAnimations.size() == 6 &&
+            confrontation.followCameraMs && !hummerRoute.postLcConfrontationObjective.empty(),
+            "Script 25 lost authored confrontation cues or its next objective.");
     require(hummerRoute.postLcArrivalFadeMs == 300 && !ambush.cameras.empty() &&
             ambush.dialogue.size() == 3 && !ambush.placements.empty() &&
             !hummerRoute.postLcAmbushObjective.empty(),

@@ -462,6 +462,7 @@ struct CityRender {
         for (const auto& texture : returnToLcObjectives) destroyTexture(texture);
         destroyTexture(postLcDriveObjective);
         destroyTexture(postLcAmbushObjective);
+        destroyTexture(postLcConfrontationObjective);
         destroyTexture(weaponShopTutorial);
         for (const auto& texture : weaponShopInventory) destroyTexture(texture);
         for (const auto& texture : weaponShopConfirmation) destroyTexture(texture);
@@ -538,9 +539,10 @@ struct CityRender {
     CityTexture hummerTutorial;
     CityTexture weaponShopObjective;
     CityTexture postLcDriveObjective;
-    CityTexture postLcAmbushObjective;
+    CityTexture postLcAmbushObjective, postLcConfrontationObjective;
     bool postLcIntroFinished = false;
     bool postLcAmbushFinished = false;
+    bool postLcConfrontationFinished = false;
     std::optional<double> postLcTailMs;
     std::optional<float> spyGauge;
     std::optional<double> postLcArrivalFadeMs;
@@ -1040,6 +1042,12 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* ambushLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->postLcAmbush.dialogue : nullptr;
     const auto ambushLineCount = ambushLines ? ambushLines->size() : 0;
+    const auto* confrontationLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->postLcConfrontation.dialogue : nullptr;
+    const auto confrontationLineCount = confrontationLines ? confrontationLines->size() : 0;
+    if (confrontationLines)
+        for (const auto& dialogue : *confrontationLines)
+            if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
     const bool hasPayphoneObjective = city.opening.payphone && !city.opening.payphone->gameplayObjective.empty();
     const bool hasBars = city.startup || !city.opening.dialogue.empty();
     for (const auto& dialogue : city.opening.dialogue)
@@ -1115,8 +1123,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount +
-                                             hasPayphoneObjective + (next ? 13 : 0) +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount +
+                                             hasPayphoneObjective + (next ? 14 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1282,7 +1290,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1318,6 +1326,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.postLcDriveObjective}, true, false, 432, 68, font.family()));
             upload(city.postLcAmbushObjective,
                    rasterCaption({0, 0, {}, next.postLcAmbushObjective}, true, false, 432, 68, font.family()));
+            upload(city.postLcConfrontationObjective,
+                   rasterCaption({0, 0, {}, next.postLcConfrontationObjective}, true, false, 432, 68, font.family()));
             auto tutorial = route->postFight.nextCheckpoint->weaponShopTutorial;
             tutorial.text = "Walk to the yellow marker and press E or gamepad A to enter.";
             upload(city.weaponShopTutorial, rasterCaption(tutorial, true, false, 432, 68, font.family()));
@@ -1361,7 +1371,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto ambushBase = city.captions.size() - ambushLineCount;
+        const auto confrontationBase = city.captions.size() - confrontationLineCount;
+        const auto ambushBase = confrontationBase - ambushLineCount;
         const auto postLcBase = ambushBase - postLcLineCount;
         const auto closingBase = postLcBase - closingLineCount;
         const auto shopBase = closingBase - shopLineCount;
@@ -1392,6 +1403,12 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             for (size_t i = 0; i < postLcLineCount; ++i) {
                 const auto& line = (*postLcLines)[i];
                 upload(city.captions[postLcBase + i],
+                       rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
+            }
+            city.missionCaptionBases.emplace(&nextMission->postLcConfrontation, confrontationBase);
+            for (size_t i = 0; i < confrontationLineCount; ++i) {
+                const auto& line = (*confrontationLines)[i];
+                upload(city.captions[confrontationBase + i],
                        rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
             }
             city.missionCaptionBases.emplace(&nextMission->postLcAmbush, ambushBase);
@@ -1811,6 +1828,7 @@ void activatePostLcDrive(CityRender& city)
     city.hummerRouteMarker.reset();
     city.postLcIntroFinished = true;
     city.postLcAmbushFinished = false;
+    city.postLcConfrontationFinished = false;
     city.postLcTailMs.reset();
     city.spyGauge.reset();
     city.postLcArrivalFadeMs.reset();
@@ -2099,6 +2117,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const auto sceneBrightness = city.missionTitleMs ? 0.f :
         city.startup ? city.startup->brightness() :
         postFightMs ? cityTrackBrightness(missionScene->fades, *postFightMs) :
+        city.postLcTailMs ? cityTrackBrightness(actorScene->fades, *city.postLcTailMs) :
         payphoneMs ? cityTrackBrightness(city.opening.payphone->cinematicFades, *payphoneMs) :
         cityOpeningBrightness(city.opening, elapsedMs);
     const auto brightness = sceneBrightness *
@@ -2408,6 +2427,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.postLcIntroFinished && city.hummerRouteScript && city.postLcDriveObjective.descriptor)
             overlay(city.postLcDriveObjective.descriptor, screen, city.captionVertex, 6);
+        else if (city.postLcConfrontationFinished && city.postLcConfrontationObjective.descriptor)
+            overlay(city.postLcConfrontationObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.postLcAmbushFinished && city.postLcAmbushObjective.descriptor)
             overlay(city.postLcAmbushObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.weaponShopDrive && city.hummerRouteScript && city.weaponShopObjective.descriptor)
@@ -2916,6 +2937,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         playback.missionConditions.clear();
                         for (const auto& [opcode, payload] : handoff.nextCheckpoint->postLcTailConditions)
                             playback.missionConditions.apply({opcode, payload});
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postLcConfrontation) {
+                        cityRender->postLcConfrontationFinished = true;
                     }
                 }
             }
@@ -3122,13 +3145,18 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             const bool missionAlreadyFailed = playback.missionFailure.has_value();
             const bool vehicleAlreadyExploded = playback.vehicle && playback.vehicle->exploded;
             if (cityRender->postLcTailMs) {
-                const auto& tail = cityRender->opening.payphone->postFight.nextCheckpoint->postLcTail;
+                const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                const auto& tail = route.postLcTail;
                 auto& time = *cityRender->postLcTailMs;
                 if (!playback.missionFailure && playback.player) {
                     time = std::min(time + (postFight ? 0 : delta), double(tail.durationMs));
                     if (time >= tail.durationMs) {
                         playback.missionConditions.clear();
                         cityRender->spyGauge.reset();
+                        cityRender->postLcTailMs.reset();
+                        cityRender->postLcAmbushFinished = false;
+                        cityRender->activeMissionCinematic = &route.postLcConfrontation;
+                        cityRender->postFightCinematic.emplace();
                     } else {
                         const auto lookup = [&](std::string_view actor) -> std::optional<RetailMissionTargetState> {
                             const auto position = cityTailingActorPosition(tail, actor, cityRender->terrain, time);
@@ -3575,10 +3603,25 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                                                         *render.postLcTailMs);
                         if (!beforeTail || !duringTail || duringTail == beforeTail || !render.spyGauge)
                             throw std::runtime_error("Script 25 Loco did not advance along its tailing route.");
-                        playback.player->position[0] += 10000;
-                        update(0);
-                        if (!playback.missionFailure || render.spyGauge)
-                            throw std::runtime_error("Script 25 did not fail when the player lost Loco.");
+                        const auto& tail = mission.postLcTail;
+                        *render.postLcTailMs = tail.fades.back().startMs;
+                        const auto lastTarget = cityTailingActorPosition(tail, "Loco_00", render.terrain,
+                                                                         tail.durationMs - 1.);
+                        if (!lastTarget) throw std::runtime_error("Script 25 lost its tailing actor during the fade.");
+                        playback.player->position = *lastTarget;
+                        playback.player->position[0] += 500;
+                        update(tail.fades.back().durationMs - 1.);
+                        if (!render.spyGauge || playback.missionFailure ||
+                            cityTrackBrightness(tail.fades, *render.postLcTailMs) >= 0.01f)
+                            throw std::runtime_error("Script 25 did not render the final tailing fade.");
+                        update(1);
+                        if (render.postLcTailMs || render.spyGauge || playback.missionFailure ||
+                            render.activeMissionCinematic != &mission.postLcConfrontation)
+                            throw std::runtime_error("Script 25 did not clear the tailing state and start the confrontation.");
+                        for (int step = 0; step < 64 && render.postFightCinematic; ++step) update(1000, true);
+                        if (!render.postLcConfrontationFinished || !render.postLcConfrontationObjective.descriptor ||
+                            render.postFightCinematic || playback.missionFailure)
+                            throw std::runtime_error("Script 25 confrontation did not hand off to its next objective.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;
