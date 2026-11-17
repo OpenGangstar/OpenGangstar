@@ -325,7 +325,11 @@ mission playthroughs for discovery or verification.
   second checkpoint now starts the retail phone cutscene, including
   fades, camera cuts, animation, dialogue, and priority audio cues.
   It returns control at the player's location and activates C2M204.
-  NPC damage and the scene after C2M204 remain open.
+  C2M204 now starts the retail Loco fight introduction. Windows uses its
+  fades, staging markers, camera, gesture, and split dialogue timing, then
+  restores the player at the last authored marker and shows the localized
+  fight objective. Live opponents, NPC damage, and the escape and mission
+  completion gates remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

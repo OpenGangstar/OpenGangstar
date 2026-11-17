@@ -1652,6 +1652,15 @@ void poseRetailDoor(const std::filesystem::path& root)
             hummerRoute.postLcDriveCheckpoint && markerDraw.postLcDriveFirstSurface &&
             !markerDraw.checkpointMeshes[9].empty(), "Script 25 lost its playable drive gates.");
     const auto& ambush = hummerRoute.postLcAmbush;
+    const auto& fightIntro = hummerRoute.postLcFightIntro;
+    require(fightIntro.cameras.size() == 1 && fightIntro.dialogue.size() == 3 &&
+            fightIntro.fades.size() == 4 && fightIntro.fades.front().durationMs == 350 &&
+            !fightIntro.fades.front().fadeIn && fightIntro.followCameraMs &&
+            !hummerRoute.postLcFightObjective.empty(),
+            "Script 25 lost the retail Loco fight introduction or localized objective.");
+    require(fightIntro.dialogue[0].durationMs == 900 && fightIntro.dialogue[1].durationMs == 250 &&
+            fightIntro.dialogue[2].durationMs == 0 && fightIntro.dialogue[0].text == fightIntro.dialogue[2].text,
+            "Script 25 lost the split timing of the Loco fight dialogue.");
     const auto& phone = hummerRoute.postLcPhone;
     const auto& phoneAnimations = phone.actorAnimations.at("Player");
     require(phone.cameras.size() == 3 && phone.dialogue.size() == 4 && phone.followCameraMs &&
