@@ -2206,7 +2206,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> lcClosingMoves;
     std::vector<NamedMove> postLcMoves;
     std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves, postLcFightIntroMoves, locoNextMoves, locoCooperMoves, cooperNextMoves, cooperArrivalMoves, cooperClosingMoves, brawlNextMoves, basketballMoves;
-    std::vector<NamedMove> basketballClosingMoves, postBasketballMoves, postBasketballAmbushMoves;
+    std::vector<NamedMove> basketballClosingMoves, postBasketballMoves, postBasketballAmbushMoves, repairArrivalMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2271,7 +2271,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
     std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue, cooperNextDialogue, cooperArrivalDialogue, cooperClosingDialogue, brawlNextDialogue, basketballDialogue;
-    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue, postBasketballAmbushDialogue, postBasketballBriefingDialogue;
+    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue, postBasketballAmbushDialogue, postBasketballBriefingDialogue, repairArrivalDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2281,7 +2281,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements, cooperNextPlacements, cooperArrivalPlacements, cooperClosingPlacements, brawlNextPlacements, basketballPlacements;
-    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements, postBasketballApproach, postBasketballAmbushPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements, postBasketballApproach, postBasketballAmbushPlacements, repairArrivalPlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -3503,6 +3503,45 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (!briefingMoves.empty() || !briefingPlacements.empty())
                     throw std::runtime_error("Unexpected camera or actor placement in script 29 briefing.");
                 route.postBasketballBriefing.dialogue = resolveDialogue(postBasketballBriefingDialogue);
+
+                auto repairObjective = postBasketball.record();
+                auto repairDriveGate = postBasketball.record();
+                auto repairArrivalStart = postBasketball.record();
+                auto repairArrivalExit = postBasketball.record();
+                if (repairObjective.integer() != 66 || repairDriveGate.integer() != 105 ||
+                    repairArrivalStart.integer() != 15 || repairArrivalExit.integer() != 99 ||
+                    readScriptObject(repairArrivalExit) != "Player")
+                    throw std::runtime_error("Invalid retail repair drive or arrival.");
+                repairArrivalStart.finish();
+                const auto repairObjectiveId = readMissionObjective(repairObjective);
+                if ((repairObjectiveId >> 12 & 0xf) != 4 || (repairObjectiveId & 0xfff) >= chapterText.size())
+                    throw std::runtime_error("Invalid retail repair drive objective.");
+                route.repairDriveObjective = chapterText[repairObjectiveId & 0xfff];
+                route.repairDriveWait = repairDriveGate.remainingBytes();
+                const auto repairGate = readCheckpointCommand(repairDriveGate, 105);
+                if (repairGate.vehicle != route.postBasketballVehicle)
+                    throw std::runtime_error("Retail repair route requires a different car.");
+                route.repairDriveCheckpoint = makeCheckpoint(repairGate.object);
+
+                previousCinematicShot.clear();
+                auto& repairArrival = route.repairArrival;
+                readCinematic(readCinematic, postBasketball, postBasketballLength, 0, repairArrival,
+                              repairArrivalMoves, repairArrivalDialogue, repairArrivalPlacements,
+                              nullptr, nullptr, nullptr, 16);
+                repairArrival.dialogue = resolveDialogue(repairArrivalDialogue);
+                auto repairFollow = postBasketball.record();
+                auto repairReveal = postBasketball.record();
+                auto repairTutorial = postBasketball.record();
+                if (repairFollow.integer() != 13 || repairReveal.integer() != 41 || repairTutorial.integer() != 47)
+                    throw std::runtime_error("Invalid retail repair tutorial handoff.");
+                const auto repairCamera = readCameraCommand(repairFollow, 13);
+                repairArrival.followCameraMs = repairArrival.durationMs;
+                repairArrival.followCameraTransitionMs = static_cast<uint32_t>(std::max(0, repairCamera.transitionMs));
+                const auto repairFade = readFadeCommand(repairReveal, 41, repairArrival.durationMs);
+                repairArrival.fades.push_back(repairFade);
+                repairArrival.durationMs += repairFade.durationMs;
+                const auto repairTutorialText = readScriptTutorial(repairTutorial);
+                route.repairTutorial = {0, 0, label(repairTutorialText.title), label(repairTutorialText.text)};
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3557,6 +3596,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(postBasketballPlacements, next->postBasketballIntro.placements);
                 resolvePlacements(postBasketballApproach, next->postBasketballApproach);
                 resolvePlacements(postBasketballAmbushPlacements, next->postBasketballAmbush.placements);
+                resolvePlacements(repairArrivalPlacements, next->repairArrival.placements);
             }
         }
     }
@@ -4096,6 +4136,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : postBasketballAmbushMoves)
                             next->postBasketballAmbush.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : repairArrivalMoves)
+                            next->repairArrival.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : basketballClosingMoves)
                             next->basketballClosing.cameras.push_back(

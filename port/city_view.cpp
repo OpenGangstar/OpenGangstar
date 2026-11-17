@@ -1061,6 +1061,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.basketballFirstSurface = appendCheckpoint(*next.basketballCheckpoint, 14);
         if (next.postBasketballDestination)
             draw.postBasketballFirstSurface = appendCheckpoint(*next.postBasketballDestination, 15);
+        if (next.repairDriveCheckpoint)
+            draw.repairDriveFirstSurface = appendCheckpoint(*next.repairDriveCheckpoint, 16);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);

@@ -397,11 +397,14 @@ mission playthroughs for discovery or verification.
   cinematic endpoints and tagged on the minimap with the combat objective.
   The escape sequence waits for the authored distance from each enemy
   and the final fixed marker. It then fades to black, exits the player
-  from the car, and plays the two-line repair briefing. Automated checks
-  cover the distance gate, scripted exit, and briefing. The attack
-  commands are decoded but do not yet fire NPC weapons. The scripted
-  look cue, ranged combat, repair tutorial, delivery, NPC and vehicle AI,
-  and Loco's seated model remain open.
+  from the car, and plays the two-line repair briefing. The repair
+  objective marks the drive checkpoint in the city and on the minimap.
+  Only the mission car satisfies the checkpoint. Arrival exits the
+  player and plays the retail cameras, dialogue, reveal, and localized
+  tutorial prompt. Automated checks cover the distance gate, both
+  scripted exits, the car requirement, and the tutorial prompt. The
+  repair shop and payment, delivery, scripted look cue, NPC weapon
+  attacks, NPC and vehicle AI, and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

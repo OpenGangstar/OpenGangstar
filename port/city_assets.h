@@ -526,6 +526,11 @@ struct CityPostFightScene : CityMissionCinematic {
         std::array<float, 3> postBasketballEscapePosition{};
         uint32_t postBasketballBriefingFadeMs = 0;
         CityMissionCinematic postBasketballBriefing;
+        std::string repairDriveObjective;
+        std::optional<CityCheckpoint> repairDriveCheckpoint;
+        std::vector<uint8_t> repairDriveWait;
+        CityMissionCinematic repairArrival;
+        CityDialogue repairTutorial;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;
