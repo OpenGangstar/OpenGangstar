@@ -26,9 +26,10 @@ Hustle** and choose a platform.
 
 ### Windows
 
-On Windows, the launcher defaults to **Windows x86 (Vulkan)** unless you
-previously selected Android. Click **Play on Windows** to build the game if needed
-and launch it. Click **Build for Windows** to compile it separately.
+On Windows, the launcher opens with **Windows x86 (Vulkan)** selected. Click
+**Play on Windows** to build the game if needed and launch it. Click **Build for
+Windows** to compile it separately. Select **Android** from the platform menu
+to access the Android build and play controls.
 Play prompts for your retail game data ZIP if no path is set. Use **Browse
 folder…** to select extracted game data. The launcher extracts ZIP assets for
 the current session and remembers the selected path. See the

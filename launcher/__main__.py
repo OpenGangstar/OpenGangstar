@@ -103,8 +103,7 @@ class Launcher:
         self.status = tk.StringVar()
         self.title = tk.StringVar()
         platforms = (WINDOWS_PLATFORM, "Android") if sys.platform == "win32" else ("Android",)
-        saved_platform = settings.get("platform")
-        self.platform = tk.StringVar(value=saved_platform if saved_platform in platforms else platforms[0])
+        self.platform = tk.StringVar(value=platforms[0])
         window.title("OpenGangstar Launcher")
         window.geometry("1050x700")
         window.minsize(820, 580)
@@ -159,10 +158,8 @@ class Launcher:
         actions.pack(fill="x", pady=(10, 14))
         self.build_button = ttk.Button(actions, text="Build game", style="Build.TButton",
                                        command=self.start_build)
-        self.build_button.grid(row=0, column=0, sticky="w")
         self.play_button = ttk.Button(actions, text="Play on Android", style="Build.TButton",
                                       command=self.start_play)
-        self.play_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
         status = self.label(actions, "", PAGE, 11, MUTED)
         status.configure(textvariable=self.status)
         status.grid(row=1, column=0, columnspan=2, sticky="w", pady=(8, 0))
@@ -217,7 +214,9 @@ class Launcher:
         else:
             self.windows_inputs.grid_remove()
             self.android_inputs.grid()
-        self.build_button.configure(text="Build for Windows" if windows else "Build game")
+        self.build_button.configure(text="Build for Windows" if windows else "Build for Android")
+        self.build_button.grid(row=0, column=int(windows), sticky="w", padx=(8 if windows else 0, 0))
+        self.play_button.grid(row=0, column=int(not windows), sticky="w", padx=(0 if windows else 8, 0))
         self.play_button.configure(text="Play on Windows" if windows else "Play on Android")
         if windows:
             self.update_windows_play()
@@ -377,8 +376,7 @@ class Launcher:
 
     def run_build(self, command, source, assets, toolchain):
         try:
-            save_settings(retail=source, assets=str(assets) if assets else "", toolchain=toolchain,
-                          platform="Android")
+            save_settings(retail=source, assets=str(assets) if assets else "", toolchain=toolchain)
         except OSError as error:
             self.events.put(("output", f"Could not remember build paths: {error}\n"))
         try:
@@ -403,7 +401,7 @@ class Launcher:
 
     def remember_windows_paths(self, source):
         try:
-            save_settings(windows_assets=source, platform=WINDOWS_PLATFORM)
+            save_settings(windows_assets=source)
         except OSError as error:
             self.events.put(("output", f"Could not remember Windows game data path: {error}\n"))
 
