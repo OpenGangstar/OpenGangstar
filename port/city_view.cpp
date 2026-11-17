@@ -1011,12 +1011,11 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
         if (vehicle) {
             vehicle->vehicleFirstVertex = first;
             vehicle->vehicleVertexCount = static_cast<uint32_t>(draw.vertices.size()) - first;
-            if (!cooper) {
-                const auto footprint = measureVehicleFootprint(actor, draw.vertices, first);
-                if (nextVehicle) draw.nextVehicleFootprint = footprint;
-                else if (postBasketballVehicle) draw.postBasketballVehicleFootprint = footprint;
-                else draw.terrain.vehicleFootprint = footprint;
-            }
+            const auto footprint = measureVehicleFootprint(actor, draw.vertices, first);
+            if (nextVehicle) draw.nextVehicleFootprint = footprint;
+            else if (postBasketballVehicle) draw.postBasketballVehicleFootprint = footprint;
+            else if (cooper) draw.cooperFootprint = footprint;
+            else draw.terrain.vehicleFootprint = footprint;
             for (auto& wheel : vehicle->wheels) wheel.firstVertex -= first;
             for (auto& morph : vehicle->vehicleMorphs) morph.firstVertex -= first;
         }
@@ -1071,6 +1070,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.elToroFirstSurface = appendCheckpoint(*next.elToroCheckpoint, 19);
         if (next.elToroDestination)
             draw.elToroDestinationFirstSurface = appendCheckpoint(*next.elToroDestination, 20);
+        if (next.elToroDriveCheckpoint)
+            draw.elToroDriveFirstSurface = appendCheckpoint(*next.elToroDriveCheckpoint, 21);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);
@@ -1151,13 +1152,15 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
                 return cue->visible;
         }
         const auto& next = opening.payphone->postFight.nextCheckpoint;
-        if ((!missionScene || (next && (missionScene == &next->locoCooperIntro || missionScene == &next->elToroInterlude))) &&
+        if ((!missionScene || (next && (missionScene == &next->locoCooperIntro || missionScene == &next->elToroInterlude ||
+                                      missionScene == &next->elToroDeparture))) &&
             loco != playback.locoOpponents.end()) return !loco->second.disabled;
-        if (playback.nextMissionVehicleActive && next && actor.name == next->postBasketballVehicle)
+        if (playback.nextMissionVehicleActive && next &&
+            (actor.name == next->postBasketballVehicle || actor.name == "aCooper_00"))
             return opening.vehicleActor == surface.payphoneActor && playback.vehicle.has_value();
         if (playback.nextMissionVehicleActive && next && actor.name == next->targetVehicle)
-            return (!opening.vehicleActor ||
-                    opening.actors[*opening.vehicleActor].name != next->postBasketballVehicle) &&
+            return (!opening.vehicleActor || !opening.actors[*opening.vehicleActor].payphoneOnly ||
+                    opening.vehicleActor == surface.payphoneActor) &&
                 (!playback.openingMissionsPaid[1] || playback.postLcVehicleActive);
         const auto* placement = cityPayphonePlacement(*opening.payphone,
             actor.name, *payphoneMs);
@@ -2541,7 +2544,8 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
     const auto* route = opening.payphone && opening.payphone->postFight.nextCheckpoint
         ? &*opening.payphone->postFight.nextCheckpoint : nullptr;
     const bool tailing = route && missionScene == &route->postLcTail;
-    const bool showLiveOpponents = !missionScene || (route && (missionScene == &route->locoCooperIntro || missionScene == &route->elToroInterlude));
+    const bool showLiveOpponents = !missionScene || (route && (missionScene == &route->locoCooperIntro || missionScene == &route->elToroInterlude ||
+                                                     missionScene == &route->elToroDeparture));
     for (const auto& range : skins) {
         const auto& actor = opening.actors[range.actor];
         const auto elapsedMs = actor.payphoneOnly ? payphoneMs.value_or(-1) : playback.elapsedMs;

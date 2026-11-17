@@ -554,6 +554,12 @@ struct CityPostFightScene : CityMissionCinematic {
         CityMissionCinematic elToroInterlude;
         std::vector<std::string> elToroSecondFightTargets;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> elToroSecondFightCommands;
+        CityMissionCinematic elToroDeparture;
+        std::string elToroDriveObjective;
+        std::optional<CityCheckpoint> elToroDriveCheckpoint;
+        std::vector<uint8_t> elToroDriveWait, elToroCooperProtection;
+        std::optional<std::array<CityVehicleCharacterClips, 2>> elToroCooperClips;
+        std::optional<CityAnimationClip> elToroCooperSeated;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;

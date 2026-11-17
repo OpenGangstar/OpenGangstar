@@ -423,8 +423,12 @@ mission playthroughs for discovery or verification.
   delay starts Latisha's interlude. It moves the first two opponents
   back to their authored marks, adds the third, and returns to the
   follow camera. All three are tagged and must fall before the next
-  delay. The automated fixture checks both fight gates and the interlude.
-  The Cooper departure, delivery, and parallel script 21 race remain
+  delay. The second fight hands off to the retail Cooper departure
+  scene and seats the player in the protected Cooper. The drive objective
+  marks the destination in the city and on the minimap. The destination
+  requires the Cooper and triggers the player's exit. The automated
+  fixture checks both fights, the cutscenes, and the vehicle gate. The
+  delivery finale, passenger seating, and parallel script 21 race remain
   open, along with retail payment presentation and audio, unaffordable
   repair feedback, scripted look cues, NPC weapon attacks, NPC and
   vehicle AI, and Loco's seated model.
