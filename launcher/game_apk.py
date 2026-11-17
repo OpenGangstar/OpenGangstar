@@ -1,7 +1,8 @@
 """Package a byte-identical rebuilt native library without invalidating signatures."""
 
+from contextlib import contextmanager
 from filecmp import cmp
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 from shutil import copyfile, copyfileobj
 from struct import Struct
@@ -67,35 +68,67 @@ def encode_entry(rebuilt: bytes, original: bytes, compression: int) -> bytes:
     return original
 
 
+def game_data_entries(archive):
+    """Yield validated paths relative to the retail game data directory."""
+    written = set()
+    for entry in archive.infolist():
+        if entry.is_dir():
+            continue
+        parts = PurePosixPath(entry.filename).parts
+        if parts[:3] == ("gameloft", "games", "gangstar"):
+            parts = parts[3:]
+        elif parts[:1] == ("gangstar",):
+            parts = parts[1:]
+        else:
+            continue
+        if not parts or not all(re.fullmatch(r"[A-Za-z0-9_.-]+", part)
+                                and part not in (".", "..") for part in parts):
+            raise ValueError(f"Invalid game data path: {entry.filename}")
+        if PurePosixPath(parts[-1]).suffix.lower() in (".sav", ".preferences"):
+            continue
+        key = "/".join(parts).casefold()
+        if key in written:
+            raise ValueError(f"Duplicate game data file: {entry.filename}")
+        written.add(key)
+        yield entry, parts
+    if "version_pycst.bin" not in written:
+        raise ValueError("The ZIP does not contain the West Coast Hustle game data folder.")
+
+
 def package_game_data(source: Path, output: Path) -> int:
     """Place locally supplied assets under Android's game-data folder."""
-    prefix = "gameloft/games/gangstar"
+    count = 0
     with TemporaryDirectory(prefix="assets-", dir=output.parent) as temporary:
         pending = Path(temporary) / output.name
-        written = set()
         with ZipFile(source) as archive, ZipFile(pending, "w", ZIP_DEFLATED) as result:
-            for entry in archive.infolist():
-                if entry.is_dir():
-                    continue
-                parts = PurePosixPath(entry.filename).parts
-                if parts[:3] == ("gameloft", "games", "gangstar"):
-                    parts = parts[3:]
-                elif parts[:1] == ("gangstar",):
-                    parts = parts[1:]
-                else:
-                    continue
-                if not parts or not all(re.fullmatch(r"[A-Za-z0-9_.-]+", part)
-                                        and part not in (".", "..") for part in parts):
-                    raise ValueError(f"Invalid game data path: {entry.filename}")
-                if PurePosixPath(parts[-1]).suffix.lower() in (".sav", ".preferences"):
-                    continue
-                target = "/".join((prefix, *parts))
-                if target.casefold() in written:
-                    raise ValueError(f"Duplicate game data file: {entry.filename}")
+            for entry, parts in game_data_entries(archive):
+                target = "/".join(("gameloft", "games", "gangstar", *parts))
                 with archive.open(entry) as data, result.open(target, "w") as packaged:
                     copyfileobj(data, packaged)
-                written.add(target.casefold())
-        if f"{prefix}/version_pycst.bin" not in written:
-            raise ValueError("The ZIP does not contain the West Coast Hustle game data folder.")
+                count += 1
         pending.replace(output)
-    return len(written)
+    return count
+
+
+@contextmanager
+def windows_game_data(source: Path):
+    """Yield a retail resource directory for the lifetime of the Windows game."""
+    if source.is_dir():
+        for root in (source, source / "gangstar", source / "gameloft/games/gangstar",
+                     source / "sdcard/gameloft/games/gangstar"):
+            if (root / "Version_pycst.bin").is_file():
+                yield root
+                return
+        raise ValueError("Choose the extracted game data folder containing Version_pycst.bin.")
+    if not source.is_file() or source.suffix.lower() != ".zip":
+        raise ValueError("Choose your retail game data ZIP or an extracted game data folder.")
+    with TemporaryDirectory(prefix="opengangstar-windows-") as directory, ZipFile(source) as archive:
+        root = Path(directory)
+        for entry, parts in game_data_entries(archive):
+            if any(part.endswith(".") or PureWindowsPath(part).is_reserved() for part in parts):
+                raise ValueError(f"Invalid Windows game data path: {entry.filename}")
+            target = root.joinpath(*parts)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(entry) as data, target.open("xb") as output:
+                copyfileobj(data, output)
+        yield root

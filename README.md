@@ -1,8 +1,10 @@
 # OpenGangstar
 
 OpenGangstar brings Gangstar game projects together in a desktop launcher.
-The launcher uses a game library and a single primary action, following the
+The launcher uses a game library and a one-click build, following the
 [OpenRAC Launcher](https://github.com/OpenRAC/OpenRAC/tree/develop/launcher).
+
+The [Windows port build](port/README.md) targets 32-bit x86 and uses Vulkan.
 
 ## Set up the checkout
 
@@ -13,14 +15,29 @@ git -c core.longpaths=true submodule update --init --recursive
 git -C games/gangstar-wch apply ../../games/gangstar-wch-patches/0001-library-build.patch
 ```
 
-Apply the patch once per clean game checkout. The submodule pins the upstream
-West Coast Hustle decompilation, and the patch carries the OpenGangstar build
-integration. The moved local checkout already has the patch applied.
+Apply the patch once per clean game checkout for Android builds. The submodule
+pins the upstream West Coast Hustle decompilation. The Windows target prepares
+its patched sources during the [port build](port/README.md).
 
 ## Run the launcher
 
 Run `python launcher` with Python and Tkinter. Select **Gangstar: West Coast
-Hustle** and click **Build game**. Use **Browse…** to select your own APK,
+Hustle** and choose a platform.
+
+### Windows
+
+On Windows, the launcher defaults to **Windows x86 (Vulkan)** unless you
+previously selected Android. Click **Play on Windows** to build the game if needed
+and launch it. Click **Build for Windows** to compile it separately.
+Play prompts for your retail game data ZIP if no path is set. Use **Browse
+folder…** to select extracted game data. The launcher extracts ZIP assets for
+the current session and remembers the selected path. See the
+[Windows build requirements](port/README.md) and [port status](port/STATUS.md).
+
+### Android
+
+For **Android**, use
+**Browse…** to select your own APK,
 retail `libsanangeles.so`, or compiler directory. The launcher uses
 `games/gangstar-wch/baselib/` and the game's normal toolchain settings by
 default. Build inputs are remembered in the local checkout.

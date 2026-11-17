@@ -1,0 +1,104 @@
+diff --git a/src/game/ai/StateMachine.cpp b/src/game/ai/StateMachine.cpp
+index df1e61d..6deae97 100644
+--- a/src/game/ai/StateMachine.cpp
++++ b/src/game/ai/StateMachine.cpp
+@@ -9,6 +9,7 @@
+  */
+ 
+ #include "StateMachine.h"
++#ifndef _WIN32
+ #include "../rendering/GS3DStuff.h"
+ #include "../ui/GSInGameMenu.h"
+ #include "../app/GSMoviePlayer.h"
+@@ -28,6 +29,7 @@ typedef char StateMachineExtent[sizeof(StateMachine) == 40 ? 1 : -1];
+ typedef char StateStackExtent[sizeof(StateStackPrefix) == 12 ? 1 : -1];
+ typedef char StatePointerCopyTagExtent[sizeof(StatePointerCopyTag) == 1 ? 1 : -1];
+ typedef char GS3DStuffAllocationExtent[sizeof(GS3DStuff) == 28 ? 1 : -1];
++#endif
+ 
+ void StateMachine::_trace(const char*) const {}
+ 
+@@ -143,6 +145,7 @@ StateMachine::~StateMachine()
+     }
+ }
+ 
++#ifndef _WIN32
+ template GS3DStuff* StateMachine::switchState<GS3DStuff>();
+ 
+ typedef char GSInGameMenuAllocationExtent[sizeof(GSInGameMenu) == 20 ? 1 : -1];
+@@ -172,3 +175,4 @@ template GSBlockingTutorial* StateMachine::pushState<GSBlockingTutorial>();
+ template GSFailure* StateMachine::pushState<GSFailure>();
+ template GSFade* StateMachine::pushState<GSFade>();
+ template GSSideMissionMenu* StateMachine::pushState<GSSideMissionMenu>();
++#endif
+diff --git a/src/game/ai/StateMachine.h b/src/game/ai/StateMachine.h
+index 7c93424..a7b992e 100644
+--- a/src/game/ai/StateMachine.h
++++ b/src/game/ai/StateMachine.h
+@@ -3,6 +3,9 @@
+ 
+ #include "../core/FrameInterfaces.h"
+ #include "../core/StateBase.h"
++#ifdef _WIN32
++#include <new>
++#else
+ #include "../core/PlacementNew.h"
+ 
+ struct StateStackPrefix;
+@@ -13,6 +16,7 @@ struct StatePointerCopyTag {};
+ extern "C" void _ZNSt6vectorIP9StateBaseSaIS1_EE18_M_insert_overflowEPS1_RKS1_RKSt11__true_typejb(
+     StateStackPrefix*, StateBase**, StateBase* const&, const StatePointerCopyTag&,
+     unsigned int, bool) __attribute__((weak));
++#endif
+ 
+ // Observed STLport vector pointer triple, with cleanup delegated to its native base.
+ struct StateStackPrefix {
+@@ -20,8 +24,13 @@ struct StateStackPrefix {
+     StateBase** last;
+     StateBase** limit;
+     StateStackPrefix() : first(0), last(0), limit(0) {}
++#ifdef _WIN32
++    ~StateStackPrefix() { delete[] first; }
++    unsigned int size() const { return first ? static_cast<unsigned int>(last - first) : 0; }
++#else
+     ~StateStackPrefix() { _ZN9stlp_priv12_Vector_baseIP9StateBaseSaIS2_EED1Ev(this); }
+     unsigned int size() const { return last - first; }
++#endif
+     StateBase* back() const { return last[-1]; }
+     void push_back(StateBase* const& value)
+     {
+@@ -29,8 +38,21 @@ struct StateStackPrefix {
+             new (last) StateBase*(value);
+             ++last;
+         } else {
++#ifdef _WIN32
++            const auto count = size();
++            const auto capacity = count ? count * 2 : 1;
++            auto* grown = new StateBase*[capacity];
++            for (unsigned int i = 0; i < count; ++i)
++                grown[i] = first[i];
++            grown[count] = value;
++            delete[] first;
++            first = grown;
++            last = first + count + 1;
++            limit = first + capacity;
++#else
+             _ZNSt6vectorIP9StateBaseSaIS1_EE18_M_insert_overflowEPS1_RKS1_RKSt11__true_typejb(
+                 this, last, value, StatePointerCopyTag(), 1, true);
++#endif
+         }
+     }
+ };
+@@ -38,7 +60,11 @@ struct StateStackPrefix {
+ class StateMachine : public IUpdatable, public IDrawable, public ISleepable {
+ public:
+     StateMachine();
+-    static StateMachine* __attribute__((used)) getInstance()
++    static StateMachine*
++#ifndef _WIN32
++    __attribute__((used))
++#endif
++    getInstance()
+     {
+         static StateMachine sm;
+         return &sm;

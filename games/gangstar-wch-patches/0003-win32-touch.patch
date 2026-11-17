@@ -1,0 +1,108 @@
+diff --git a/src/game/input/TouchScreenBase.cpp b/src/game/input/TouchScreenBase.cpp
+index 10cd1a8..2568a6d 100644
+--- a/src/game/input/TouchScreenBase.cpp
++++ b/src/game/input/TouchScreenBase.cpp
+@@ -9,13 +9,15 @@
+  */
+ 
+ // Recovered translation-unit SDK string startup callbacks.
+-#include "../core/LocalStringStartupStorage.h"
+-#include "../core/LocalStartupText.h"
+ #include "../core/Rct.h"
+ #include "../core/Rect.h"
+-#include "../rendering/GS3DStuff.h"
+ #include "TouchScreenBase.h"
+ 
++#ifndef _WIN32
++#include "../core/LocalStringStartupStorage.h"
++#include "../core/LocalStartupText.h"
++#include "../rendering/GS3DStuff.h"
++
+ void operator delete(void*) throw();
+ extern "C" {
+ static void __tcf_0() __attribute__((used));
+@@ -48,12 +50,24 @@ void TouchScreenBase::ConvertCoord(Point2D<short>& point)
+         break;
+     }
+ }
++#else
++void TouchScreenBase::ConvertCoord(Point2D<short>&)
++{
++    // The Windows input adapter supplies landscape coordinates.
++}
++#endif
+ 
+ TouchScreenBase::TouchScreenBase()
+ {
+     enabled = true;
+     slotCount = 0;
+     currentTime = 0.0;
++#ifdef _WIN32
++    for (auto& point : points) {
++        point.lastTouchTime = 0;
++        point.externalId = -1;
++    }
++#endif
+ }
+ 
+ TouchScreenBase::~TouchScreenBase()
+@@ -179,6 +193,10 @@ long TouchScreenBase::getID(long externalId)
+     }
+ 
+     // A new external ID requires a free touch slot.
++#ifdef _WIN32
++    if (freeSlot == -1)
++        return -1;
++#endif
+     points[freeSlot].externalId = externalId;
+     return freeSlot;
+ }
+@@ -228,6 +246,7 @@ Rct<short> TouchScreenBase::getDimension() const
+     return Rct<short>(left, top, right, bottom);
+ }
+ 
++#ifndef _WIN32
+ extern "C" {
+ static void __tcf_0()
+ {
+@@ -236,8 +255,11 @@ static void __tcf_0()
+         ::operator delete(value.array);
+ }
+ }
++#endif
+ 
++#ifndef _WIN32
+ template struct Rct<short>;
++#endif
+ 
+ static inline bool containsTouchPoint(const irr::core::rect<float>& region,
+                                       const Point2D<short>& point)
+@@ -287,6 +309,7 @@ long TouchScreenBase::getTouchIDInRegion(const irr::core::rect<float>& region) c
+     return -1;
+ }
+ 
++#ifndef _WIN32
+ inline TouchScreenBase::_TouchPointInfo::~_TouchPointInfo()
+ {
+ }
+@@ -312,3 +335,4 @@ static void _GLOBAL__I__ZN15TouchScreenBase14CLEAN_UP_DELAYE()
+     __static_initialization_and_destruction_0(1, 65535);
+ }
+ }
++#endif
+diff --git a/src/game/input/TouchScreenBase.h b/src/game/input/TouchScreenBase.h
+index 1cb7d23..03781e4 100644
+--- a/src/game/input/TouchScreenBase.h
++++ b/src/game/input/TouchScreenBase.h
+@@ -49,7 +49,11 @@ private:
+ 
+     struct _TouchPointInfo {
+         _TouchPointInfo() : hasPoints(false), active(false) {}
++#ifdef _WIN32
++        ~_TouchPointInfo() = default;
++#else
+         ~_TouchPointInfo() __attribute__((used));
++#endif
+ 
+         Point2D<short> first;
+         Point2D<short> current;
