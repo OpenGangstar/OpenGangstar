@@ -784,8 +784,11 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   rotation and terrain height. Spawned pedestrians loop the retail idle
   clip through the same skeletal deformation as scripted actors. Archive
   tests check pose changes and loop boundaries for every pedestrian slot.
-  Ambient walking, driving, collision, pursuit, and remaining despawn
-  rules are pending. All 491 Santa Monica spawn
+  Ambient pedestrians take adjacent sidewalk edges and advance using the
+  retail walk clip and its root speed. Each step checks ground and walls.
+  The full retail random destination search, pedestrian and vehicle
+  interactions, ambient driving, pursuit, and remaining despawn rules
+  are pending. All 491 Santa Monica spawn
   points resolve to authored heightmap triangles by buffer and index offset.
   The loader reads the eight neighbor arrays per buffer and the 14,576
   road flag bytes from `nav_mesh_arrays.bin`. All 154 moving spawn points

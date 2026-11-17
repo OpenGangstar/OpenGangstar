@@ -1404,6 +1404,7 @@ std::map<uint8_t, CityActor> loadCitySpawnActors(FileSystemBase& assets, const C
         actor.skins = readActorSkins(actor.model);
         if (actor.skins.empty()) throw std::runtime_error("Missing ambient pedestrian skin for " + definition.model);
         actor.fightIdle = readClip(animations, &actor.model, "move_idle");
+        actor.pursuitWalk = readClip(animations, &actor.model, "move_walk");
     }
     return actors;
 }

@@ -580,9 +580,10 @@ struct CityRender {
     std::optional<RetailScriptExecution> vanProtectionScript, vanHandshakeScript, vanPoliceWaitScript, vanPoliceEscapeScript;
     CityTexture vanPoliceWaitObjective, vanPoliceObjective, vanLosePoliceObjective;
     struct SpawnPose {
-        std::array<float, 3> position, rotation;
+        CityPlayerPose motion;
+        std::array<float, 3> rotation;
         int32_t groupType, objectType;
-        double elapsedMs = 0;
+        CityPedestrianWalk walk;
     };
     std::minstd_rand spawnRandom;
     std::optional<CitySpawnScheduler> spawnScheduler;
@@ -2367,32 +2368,37 @@ void updateCitySpawns(CityRender& city, const CityCameraPose& camera, const City
     for (const auto& [name, actor] : city.playback.locoOpponents)
         if (!actor.disabled) context.nearbyObjects.push_back({actor.pose.position, 5, 1});
 
+    const auto random = [&] { return static_cast<uint32_t>(city.spawnRandom()); };
     for (size_t slot = 0; slot < city.spawnPoses.size(); ++slot) {
         auto& pose = city.spawnPoses[slot];
         if (!pose) continue;
         const CitySpawnGroup group{pose->groupType, {}};
         const CitySpawnGroup despawnClass{pose->objectType, {}};
         const auto outer = despawnClass.spawnCenters(camera.eye, camera.target, position[2], speed)[1];
-        const auto x = pose->position[0] - outer[0], y = pose->position[1] - outer[1];
-        const auto z = pose->position[2] - outer[2];
+        const auto& current = pose->motion.position;
+        const auto x = current[0] - outer[0], y = current[1] - outer[1];
+        const auto z = current[2] - outer[2];
         const auto limit = pose->objectType == 3 ? 32397042.f : 9000000.f;
         if (x*x + y*y + z*z >= limit) {
             scheduler.release(slot);
             pose.reset();
             continue;
         }
-        pose->elapsedMs += elapsedMs;
+        if (pose->objectType == 5)
+            pose->walk.advance(city.terrain, pose->motion, city.opening.walkSpeed, elapsedMs, random);
         ++context.activeCounts[group.populationIndex()];
-        context.nearbyObjects.push_back({pose->position, pose->objectType, 1});
+        context.nearbyObjects.push_back({current, pose->objectType, 1});
     }
     scheduler.advance(elapsedMs, query, camera, position[2], speed, std::move(context), city.wanted.level(),
-        false, [&] { return static_cast<uint32_t>(city.spawnRandom()); },
+        false, random,
         [&](size_t slot, uint8_t, const CitySpawnPoint& point) {
             auto origin = point.position;
-            const auto ground = city.terrain.groundHeight(origin, 300, 300);
+            const auto ground = city.terrain.groundContact(origin, std::nullopt, 300, 300);
             if (!ground) return false;
-            origin[2] = *ground;
-            city.spawnPoses[slot] = CityRender::SpawnPose{origin, point.rotation, point.objectType,
+            origin[2] = ground->height;
+            CityPlayerPose motion{origin, point.rotation[2]};
+            motion.groundTriangle = ground->triangle;
+            city.spawnPoses[slot] = CityRender::SpawnPose{motion, point.rotation, point.objectType,
                 point.objectType == 3 || point.objectType == 11 ? 3 : 5};
             return true;
         });
@@ -2599,7 +2605,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 if (!pose) continue;
                 const auto& mesh = city.spawnMeshes[slot];
                 auto* vertices = city.vertices.data() + mesh.firstVertex;
-                poseCitySpawnMesh(mesh, pose->position, pose->rotation, pose->elapsedMs, vertices);
+                auto rotation = pose->rotation;
+                rotation[2] = pose->motion.yaw;
+                poseCitySpawnMesh(mesh, pose->motion.position, rotation, pose->motion.clipTimeMs,
+                                  vertices, pose->motion.walking);
                 std::memcpy(static_cast<char*>(mapped) + mesh.firstVertex * sizeof(CityVertex),
                             vertices, mesh.source.size() * sizeof(CityVertex));
             }
@@ -6527,7 +6536,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 presentCity(render, info.imageExtent, nullptr, 250);
                 if (std::equal(beforePose.begin(), beforePose.end(), first,
                         [](const CityVertex& a, const CityVertex& b) { return a.position == b.position; }))
-                    throw std::runtime_error("The spawned pedestrian did not submit its next idle pose.");
+                    throw std::runtime_error("The spawned pedestrian did not submit its next animated pose.");
                 const CityCameraPose away{{100000, 100000, 0}, {100000, 100001, 0}};
                 const CityBounds awayQuery{away.eye, away.target};
                 updateCitySpawns(render, away, awayQuery, *render.playback.player, nullptr, 16);

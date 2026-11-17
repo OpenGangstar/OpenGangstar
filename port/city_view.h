@@ -109,6 +109,8 @@ struct CityTerrain {
     std::optional<RampContact> rampContact(const std::array<float, 3>& position, float rise, float drop) const;
     void indexGround(const CityNavigation* navigation = nullptr);
     void indexWalls();
+    std::optional<size_t> pedestrianNeighbor(size_t triangle, std::optional<size_t> previous,
+                                             uint32_t draw) const;
     std::optional<std::vector<size_t>> wallCandidates(float left, float bottom, float right, float top) const;
     std::optional<GroundContact> groundContact(const std::array<float, 3>& position,
         std::optional<size_t> preferred = std::nullopt, float rise = 42, float drop = 80) const;
@@ -118,6 +120,7 @@ struct CityTerrain {
 private:
     std::map<std::pair<int, int>, std::vector<size_t>> groundCells;
     std::vector<std::vector<size_t>> groundLinks;
+    std::vector<std::array<std::optional<size_t>, 3>> sidewalkEdges;
     std::map<std::pair<int, int>, std::vector<size_t>> wallCells;
 };
 
@@ -242,6 +245,13 @@ struct CityPlayerPose {
     float followCameraDistance = 450;
     float followCameraHeight = 150;
     std::optional<size_t> groundTriangle;
+};
+
+struct CityPedestrianWalk {
+    std::optional<size_t> destination, previous;
+    std::optional<std::array<float, 3>> sharedEdge;
+    void advance(const CityTerrain& terrain, CityPlayerPose& pose, float speed, uint32_t elapsedMs,
+                 const std::function<uint32_t()>& random);
 };
 
 struct CityVehiclePose {
@@ -470,7 +480,7 @@ struct CitySpawnMesh {
 std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,
                                                 const CitySpawnPool& pool, FileSystemBase& assets);
 void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& position,
-                       const std::array<float, 3>& rotation, double elapsedMs, CityVertex* target);
+                       const std::array<float, 3>& rotation, double elapsedMs, CityVertex* target, bool walking = false);
 bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, const CityPlayback& playback,
                         std::optional<double> payphoneMs = {}, std::optional<double> missionMs = {},
                         const CityMissionCinematic* missionScene = nullptr);

@@ -1090,7 +1090,7 @@ std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityA
 }
 
 void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& position,
-                       const std::array<float, 3>& rotation, double elapsedMs, CityVertex* target)
+                       const std::array<float, 3>& rotation, double elapsedMs, CityVertex* target, bool walking)
 {
     const auto& actor = *mesh.actor;
     const auto transform = placementTransform(position, rotation, actor.scale, rotation[2]);
@@ -1102,8 +1102,8 @@ void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& po
         target[i].normal = direction(normals, vertex.normal);
     }
     if (!actor.fightIdle) return;
-    const auto& clip = *actor.fightIdle;
-    const auto transforms = animatedSkeleton(actor.model, clip, std::fmod(elapsedMs, clip.durationMs), false);
+    const auto& clip = walking ? *actor.pursuitWalk : *actor.fightIdle;
+    const auto transforms = animatedSkeleton(actor.model, clip, std::fmod(elapsedMs, clip.durationMs), walking);
     for (const auto& range : mesh.skins)
         poseSkinnedMesh(actor.model, actor.skins[range.skin], transforms, transform, nullptr,
                         target + range.firstVertex);
@@ -1486,6 +1486,7 @@ void indexTriangles(const std::vector<CityTriangle>& triangles,
 void CityTerrain::indexGround(const CityNavigation* navigation)
 {
     groundLinks.clear();
+    sidewalkEdges.clear();
     if (navigation && !groundNavigation.empty()) {
         std::vector<size_t> bufferStarts;
         size_t first = 0;
@@ -1499,18 +1500,37 @@ void CityTerrain::indexGround(const CityNavigation* navigation)
             return bufferStarts.at(reference.buffer) + reference.indexOffset / 3;
         };
         groundLinks.resize(ground.size());
+        sidewalkEdges.resize(ground.size());
+        const auto sidewalk = navigation->materialBuffers[static_cast<size_t>(CityNavigation::Material::sidewalk)];
         for (size_t i = 0; i < groundNavigation.size(); ++i) {
             const auto source = groundNavigation[i];
             auto& links = groundLinks[i];
             for (size_t edge = 0; edge < 3; ++edge) {
-                if (const auto neighbor = navigation->neighbor(source, edge))
-                    links.push_back(groundIndex(*neighbor));
+                if (const auto neighbor = navigation->neighbor(source, edge)) {
+                    const auto index = groundIndex(*neighbor);
+                    links.push_back(index);
+                    if (neighbor->buffer == sidewalk) sidewalkEdges[i][edge] = index;
+                }
             }
             const auto& overlaps = navigation->buffers.at(source.buffer).overlaps.at(source.indexOffset / 3);
             for (const auto target : overlaps) links.push_back(groundIndex(target));
         }
     }
     indexTriangles(ground, groundCells);
+}
+
+std::optional<size_t> CityTerrain::pedestrianNeighbor(size_t triangle, std::optional<size_t> previous,
+                                                     uint32_t draw) const
+{
+    if (triangle >= sidewalkEdges.size()) return std::nullopt;
+    std::array<size_t, 3> candidates{};
+    size_t count = 0;
+    for (const auto neighbor : sidewalkEdges[triangle])
+        if (neighbor && neighbor != previous) candidates[count++] = *neighbor;
+    if (count) return candidates[draw % count];
+    for (const auto neighbor : sidewalkEdges[triangle])
+        if (neighbor) return neighbor;
+    return std::nullopt;
 }
 
 void CityTerrain::indexWalls()
@@ -1663,6 +1683,58 @@ bool crossesWallInCar(const CityTerrain& terrain, const CityVehiclePose& car,
     }
     return false;
 }
+}
+
+void CityPedestrianWalk::advance(const CityTerrain& terrain, CityPlayerPose& pose, float speed,
+                                 uint32_t elapsedMs, const std::function<uint32_t()>& random)
+{
+    if (!destination && pose.groundTriangle) {
+        destination = terrain.pedestrianNeighbor(*pose.groundTriangle, previous, random());
+        if (destination) {
+            previous = pose.groundTriangle;
+            const auto& target = terrain.ground.at(*destination);
+            Vec3 middle{};
+            size_t shared = 0;
+            for (const auto& vertex : terrain.ground.at(*previous)) {
+                if (std::find(target.begin(), target.end(), vertex) == target.end()) continue;
+                middle = add(middle, vertex);
+                ++shared;
+            }
+            if (shared == 2) sharedEdge = scale(middle, 0.5f);
+        }
+    }
+    const auto arrive = [&] {
+        if (sharedEdge) sharedEdge.reset();
+        else destination.reset();
+    };
+    bool moved = false;
+    if (destination) {
+        const auto& [a, b, c] = terrain.ground.at(*destination);
+        const auto center = sharedEdge.value_or(scale(add(add(a, b), c), 1.f / 3));
+        const auto dx = center[0] - pose.position[0], dy = center[1] - pose.position[1];
+        const auto distance = std::hypot(dx, dy);
+        if (distance <= 1.f) {
+            arrive();
+        } else {
+            const auto step = std::min(distance, speed * elapsedMs * 0.001f);
+            auto next = add(pose.position, {step * dx / distance, step * dy / distance, 0});
+            const auto ground = terrain.groundContact(next, pose.groundTriangle);
+            if (ground) next[2] = ground->height;
+            if (ground && !crossesWall(terrain, pose.position, next, 28)) {
+                pose.position = next;
+                pose.groundTriangle = ground->triangle;
+                pose.yaw = std::atan2(dx, -dy) / radians;
+                moved = true;
+                if (step == distance) arrive();
+            } else {
+                previous = destination;
+                destination.reset();
+                sharedEdge.reset();
+            }
+        }
+    }
+    pose.clipTimeMs = (pose.walking == moved ? pose.clipTimeMs : 0) + elapsedMs;
+    pose.walking = moved;
 }
 
 void CityPlayback::walk(const CityOpening& opening, const CityTerrain& terrain,

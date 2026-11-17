@@ -3206,6 +3206,38 @@ static void checkSpawnScheduler()
             "A rejected spawn did not return the slot or police capacity.");
 }
 
+static void checkAmbientPedestrianWalk()
+{
+    CityNavigation navigation;
+    auto& sidewalk = navigation.buffers.emplace_back();
+    for (auto& lane : sidewalk.neighbors) lane.assign(2, UINT16_MAX);
+    sidewalk.roadFlags = {0, 0};
+    sidewalk.overlaps.resize(2);
+    sidewalk.neighbors[0] = {3, 0};
+    sidewalk.neighbors[3] = {0, 0};
+    CityTerrain terrain;
+    terrain.ground = {
+        CityTriangle{{{0, 0, 0}, {300, 0, 0}, {0, 300, 0}}},
+        CityTriangle{{{300, 0, 0}, {300, 300, 0}, {0, 300, 0}}}
+    };
+    terrain.groundNavigation = {{0, 0}, {0, 3}};
+    terrain.indexGround(&navigation);
+    CityPlayerPose pose{{100, 100, 0}, 0};
+    pose.groundTriangle = 0;
+    CityPedestrianWalk walk;
+    const auto draw = [] { return 0u; };
+    for (int i = 0; i < 6; ++i) walk.advance(terrain, pose, 100, 250, draw);
+    require(pose.walking && pose.groundTriangle == 1 && pose.position[0] > 150 && pose.position[2] == 0,
+            "Ambient pedestrian did not cross its authored sidewalk edge.");
+    terrain.walls = {CityTriangle{{{125, 0, 0}, {125, 300, 0}, {125, 150, 200}}}};
+    walk = {};
+    pose = CityPlayerPose{{100, 100, 0}, 0};
+    pose.groundTriangle = 0;
+    walk.advance(terrain, pose, 100, 250, draw);
+    require(!pose.walking && pose.position[0] == 100 && !walk.destination,
+            "Ambient pedestrian walked into a wall or retained a blocked destination.");
+}
+
 static void checkNavigationWaypoint()
 {
     CityMesh mesh;
@@ -3585,6 +3617,7 @@ int wmain(int argc, wchar_t** argv)
         checkIndexedWalls();
         checkSpawnRules();
         checkSpawnScheduler();
+        checkAmbientPedestrianWalk();
         walkAndSlide();
         driveAndReverse();
         simulateParticles();
