@@ -571,7 +571,7 @@ struct CityRender {
     CityTexture repairDriveObjective, repairTutorial, deliveryObjective, elToroObjective, elToroFightObjective;
     std::optional<RetailScriptExecution> elToroDestinationScript, elToroDriveScript;
     CityTexture elToroDriveObjective, vanMissionObjective, vanDriveObjective;
-    std::optional<RetailScriptExecution> vanAcquisitionScript, vanDriveScript;
+    std::optional<RetailScriptExecution> vanAcquisitionScript, vanDriveScript, vanReentryScript;
     std::optional<double> vanDriveMarker;
     std::optional<double> elToroDestinationMarker, elToroDriveMarker;
     bool repairTutorialVisible = false;
@@ -1167,8 +1167,14 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* vanBriefingLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->vanBriefing.dialogue : nullptr;
     const auto vanBriefingLineCount = vanBriefingLines ? vanBriefingLines->size() : 0;
+    const auto* vanArrivalLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->vanArrival.dialogue : nullptr;
+    const auto vanArrivalLineCount = vanArrivalLines ? vanArrivalLines->size() : 0;
+    const auto* vanReentryLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->vanReentryBriefing.dialogue : nullptr;
+    const auto vanReentryLineCount = vanReentryLines ? vanReentryLines->size() : 0;
     for (const auto* lines : {cooperClosingLines, brawlNextLines, basketballLines, basketballClosingLines,
-                             postBasketballLines, ambush29Lines, briefing29Lines, repairArrivalLines, deliveryLines, elToroLines, elToroArrivalLines, elToroInterludeLines, elToroDepartureLines, elToroClosingLines, vanIntroLines, vanBriefingLines})
+                             postBasketballLines, ambush29Lines, briefing29Lines, repairArrivalLines, deliveryLines, elToroLines, elToroArrivalLines, elToroInterludeLines, elToroDepartureLines, elToroClosingLines, vanIntroLines, vanBriefingLines, vanArrivalLines, vanReentryLines})
         if (lines)
             for (const auto& dialogue : *lines)
                 if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
@@ -1274,7 +1280,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount +
                                              hasPayphoneObjective + (next ? 33 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
@@ -1441,7 +1447,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1558,7 +1564,9 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto vanBriefingBase = city.captions.size() - vanBriefingLineCount;
+        const auto vanReentryBase = city.captions.size() - vanReentryLineCount;
+        const auto vanArrivalBase = vanReentryBase - vanArrivalLineCount;
+        const auto vanBriefingBase = vanArrivalBase - vanBriefingLineCount;
         const auto vanIntroBase = vanBriefingBase - vanIntroLineCount;
         const auto elToroClosingBase = vanIntroBase - elToroClosingLineCount;
         const auto elToroDepartureBase = elToroClosingBase - elToroDepartureLineCount;
@@ -1636,6 +1644,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             uploadSceneCaptions(nextMission->elToroClosing, elToroClosingBase);
             uploadSceneCaptions(nextMission->vanMissionIntro, vanIntroBase);
             uploadSceneCaptions(nextMission->vanBriefing, vanBriefingBase);
+            uploadSceneCaptions(nextMission->vanArrival, vanArrivalBase);
+            uploadSceneCaptions(nextMission->vanReentryBriefing, vanReentryBase);
             uploadSceneCaptions(nextMission->brawlNextIntro, brawlNextBase);
             uploadSceneCaptions(nextMission->cooperNextClosing, cooperClosingBase);
             city.missionCaptionBases.emplace(&nextMission->cooperNextArrival, cooperArrivalBase);
@@ -2272,6 +2282,7 @@ uint32_t hummerArrivalFadeDuration(const CityRender& city)
     if (city.pendingHummerCinematic == &route.postLcAmbush) return route.postLcArrivalFadeMs;
     if (city.pendingHummerCinematic == &route.postBasketballBriefing) return route.postBasketballBriefingFadeMs;
     if (city.pendingHummerCinematic == &route.elToroClosing) return route.elToroClosingFadeMs;
+    if (city.pendingHummerCinematic == &route.vanArrival) return route.vanArrivalFadeMs;
     return 0;
 }
 
@@ -2594,7 +2605,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 target = Target::fightActor;
                 targetPosition = &city.payphoneLockMarker->position;
             } else if (vehicle && (city.postBasketballVehicleScript ||
-                                  (city.vanAcquisitionScript && !city.playback.nextMissionVehicleAcquired))) {
+                                  ((city.vanAcquisitionScript || city.vanReentryScript) &&
+                                   !city.playback.nextMissionVehicleAcquired))) {
                 target = Target::nextVehicle;
                 targetPosition = &vehicle->position;
             } else if (nextPlacement) {
@@ -3455,6 +3467,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->vanAcquisitionScript.reset();
                         cityRender->vanDriveScript.reset();
                         cityRender->vanDriveMarker.reset();
+                        cityRender->vanReentryScript.reset();
                         cityRender->deliveryScript.reset();
                         cityRender->deliveryMarker.reset();
                         cityRender->repairDriveScript.reset();
@@ -3801,6 +3814,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         for (const auto& [opcode, payload] : route.vanAcquisitionCommands)
                             program.front().push_back({opcode, payload});
                         cityRender->vanAcquisitionScript.emplace(std::move(program)).unlock(0, 0, 0);
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->vanArrival) {
+                        const auto& route = *handoff.nextCheckpoint;
+                        playback.nextMissionVehicleAcquired = false;
+                        CityScriptProgram program(1);
+                        for (const auto& [opcode, payload] : route.vanReentryCommands)
+                            program.front().push_back({opcode, payload});
+                        cityRender->vanReentryScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->vanBriefing) {
                         const auto& wait = handoff.nextCheckpoint->vanDriveWait;
                         cityRender->vanDriveScript.emplace(CityScriptProgram{{{105, wait}}}).unlock(0, 0, 0);
@@ -4322,7 +4342,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         stagePostBasketballVehicle(*cityRender);
                     }
                 }
-                if (cityRender->vanAcquisitionScript) {
+                if (cityRender->vanAcquisitionScript || cityRender->vanReentryScript) {
                     const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
                     RetailTravelHooks travel;
                     travel.occupiedVehicle = [&]() -> std::string_view {
@@ -4335,16 +4355,25 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     mission.actorGetOut = [&](std::string_view name) {
                         if (name == "aVan_00" && nowOccupied) playback.scriptedVehicleExit = true;
                     };
-                    auto& script = *cityRender->vanAcquisitionScript;
+                    const bool reentry = cityRender->vanReentryScript.has_value();
+                    auto& execution = reentry ? cityRender->vanReentryScript : cityRender->vanAcquisitionScript;
+                    auto& script = *execution;
                     script.execute(0, static_cast<int32_t>(std::clamp(delta, 0., 1000.)), 0,
                                    [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, &travel, {}, &mission);
                     if (script.state(0) == RetailScriptState::locked) {
-                        cityRender->vanAcquisitionScript.reset();
-                        cityRender->pendingHummerCinematic = &route.vanBriefing;
+                        execution.reset();
+                        if (reentry) {
+                            playback.vehicle->speed = 0;
+                            cityRender->activeMissionCinematic = &route.vanReentryBriefing;
+                            cityRender->postFightCinematic.emplace();
+                        } else {
+                            cityRender->pendingHummerCinematic = &route.vanBriefing;
+                        }
                     }
                 }
                 if (cityRender->vanDriveScript) {
-                    const auto& checkpoint = *cityRender->opening.payphone->postFight.nextCheckpoint->vanDriveCheckpoint;
+                    const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                    const auto& checkpoint = *route.vanDriveCheckpoint;
                     RetailTravelHooks travel;
                     travel.setActive = [&](std::string_view, bool active) {
                         if (active) cityRender->vanDriveMarker = cityRender->payphoneGameplayMs.value_or(0);
@@ -4362,6 +4391,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->vanDriveScript.reset();
                         playback.scriptedVehicleExit = true;
+                        cityRender->pendingHummerCinematic = &route.vanArrival;
                     }
                 }
                 if (cityRender->postBasketballVehicleScript) {
@@ -5664,6 +5694,26 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         touch->message(window, WM_KEYUP, 'E', 0);
                         if (render.vanDriveMarker || render.vanDriveScript || !playback.scriptedVehicleExit)
                             throw std::runtime_error("Script 31 did not accept the required van at its destination.");
+                        for (int step = 0; step < 360 && !render.postFightCinematic; ++step) update(16);
+                        if (render.activeMissionCinematic != &route.vanArrival || !render.postFightCinematic ||
+                            van.occupied || route.vanArrival.cameras.size() != 5 || route.vanArrival.motions.size() != 1)
+                            throw std::runtime_error("Script 31 did not start the authored van arrival.");
+                        for (int step = 0; step < 160 && render.postFightCinematic; ++step) update(250, true);
+                        update(0);
+                        if (render.postFightCinematic || !render.vanReentryScript || van.occupied)
+                            throw std::runtime_error("Script 31 did not wait for reentry to the van.");
+                        playback.player->position = van.position;
+                        touch->message(window, WM_KEYDOWN, 'E', 0);
+                        update(0);
+                        touch->message(window, WM_KEYUP, 'E', 0);
+                        update(100);
+                        if (!render.vanReentryScript || render.postFightCinematic || !van.occupied)
+                            throw std::runtime_error("Script 31 skipped the delay after reentry.");
+                        update(1);
+                        if (render.vanReentryScript || !render.postFightCinematic ||
+                            render.activeMissionCinematic != &route.vanReentryBriefing ||
+                            route.vanReentryBriefing.dialogue.size() != 1 || !route.vanSecondDriveCheckpoint)
+                            throw std::runtime_error("Script 31 did not play the retail reentry briefing.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

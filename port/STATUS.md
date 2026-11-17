@@ -437,8 +437,12 @@ mission playthroughs for discovery or verification.
   the player exits for El Toro's briefing. The drive objective and
   marker then require the van at the destination. The smoke fixture
   enters the van through Win32 input and checks the wait and vehicle gate.
-  The post-arrival sequence, passenger seating, and parallel script 21 race
-  remain open, along with retail payment presentation and audio,
+  Arrival exits the player and plays the retail meeting with Juan and the
+  Yakuza contact. The script then waits for reentry and the authored
+  100 ms delay before El Toro's next line. The fixture also checks these
+  transitions. The second destination is decoded. Its live checkpoint
+  and subsequent sequence, passenger seating, and the parallel script 21
+  race remain open, along with retail payment presentation and audio,
   unaffordable repair feedback, scripted look cues, NPC weapon attacks,
   NPC and vehicle AI, and Loco's seated model.
   Sparse high-seat animation channels hold their nearest
