@@ -2189,6 +2189,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> pierMoves;
     std::vector<NamedMove> shopMoves;
     std::vector<NamedMove> lcClosingMoves;
+    std::vector<NamedMove> postLcMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2209,13 +2210,14 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<AnimationCommand> nextMissionAnimations;
     std::vector<AnimationCommand> pierAnimations;
     std::vector<AnimationCommand> lcClosingAnimations;
+    std::vector<AnimationCommand> postLcAnimations;
     struct MotionCommand {
         uint32_t time;
         std::string actor;
         std::string marker;
         bool running;
     };
-    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions;
+    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions;
     const auto readCinematicAnimation = [](CityDataReader& command, uint32_t opcode, uint32_t time) {
         auto cue = readActorAnimation(command, opcode);
         // Retail scripts differ from anim_ingame.bdae in the casing of these names.
@@ -2241,6 +2243,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> pierDialogue;
     std::vector<DialogueCommand> shopDialogue;
     std::vector<DialogueCommand> lcClosingDialogue;
+    std::vector<DialogueCommand> postLcDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2248,6 +2251,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> pierPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> shopPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -2928,7 +2932,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.lcUnlockedScript = unlockNext.integer();
                 unlockNext.finish();
                 auto postLc = scripts.script(*route.lcUnlockedScript);
-                if (postLc.integer() < 3) throw std::runtime_error("Incomplete retail post-LC mission script.");
+                const auto postLcLength = postLc.integer();
+                if (postLcLength < 3) throw std::runtime_error("Incomplete retail post-LC mission script.");
                 auto gate = postLc.record();
                 auto postLcFade = postLc.record();
                 auto postLcStart = postLc.record();
@@ -2940,6 +2945,15 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.postLcFadeMs = readFadeCommand(postLcFade, 42, 0).durationMs;
                 route.postLcTitle = missionTitle(postLcStart.integer());
                 postLcStart.finish();
+                previousCinematicShot.clear();
+                route.postLcIntro.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, postLc, postLcLength - 3, 0, route.postLcIntro, postLcMoves,
+                              postLcDialogue, postLcPlacements, &postLcAnimations, &postLcMotions, nullptr, 66);
+                route.postLcIntro.dialogue = resolveDialogue(postLcDialogue);
+                if (!nextMissionObjectiveId || (*nextMissionObjectiveId >> 12 & 0xf) != 4 ||
+                    (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
+                    throw std::runtime_error("Invalid retail post-LC drive objective.");
+                route.postLcDriveObjective = chapterText[*nextMissionObjectiveId & 0xfff];
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -2954,10 +2968,18 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                         cue.action != CityScriptActorAction::disable};
                     if (placement.visible) {
                         const auto marker = findObject(cue.marker);
-                        if (marker.type != 10)
+                        if (marker.type == 3 && cue.action == CityScriptActorAction::moveTo) {
+                            const auto target = std::find_if(placements.rbegin(), placements.rend(), [&](const auto& previous) {
+                                return previous.actor == cue.marker && previous.visible;
+                            });
+                            placement.position = target == placements.rend() ? marker.position : target->position;
+                            placement.rotationDegrees = target == placements.rend() ? marker.rotation : target->rotationDegrees;
+                        } else if (marker.type != 10) {
                             throw std::runtime_error("Invalid retail cinematic actor marker " + cue.marker);
-                        placement.position = marker.position;
-                        placement.rotationDegrees = marker.rotation;
+                        } else {
+                            placement.position = marker.position;
+                            placement.rotationDegrees = marker.rotation;
+                        }
                     }
                     placements.push_back(std::move(placement));
                 }
@@ -2969,6 +2991,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(pierPlacements, next->pierCinematic.placements);
                 resolvePlacements(shopPlacements, next->weaponShopCinematic.placements);
                 resolvePlacements(lcClosingPlacements, next->lcClosingCinematic.placements);
+                resolvePlacements(postLcPlacements, next->postLcIntro.placements);
             }
         }
     }
@@ -3226,6 +3249,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.pierCinematic);
                 loadCinematicActors(next.weaponShopCinematic);
                 loadCinematicActors(next.lcClosingCinematic);
+                loadCinematicActors(next.postLcIntro);
             }
             const auto bindCinematic = [&](CityMissionCinematic& scene, const auto& commands) {
                 for (const auto& command : commands) {
@@ -3246,6 +3270,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->cinematic, nextMissionAnimations);
                 bindCinematic(next->pierCinematic, pierAnimations);
                 bindCinematic(next->lcClosingCinematic, lcClosingAnimations);
+                bindCinematic(next->postLcIntro, postLcAnimations);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
                     if (!cue.visible || cue.actor == next->targetVehicle) continue;
                     const auto actor = findCinematicActor(cue.actor);
@@ -3284,6 +3309,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->pierCinematic, pierMotions);
                 bindMotions(next->weaponShopCinematic, shopMotions);
                 bindMotions(next->lcClosingCinematic, lcClosingMotions);
+                bindMotions(next->postLcIntro, postLcMotions);
             }
         }
     }
@@ -3343,6 +3369,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : lcClosingMoves)
                             next->lcClosingCinematic.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : postLcMoves)
+                            next->postLcIntro.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                     }
                 }

@@ -1639,6 +1639,11 @@ void poseRetailDoor(const std::filesystem::path& root)
     require(postLcGate.object == hummerRoute.marker.name && postLcGate.object == "CheckpointMission_LC" &&
             hummerRoute.postLcFadeMs == 350 && hummerRoute.postLcTitle && hummerRoute.postLcTitle->id == 8,
             "Script 25 lost its retail checkpoint, fade, or mission title.");
+    const auto& postLcIntro = hummerRoute.postLcIntro;
+    require(postLcIntro.cameras.size() >= 5 && postLcIntro.dialogue.size() == 3 &&
+            postLcIntro.motions.size() == 3 && !hummerRoute.postLcDriveObjective.empty() &&
+            cityTrackBrightness(postLcIntro.fades, 0) == 0,
+            "Script 25 lost its introductory cameras, dialogue, movements, or first objective.");
     require(lcClosing.cameras.size() >= 4 && lcClosing.dialogue.size() == 3,
             "Retail LC camera or dialogue cues changed.");
     require(lcClosing.motions.size() == 3 && lcClosing.actorAnimations.at("LC_00").size() == 4,

@@ -49,8 +49,8 @@ Windows uses `%LOCALAPPDATA%\OpenGangstar\Saves` for writable save files.
 Use `--save-dir <folder>` to override it with a directory outside the retail
 game data. Completing either of the first two missions writes
 `OpenGangstar.sav` there. **Continue** resumes at the corresponding handoff.
-The next mission after LC currently stops at its entrance marker. Later checkpoints and resuming
-arbitrary retail saves are still pending.
+The next mission after LC currently reaches its first drive objective.
+Later checkpoints and resuming arbitrary retail saves are still pending.
 The port builds without the Android APK or ARM toolchain.
 CMake applies the Win32 compatibility patches to copies of the state-machine
 and touch sources in the build directory.

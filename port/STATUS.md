@@ -293,8 +293,10 @@ mission playthroughs for discovery or verification.
   disable cue and removed from live playback when the scene ends. MissionOver
   awards the retail $100 once, updates progress, and presents the localized
   completion objective, reward animation, and audio. Windows then activates
-  script 25's LC marker and saves the handoff. The marker's mission-start
-  commands and script 25's remaining route are pending.
+  script 25's LC marker and saves the handoff. Crossing the marker now
+  presents the retail fade, title, introductory cinematic, and first
+  localized drive objective. The cinematic uses straight-line walking.
+  The playable Hummer handoff and script 25's remaining route are pending.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
