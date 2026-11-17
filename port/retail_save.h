@@ -55,6 +55,7 @@ inline constexpr char windowsCheckpointFilename[] = "OpenGangstar.sav";
 inline constexpr int32_t windowsOpeningCheckpointScript = 18;
 inline constexpr int32_t windowsPostLcCheckpointScript = 25;
 inline constexpr int32_t windowsPostLocoCheckpointScript = 26;
+inline constexpr int32_t windowsPostCooperCheckpointScript = 27;
 inline constexpr int32_t windowsOpeningCheckpointVersion = 0x30500;
 RetailAudioPreferences readRetailAudioPreferences(IFileStream& file);
 std::optional<RetailLanguage> readRetailLanguagePreference(IFileStream& file);

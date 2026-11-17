@@ -2197,7 +2197,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> shopMoves;
     std::vector<NamedMove> lcClosingMoves;
     std::vector<NamedMove> postLcMoves;
-    std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves, postLcFightIntroMoves, locoNextMoves, locoCooperMoves;
+    std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves, postLcFightIntroMoves, locoNextMoves, locoCooperMoves, cooperNextMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2219,7 +2219,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<AnimationCommand> pierAnimations;
     std::vector<AnimationCommand> lcClosingAnimations;
     std::vector<AnimationCommand> postLcAnimations;
-    std::vector<AnimationCommand> postLcAmbushAnimations, postLcConfrontationAnimations, postLcPhoneAnimations, postLcFightIntroAnimations, locoNextAnimations;
+    std::vector<AnimationCommand> postLcAmbushAnimations, postLcConfrontationAnimations, postLcPhoneAnimations, postLcFightIntroAnimations, locoNextAnimations, cooperNextAnimations;
     struct MotionCommand {
         uint32_t time;
         std::string actor;
@@ -2260,7 +2260,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> shopDialogue;
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
-    std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue;
+    std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue, cooperNextDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2269,7 +2269,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> shopPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
-    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements, cooperNextPlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -2297,7 +2297,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                    auto& placements, std::vector<AnimationCommand>* animations,
                                    std::vector<MotionCommand>* motions,
                                    CityPostFightScene* postFightTail, uint32_t stopOpcode,
-                                   std::vector<VehicleDriveCommand>* drives = nullptr) -> void {
+                                   std::vector<VehicleDriveCommand>* drives = nullptr,
+                                   CityPostFightScene::MissionCheckpoint* cooperHandoff = nullptr) -> void {
         if (depth > 8) throw std::runtime_error("Invalid retail cinematic script nesting.");
         for (uint32_t i = 0; i < remaining; ++i) {
             auto command = stream.record();
@@ -2311,7 +2312,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 auto child = scripts.script(script);
                 const auto commands = child.integer();
                 read(read, child, commands, depth + 1, scene, moves, lines, placements, animations, motions,
-                     postFightTail, stopOpcode, drives);
+                     postFightTail, stopOpcode, drives, cooperHandoff);
                 continue;
             }
             if (!depth && postFightTail && opcode == 3) {
@@ -2320,7 +2321,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 return;
             }
             if (!depth && !postFightTail && opcode == stopOpcode) {
-                if (opcode == 66) nextMissionObjectiveId = readMissionObjective(command);
+                if (opcode == 89 && cooperHandoff) {
+                    auto payload = command.remainingBytes();
+                    if (readScriptObject(command) != cooperHandoff->targetVehicle)
+                        throw std::runtime_error("Retail script 27 requires a different starter vehicle.");
+                    cooperHandoff->cooperNextDriveCommands.emplace_back(opcode, std::move(payload));
+                } else if (opcode == 66) nextMissionObjectiveId = readMissionObjective(command);
                 else if (opcode == 76) weaponShopEntrance = readScriptObject(command);
                 else command.finish();
                 return;
@@ -2346,6 +2352,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
             } else if ((opcode == 25 || opcode == 26 || opcode == 34) && motions) {
                 motions->push_back({time, command.string(), command.string(), opcode != 25, opcode == 34});
                 command.finish();
+            } else if (opcode == 70 && cooperHandoff) {
+                auto payload = command.remainingBytes();
+                const auto protection = readMissionCondition(command, opcode);
+                if (!protection || protection->target != cooperHandoff->targetVehicle)
+                    throw std::runtime_error("Retail script 27 protects a different vehicle.");
+                cooperHandoff->cooperNextDriveCommands.emplace_back(opcode, std::move(payload));
             } else if (opcode == 52 && drives) {
                 drives->push_back({time, command.string(), command.string()});
                 command.finish();
@@ -3201,6 +3213,41 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (unlock.integer() != 3) throw std::runtime_error("Missing retail Cooper mission handoff.");
                 route.cooperUnlockedScript = unlock.integer();
                 unlock.finish();
+                auto cooperNext = scripts.script(*route.cooperUnlockedScript);
+                const auto cooperNextLength = cooperNext.integer();
+                auto cooperGate = cooperNext.record();
+                auto cooperFade = cooperNext.record();
+                auto cooperStart = cooperNext.record();
+                if (cooperNextLength < 3 || cooperGate.integer() != 64 || cooperFade.integer() != 42 ||
+                    cooperStart.integer() != 65)
+                    throw std::runtime_error("Invalid retail mission entrance after the Cooper escape.");
+                route.cooperNextCheckpointWait = cooperGate.remainingBytes();
+                if (readCheckpointCommand(cooperGate, 64).object != route.marker.name)
+                    throw std::runtime_error("Retail mission entrance after the Cooper escape changed location.");
+                route.cooperNextFadeMs = readFadeCommand(cooperFade, 42, 0).durationMs;
+                route.cooperNextTitle = missionTitle(cooperStart.integer());
+                cooperStart.finish();
+                previousCinematicShot.clear();
+                route.cooperNextIntro.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, cooperNext, cooperNextLength - 3, 0, route.cooperNextIntro,
+                              cooperNextMoves, cooperNextDialogue, cooperNextPlacements, &cooperNextAnimations,
+                              nullptr, nullptr, 89, nullptr, &route);
+                // WaitStolen's named payload is read by the live mission after the opening.
+                route.cooperNextIntro.dialogue = resolveDialogue(cooperNextDialogue);
+                auto driveObjective = cooperNext.record();
+                if (driveObjective.integer() != 66) throw std::runtime_error("Missing retail script 27 drive objective.");
+                const auto objectiveId = readMissionObjective(driveObjective);
+                if ((objectiveId >> 12 & 0xf) != 4 || (objectiveId & 0xfff) >= chapterText.size())
+                    throw std::runtime_error("Invalid retail script 27 drive objective.");
+                route.cooperNextDriveObjective = chapterText[objectiveId & 0xfff];
+                auto driveCheckpoint = cooperNext.record();
+                if (driveCheckpoint.integer() != 105) throw std::runtime_error("Missing retail script 27 drive checkpoint.");
+                auto drivePayload = driveCheckpoint.remainingBytes();
+                const auto driveTarget = readCheckpointCommand(driveCheckpoint, 105);
+                if (driveTarget.vehicle != route.targetVehicle)
+                    throw std::runtime_error("Retail script 27 requires a different drive vehicle.");
+                route.cooperNextDriveCheckpoint = makeCheckpoint(driveTarget.object);
+                route.cooperNextDriveCommands.emplace_back(105, std::move(drivePayload));
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3245,6 +3292,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(postLcFightIntroPlacements, next->postLcFightIntro.placements);
                 resolvePlacements(locoNextPlacements, next->locoNextIntro.placements);
                 resolvePlacements(locoCooperPlacements, next->locoCooperIntro.placements);
+                resolvePlacements(cooperNextPlacements, next->cooperNextIntro.placements);
             }
         }
     }
@@ -3511,6 +3559,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.postLcFightIntro);
                 loadCinematicActors(next.locoNextIntro);
                 loadCinematicActors(next.locoCooperIntro);
+                loadCinematicActors(next.cooperNextIntro);
                 const auto prepareFightActor = [&](std::string_view name) {
                     const auto actor = findCinematicActor(name);
                     if (actor == opening.actors.end()) throw std::runtime_error("Missing retail fight actor.");
@@ -3562,6 +3611,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->postLcPhone, postLcPhoneAnimations);
                 bindCinematic(next->postLcFightIntro, postLcFightIntroAnimations);
                 bindCinematic(next->locoNextIntro, locoNextAnimations);
+                bindCinematic(next->cooperNextIntro, cooperNextAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
                         if (!cue.visible || cue.actor == next->targetVehicle) continue;
@@ -3576,6 +3626,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->postLcConfrontation);
                 bindInitialIdle(next->postLcFightIntro);
                 bindInitialIdle(next->locoNextIntro);
+                bindInitialIdle(next->cooperNextIntro);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
                     if (!cue.visible || cue.actor == next->targetVehicle) continue;
                     const auto actor = findCinematicActor(cue.actor);
@@ -3728,6 +3779,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : locoCooperMoves)
                             next->locoCooperIntro.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : cooperNextMoves)
+                            next->cooperNextIntro.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                     }
                 }

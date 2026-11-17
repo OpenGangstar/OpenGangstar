@@ -355,8 +355,13 @@ mission playthroughs for discovery or verification.
   and evaluates the retail 200 m escape gate against the live car position.
   The gate awards $300 once and queues the vehicles for removal offscreen.
   Automated smoke checks both sides of the distance threshold and the payout.
-  Retail vehicle AI, Loco's seated model, and script 27 activation and
-  persistence remain open.
+  Completing the Cooper escape saves script 27 and activates the LC
+  checkpoint. Continue restores that checkpoint. Script 27 plays its
+  retail title and opening, protects the Hummer, and waits for entry
+  before activating C2M501. Reaching C2M501 requests the scripted exit.
+  Automated smoke checks the transition from the payout and a separate
+  saved script 27 fixture. The scene after C2M501, retail vehicle AI,
+  and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

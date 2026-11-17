@@ -1674,6 +1674,12 @@ void poseRetailDoor(const std::filesystem::path& root)
             hummerRoute.locoNextTitle && hummerRoute.locoNextTitle->id == 9 &&
             hummerRoute.locoNextIntro.cameras.size() == 4 && hummerRoute.locoNextIntro.dialogue.size() == 2 &&
             !hummerRoute.locoNextObjective.empty(), "Retail Loco reward or script 26 handoff changed.");
+    require(hummerRoute.cooperNextTitle && hummerRoute.cooperNextTitle->id == 11 &&
+            hummerRoute.cooperNextFadeMs == 400 && hummerRoute.cooperNextIntro.cameras.size() == 2 &&
+            hummerRoute.cooperNextIntro.dialogue.size() == 1 && hummerRoute.cooperNextDriveCommands.size() == 3 &&
+            hummerRoute.cooperNextDriveCheckpoint && hummerRoute.cooperNextDriveCheckpoint->name == "CheckpointDrive_C2M501" &&
+            markerDraw.cooperNextDriveFirstSurface && !markerDraw.checkpointMeshes[13].empty(),
+            "Retail script 27 lost its title, opening, or protected drive checkpoint.");
     const auto& cooperScene = hummerRoute.locoCooperIntro;
     require(cooperScene.cameras.size() == 1 && cooperScene.dialogue.size() == 2 &&
             cooperScene.vehicleDrives.size() == 1 && cooperScene.deferredDisables.size() == 1 &&
