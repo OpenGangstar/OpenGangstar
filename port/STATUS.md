@@ -413,10 +413,14 @@ mission playthroughs for discovery or verification.
   conditions and plays the retail closing cameras, actors, and dialogue.
   MissionOver removes the delivered car, credits the reward once, and
   updates the mission count. The smoke fixture covers the delivery and
-  payout. The two unlock commands are decoded. Activating scripts 30 and
-  21 and saving the completion remain open, along with retail payment
-  presentation and audio, unaffordable repair feedback, the scripted
-  look cue, NPC weapon attacks, NPC and vehicle AI, and Loco's seated model.
+  payout. The finale saves the main mission handoff, and Continue
+  restores the new marker at El Toro rather than the earlier LC marker.
+  Script 30 plays its retail title and opening cutscene there. The
+  objective and destination after the opening are decoded. The parallel
+  script 21 race unlock and the rest of script 30 remain open, along
+  with retail payment presentation and audio, unaffordable repair
+  feedback, the scripted look cue, NPC weapon attacks, NPC and vehicle
+  AI, and Loco's seated model.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

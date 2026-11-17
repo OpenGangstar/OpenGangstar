@@ -539,6 +539,13 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> deliveryWait;
         CityMissionCinematic deliveryClosing;
         std::vector<uint32_t> deliveryUnlockedScripts;
+        std::optional<CityCheckpoint> elToroCheckpoint;
+        std::vector<uint8_t> elToroCheckpointWait;
+        uint32_t elToroFadeMs = 0;
+        std::optional<CityMissionTitle> elToroTitle;
+        CityMissionCinematic elToroIntro;
+        std::string elToroObjective;
+        std::optional<CityCheckpoint> elToroDestination;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;
