@@ -443,11 +443,17 @@ mission playthroughs for discovery or verification.
   second van checkpoint in the city and on the minimap. Arrival exits
   the player and plays Juan's scene with the two Loco actors and their
   authored movement. Automated fixtures check both van checkpoints and
-  the cinematic transitions. The protection objective is decoded.
-  Its live encounter, passenger seating, and the parallel script 21
-  race remain open, along with retail payment presentation and audio,
-  unaffordable repair feedback, scripted look cues, NPC weapon attacks,
-  NPC and vehicle AI, and Loco's seated model.
+  the cinematic transitions. The protection encounter registers Juan
+  and the contact, walks the two attackers to their authored marks,
+  and waits eight seconds before directing both at Juan. Native shots
+  use the retail Beretta's damage, range, and fire rate with a wall
+  check. The fixture checks damage, both kill tags, and the completion
+  delay. It simulates defeating the attackers. Full NPC weapon
+  presentation, ammunition, targeting and gunfire AI, and player
+  ranged combat remain open, so encounter balance is unverified.
+  The subsequent scene, passenger seating, parallel script 21 race,
+  retail payment presentation and audio, unaffordable repair feedback,
+  and scripted look cues also remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

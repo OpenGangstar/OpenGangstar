@@ -337,6 +337,8 @@ struct CityActor {
     std::optional<CityAnimationClip> pursuitWalk;
     std::optional<CityAnimationClip> fightIdle;
     std::optional<int32_t> npcHealth;
+    std::optional<CityWeaponMetatype> scriptedRangedWeapon;
+    std::optional<CityAnimationClip> scriptedAim;
     std::optional<std::array<CityAnimationClip, 2>> handPunches;
     std::optional<CityActorAnimation> defeatAnimation;
 };
@@ -583,6 +585,8 @@ struct CityPostFightScene : CityMissionCinematic {
         uint32_t vanSecondArrivalFadeMs = 0;
         CityMissionCinematic vanSecondArrival;
         std::string vanProtectObjective;
+        CityMissionCinematic vanProtectionApproach;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> vanProtectionCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;

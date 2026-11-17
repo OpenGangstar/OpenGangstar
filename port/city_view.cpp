@@ -1890,6 +1890,9 @@ void CityPlayback::updateMission(const CityOpening& opening, double deltaMs)
         }
     }
     const auto lookup = [&](std::string_view name) -> std::optional<RetailMissionTargetState> {
+        const auto npc = locoOpponents.find(name);
+        if (npc != locoOpponents.end())
+            return RetailMissionTargetState{npc->second.pose.position, npc->second.health <= 0};
         if (name != actor.name) return std::nullopt;
         return RetailMissionTargetState{vehicle ? vehicle->position : actor.position,
             (vehicle ? vehicle->health : actor.vehicleHealth.value_or(0)) <= 0, vehicle && vehicle->exploded};
@@ -2243,6 +2246,23 @@ void CityPlayback::updateLocoFight(const CityOpening& opening, const CityTerrain
         auto& opponent = entry->second;
         if (opponent.health == 0) {
             opponent.defeatMs += std::max(0., deltaMs);
+            continue;
+        }
+        if (opponent.rangedTarget && actor.scriptedRangedWeapon) {
+            const auto target = locoOpponents.find(*opponent.rangedTarget);
+            opponent.pose.walking = false;
+            opponent.pose.clipTimeMs += std::max(0., deltaMs);
+            if (target == locoOpponents.end() || target->second.health == 0) continue;
+            const auto offset = add(target->second.pose.position, scale(opponent.pose.position, -1));
+            if (offset[0] != 0 || offset[1] != 0)
+                opponent.pose.yaw = std::atan2(offset[0], -offset[1]) / radians;
+            const auto& weapon = *actor.scriptedRangedWeapon;
+            opponent.shotCooldownMs = std::max(0., opponent.shotCooldownMs - deltaMs);
+            if (opponent.shotCooldownMs == 0 && dot(offset, offset) <= float(weapon.range) * weapon.range &&
+                !crossesWall(terrain, opponent.pose.position, target->second.pose.position, 28)) {
+                target->second.health -= std::min(target->second.health, weapon.damage);
+                opponent.shotCooldownMs = std::max(1, 1000 / weapon.shootFrequency);
+            }
             continue;
         }
         if (!opponent.attacking) {
@@ -2641,6 +2661,9 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
             clip = loco->defeatMs < defeat.first.durationMs ? &defeat.first : &defeat.loop;
             clipTime = loco->defeatMs < defeat.first.durationMs ? loco->defeatMs :
                 std::fmod(loco->defeatMs - defeat.first.durationMs, defeat.loop.durationMs);
+        } else if (loco && loco->rangedTarget && actor.scriptedAim) {
+            clip = &*actor.scriptedAim;
+            clipTime = std::fmod(loco->pose.clipTimeMs, clip->durationMs);
         } else if (loco && loco->punchMs && actor.handPunches) {
             clip = &(*actor.handPunches)[loco->punchIndex];
             clipTime = *loco->punchMs;

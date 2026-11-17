@@ -2237,7 +2237,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         bool running;
         bool followsPath;
     };
-    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions, postLcAmbushMotions, postLcTailMotions, postLcConfrontationMotions, cooperArrivalMotions, postBasketballAmbushMotions, elToroArrivalMotions, elToroDepartureMotions, elToroClosingMotions, vanArrivalMotions, vanSecondArrivalMotions;
+    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions, postLcAmbushMotions, postLcTailMotions, postLcConfrontationMotions, cooperArrivalMotions, postBasketballAmbushMotions, elToroArrivalMotions, elToroDepartureMotions, elToroClosingMotions, vanArrivalMotions, vanSecondArrivalMotions, vanProtectionMotions;
     struct VehicleDriveCommand {
         uint32_t time;
         std::string actor, marker;
@@ -2736,6 +2736,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         const CityVehicleDefinition* vehicle = nullptr;
         std::vector<std::array<float, 3>> waypoints;
         std::optional<int32_t> npcHealth;
+        std::optional<int32_t> npcWeaponType;
     };
     const auto findObject = [&](const std::string& name) {
         for (const auto& district : city.districts) {
@@ -2773,6 +2774,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     // NPC::Load copies the seventh NPC field into current and maximum health.
                     record.skip(6 * 4);
                     object.npcHealth = record.signedInteger();
+                    record.skip(3 * 4);
+                    object.npcWeaponType = record.signedInteger();
                 }
                 if (type == 14) {
                     // Path::Load consumes a scalar count followed by signed XYZ triples.
@@ -3836,6 +3839,31 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail script 31 protection objective.");
                 route.vanProtectObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expected : {69u, 69u, 25u, 25u, 57u, 29u, 85u, 29u, 85u, 91u, 57u}) {
+                    auto command = van.record();
+                    if (command.integer() != expected)
+                        throw std::runtime_error("Invalid retail script 31 protection encounter command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 25) {
+                        vanProtectionMotions.push_back({0, command.string(), command.string(), false, false});
+                        command.finish();
+                        continue;
+                    }
+                    if (expected == 69) {
+                        const auto condition = readMissionCondition(command, expected);
+                        if (!condition || (condition->target != "Juan_00" && condition->target != "YakuzaB_00"))
+                            throw std::runtime_error("Invalid retail script 31 protected actor.");
+                    } else if (expected == 29) {
+                        if (readActorAttack(command).target != "Juan_00")
+                            throw std::runtime_error("Invalid retail script 31 attacker target.");
+                    } else if (expected == 85) {
+                        readScriptObject(command);
+                    } else {
+                        if (expected == 57) command.integer();
+                        command.finish();
+                    }
+                    route.vanProtectionCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4213,6 +4241,22 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     loadCinematicActor(cue);
                     if (cue.actor != next.postBasketballVehicle) prepareFightActor(cue.actor);
                 }
+                for (const auto& name : {"Juan_00", "YakuzaB_00", "Loco_00", "Loco_01"})
+                    prepareFightActor(name);
+                for (const auto& [opcode, payload] : next.vanProtectionCommands) {
+                    if (opcode != 29) continue;
+                    const auto attack = decodeCityActorAttack({opcode, payload});
+                    auto actor = findCinematicActor(attack.attacker);
+                    const auto definition = findObject(attack.attacker);
+                    // WeaponManager::createWeapon maps the retail pistol type 1 to metatype 8.
+                    const auto weapon = city.weaponMetatypes.find(8);
+                    if (actor == opening.actors.end() || definition.npcWeaponType != 1 ||
+                        weapon == city.weaponMetatypes.end() || weapon->second.weaponType != 1 ||
+                        weapon->second.damage <= 0 || weapon->second.range <= 0 || weapon->second.shootFrequency <= 0)
+                        throw std::runtime_error("Missing retail script 31 attacker weapon.");
+                    actor->scriptedRangedWeapon = weapon->second;
+                    actor->scriptedAim = readClip(library, &actor->model, "combat_gun_1handed_idle");
+                }
                 const auto cooper = findObject("aCooper_00").vehicle;
                 if (!cooper) throw std::runtime_error("Missing retail Cooper vehicle definition.");
                 const auto postBasketballVehicle = findObject(next.postBasketballVehicle).vehicle;
@@ -4392,6 +4436,19 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->elToroClosing, elToroClosingMotions);
                 bindMotions(next->vanArrival, vanArrivalMotions);
                 bindMotions(next->vanSecondArrival, vanSecondArrivalMotions);
+                for (const auto& approach : vanProtectionMotions) {
+                    const auto& arrival = next->vanSecondArrival;
+                    const auto origin = std::find_if(arrival.placements.rbegin(), arrival.placements.rend(),
+                        [&](const auto& cue) { return cue.actor == approach.actor; });
+                    if (origin == arrival.placements.rend() || !origin->visible)
+                        throw std::runtime_error("Missing retail van protection approach origin.");
+                    auto placement = *origin;
+                    for (const auto& motion : arrival.motions)
+                        if (motion.travel.actor == approach.actor) placement.position = motion.travel.to;
+                    placement.timeMs = 0;
+                    next->vanProtectionApproach.placements.push_back(std::move(placement));
+                }
+                bindMotions(next->vanProtectionApproach, vanProtectionMotions);
             }
         }
     }

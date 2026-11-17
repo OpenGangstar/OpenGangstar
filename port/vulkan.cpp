@@ -480,6 +480,7 @@ struct CityRender {
         destroyTexture(elToroDriveObjective);
         destroyTexture(vanMissionObjective);
         destroyTexture(vanDriveObjective);
+        destroyTexture(vanProtectObjective);
         destroyTexture(basketballFightObjective);
         destroyTexture(basketballTutorial);
         destroyTexture(weaponShopTutorial);
@@ -570,7 +571,9 @@ struct CityRender {
     std::optional<RetailScriptExecution> postBasketballEscapeScript, repairDriveScript, deliveryScript;
     CityTexture repairDriveObjective, repairTutorial, deliveryObjective, elToroObjective, elToroFightObjective;
     std::optional<RetailScriptExecution> elToroDestinationScript, elToroDriveScript;
-    CityTexture elToroDriveObjective, vanMissionObjective, vanDriveObjective;
+    CityTexture elToroDriveObjective, vanMissionObjective, vanDriveObjective, vanProtectObjective;
+    std::optional<RetailScriptExecution> vanProtectionScript;
+    double vanProtectionMs = 0;
     std::optional<RetailScriptExecution> vanAcquisitionScript, vanDriveScript, vanReentryScript;
     std::optional<double> vanDriveMarker;
     bool vanSecondDrive = false;
@@ -1285,7 +1288,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount + vanSecondArrivalLineCount +
-                                             hasPayphoneObjective + (next ? 33 : 0) +
+                                             hasPayphoneObjective + (next ? 34 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1503,6 +1506,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.elToroObjective}, true, false, 432, 68, font.family()));
             upload(city.vanMissionObjective,
                    rasterCaption({0, 0, {}, next.vanMissionObjective}, true, false, 432, 68, font.family()));
+            upload(city.vanProtectObjective,
+                   rasterCaption({0, 0, {}, next.vanProtectObjective}, true, false, 432, 68, font.family()));
             upload(city.vanDriveObjective,
                    rasterCaption({0, 0, {}, next.vanDriveObjective}, true, false, 432, 68, font.family()));
             upload(city.elToroDriveObjective,
@@ -2657,7 +2662,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     : nextPlacement ? city.payphoneGameplayMs.value_or(0) : elapsedMs - city.minimapTargetStartMs;
                 minimapMarkerStep = retailMinimapAnimationStep(city.minimapCheckpointAnimation, markerMs * 0.03);
             }
-            if (city.taggedFightScript || city.postBasketballEscapeScript) {
+            if (city.taggedFightScript || city.postBasketballEscapeScript || city.vanProtectionScript) {
                 for (const auto& [name, opponent] : city.playback.locoOpponents) {
                     if (!opponent.taggedForKill || opponent.disabled || opponent.health <= 0) continue;
                     const auto& p = opponent.pose.position;
@@ -3048,6 +3053,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.repairTutorialVisible && city.repairTutorial.descriptor)
             overlay(city.repairTutorial.descriptor, screen, city.captionVertex, 6);
+        else if (city.vanProtectionScript && city.vanProtectObjective.descriptor)
+            overlay(city.vanProtectObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.vanDriveScript && city.vanDriveObjective.descriptor)
             overlay(city.vanDriveObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.vanAcquisitionScript && city.vanMissionObjective.descriptor)
@@ -3483,6 +3490,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->vanDriveMarker.reset();
                         cityRender->vanSecondDrive = false;
                         cityRender->vanReentryScript.reset();
+                        cityRender->vanProtectionScript.reset();
                         cityRender->deliveryScript.reset();
                         cityRender->deliveryMarker.reset();
                         cityRender->repairDriveScript.reset();
@@ -3829,6 +3837,26 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         for (const auto& [opcode, payload] : route.vanAcquisitionCommands)
                             program.front().push_back({opcode, payload});
                         cityRender->vanAcquisitionScript.emplace(std::move(program)).unlock(0, 0, 0);
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->vanSecondArrival) {
+                        const auto& route = *handoff.nextCheckpoint;
+                        playback.locoOpponents.clear();
+                        playback.locoLockTarget.reset();
+                        for (const auto& placement : route.vanProtectionApproach.placements)
+                            playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, placement, false);
+                        for (const auto name : {"Juan_00", "YakuzaB_00"}) {
+                            const auto& source = name == std::string_view("Juan_00") ? scene : route.vanArrival;
+                            const auto placement = std::find_if(source.placements.rbegin(), source.placements.rend(),
+                                [&](const auto& cue) { return cue.actor == name && cue.visible; });
+                            if (placement == source.placements.rend())
+                                throw std::logic_error("Missing retail protected actor placement.");
+                            playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, *placement, false);
+                            playback.locoOpponents.at(name).disabled = name == std::string_view("YakuzaB_00");
+                        }
+                        CityScriptProgram program(1);
+                        for (const auto& [opcode, payload] : route.vanProtectionCommands)
+                            program.front().push_back({opcode, payload});
+                        cityRender->vanProtectionMs = 0;
+                        cityRender->vanProtectionScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->vanArrival) {
                         const auto& route = *handoff.nextCheckpoint;
                         playback.nextMissionVehicleAcquired = false;
@@ -3985,11 +4013,52 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                      interact && !enterShop && !scriptedArrival)
                     : CityDoorSounds{};
                 playback.pursuePayphoneTarget(cityRender->opening, cityRender->terrain, delta);
-                if (cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->taggedFightScript)
+                if (cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->taggedFightScript ||
+                    cityRender->vanProtectionScript)
                     playback.punchLocoOpponent(cityRender->opening, cityRender->terrain, delta, punchPressed, lockPressed);
                 else playback.punchPayphoneOpponent(cityRender->opening, cityRender->terrain, delta,
                                                    punchPressed, cityRender->payphoneTargetLocked);
                 playback.updateLocoFight(cityRender->opening, cityRender->terrain, delta);
+                if (cityRender->vanProtectionScript) {
+                    const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                    auto& time = cityRender->vanProtectionMs;
+                    time += std::clamp(delta, 0., 1000.);
+                    for (const auto& motion : route.vanProtectionApproach.motions) {
+                        auto& actor = playback.locoOpponents.at(motion.travel.actor);
+                        if (actor.health == 0 || actor.rangedTarget) continue;
+                        const auto oldPosition = actor.pose.position;
+                        actor.pose.position = cityCinematicTravelPosition(motion.travel, time);
+                        if (const auto ground = cityRender->terrain.groundContact(actor.pose.position, actor.pose.groundTriangle)) {
+                            actor.pose.position[2] = ground->height;
+                            actor.pose.groundTriangle = ground->triangle;
+                        }
+                        const auto dx = actor.pose.position[0] - oldPosition[0];
+                        const auto dy = actor.pose.position[1] - oldPosition[1];
+                        if (dx != 0 || dy != 0)
+                            actor.pose.yaw = std::atan2(dx, -dy) * (180.f / 3.14159265f);
+                        actor.pose.walking = time < motion.travel.durationMs;
+                        actor.pose.clipTimeMs = time;
+                    }
+                    RetailMissionHooks fight;
+                    fight.conditions = &playback.missionConditions;
+                    fight.actorAttack = [&](const CityActorAttack& attack) {
+                        playback.locoOpponents.at(attack.attacker).rangedTarget = attack.target;
+                    };
+                    fight.tagKillTarget = [&](std::string_view name) {
+                        playback.locoOpponents.at(std::string(name)).taggedForKill = true;
+                    };
+                    fight.actorKilled = [&](std::string_view name) {
+                        return playback.locoOpponents.at(std::string(name)).health == 0;
+                    };
+                    fight.clearKilledTarget = [&](std::string_view name) {
+                        playback.locoOpponents.at(std::string(name)).taggedForKill = false;
+                    };
+                    auto& script = *cityRender->vanProtectionScript;
+                    script.execute(0, static_cast<int32_t>(std::clamp(delta, 0., 1000.)), 0,
+                                   [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &fight);
+                    if (script.state(0) == RetailScriptState::locked)
+                        cityRender->vanProtectionScript.reset();
+                }
                 if (cityRender->postBasketballEscapeScript && playback.player) {
                     const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
                     RetailTravelHooks travel;
@@ -4641,7 +4710,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     std::cerr << error.what() << '\n';
                 }
             }
-            if ((cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->taggedFightScript) &&
+            if ((cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->taggedFightScript ||
+                 cityRender->vanProtectionScript) &&
                 !playback.missionFailure &&
                 playback.playerHealth == 0) {
                 playback.missionFailure = -1;
@@ -5757,8 +5827,34 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             route.vanSecondArrival.motions.size() != 2 || route.vanProtectObjective.empty())
                             throw std::runtime_error("Script 31 did not start Juan's second van scene.");
                         for (int step = 0; step < 160 && render.postFightCinematic; ++step) update(250, true);
-                        if (render.postFightCinematic)
-                            throw std::runtime_error("Script 31 did not finish Juan's second van scene.");
+                        update(0);
+                        if (render.postFightCinematic || !render.vanProtectionScript ||
+                            !render.vanProtectObjective.descriptor || playback.locoOpponents.size() != 4)
+                            throw std::runtime_error("Script 31 did not start the protection encounter.");
+                        auto& first = playback.locoOpponents.at("Loco_00");
+                        auto& second = playback.locoOpponents.at("Loco_01");
+                        auto& juan = playback.locoOpponents.at("Juan_00");
+                        const auto approachStart = first.pose.position;
+                        for (int step = 0; step < 8; ++step) update(1000);
+                        if (first.rangedTarget || first.taggedForKill || first.pose.position == approachStart)
+                            throw std::runtime_error("Script 31 skipped the attackers' retail approach.");
+                        update(1);
+                        if (first.rangedTarget != "Juan_00" || second.rangedTarget != "Juan_00" ||
+                            !first.taggedForKill || !second.taggedForKill)
+                            throw std::runtime_error("Script 31 did not direct and tag both attackers.");
+                        const auto healthBeforeShot = juan.health;
+                        update(16);
+                        if (juan.health >= healthBeforeShot || playback.missionFailure)
+                            throw std::runtime_error("Script 31 attackers did not damage Juan.");
+                        first.health = 0;
+                        update(16);
+                        if (!render.vanProtectionScript || !second.taggedForKill)
+                            throw std::runtime_error("Script 31 released its protection gate too early.");
+                        second.health = 0;
+                        update(16);
+                        update(1000);
+                        if (render.vanProtectionScript || second.taggedForKill)
+                            throw std::runtime_error("Script 31 did not clear its protection fight.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

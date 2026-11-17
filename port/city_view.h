@@ -290,6 +290,8 @@ struct CityFightOpponent {
     double defeatMs = 0;
     bool attacking = true;
     bool taggedForKill = false;
+    std::optional<std::string> rangedTarget;
+    double shotCooldownMs = 0;
     bool disablePending = false;
     bool disabled = false;
 };
