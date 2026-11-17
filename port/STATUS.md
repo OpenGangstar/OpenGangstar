@@ -461,8 +461,14 @@ mission playthroughs for discovery or verification.
   the wait boundary, both police dialogue lines, the two-star HUD, and van
   reentry. The next objective waits for zero stars. The retail escape timer
   has isolated coverage. The wanted HUD plays the authored star and empty
-  frames while no police are pursuing the player. The city runtime still
-  needs police pursuit events to drive the escape timer and steady stars.
+  frames while no police are pursuing the player. Ambient police within
+  the retail alert radius and with a clear line of sight hold the timer.
+  Losing contact starts the escape countdown. Officers favor nearby
+  sidewalk triangles toward the player and police cars steer toward the
+  player at road junctions. The native contact check and local waypoint
+  selection approximate the retail event-driven pursuit controllers.
+  The Script 31 fixture holds two stars during police contact, then
+  clears both stars and releases the script gate after contact is lost.
   Remaining work includes
   passenger seating, the parallel script 21 race, retail payment
   presentation and audio, unaffordable repair feedback, and scripted
@@ -793,7 +799,7 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   its waypoint when a swept footprint reaches a vehicle or pedestrian
   on the same level, and resumes once clear. This currently models
   blocking with circles. Retail obstacle avoidance, collision response,
-  pursuit, and remaining despawn rules are pending. All 491 Santa Monica spawn
+  arrest, police weapons, and remaining despawn rules are pending. All 491 Santa Monica spawn
   points resolve to authored heightmap triangles by buffer and index offset.
   The loader reads the eight neighbor arrays per buffer and the 14,576
   road flag bytes from `nav_mesh_arrays.bin`. All 154 moving spawn points

@@ -3256,6 +3256,13 @@ static void checkAmbientPedestrianWalk()
     walk.advance(terrain, pose, 100, 250, draw);
     require(!pose.walking && pose.position[0] == 100 && !walk.destination,
             "Ambient pedestrian walked into a wall or retained a blocked destination.");
+    require(!cityPoliceHasContact(terrain, {100, 100, 0}, {200, 100, 0}) &&
+            cityPoliceHasContact(terrain, {100, 100, 0}, {100, 3100, 0}) &&
+            !cityPoliceHasContact(terrain, {100, 100, 0}, {100, 3101, 0}),
+            "Police contact ignored a wall or crossed the retail alert range.");
+    const std::array<float, 3> nearbyTarget{100, 130, 0};
+    walk.advance(terrain, pose, 100, 250, draw, &nearbyTarget);
+    require(!pose.walking && !walk.destination, "Police on foot continued past a nearby target.");
 }
 
 static void checkAmbientVehicleDrive()

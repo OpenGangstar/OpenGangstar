@@ -1537,13 +1537,22 @@ void CityTerrain::indexGround(const CityNavigation* navigation)
 }
 
 std::optional<size_t> CityTerrain::pedestrianNeighbor(size_t triangle, std::optional<size_t> previous,
-                                                     uint32_t draw) const
+                                                     uint32_t draw, const Vec3* target) const
 {
     if (triangle >= sidewalkEdges.size()) return std::nullopt;
     std::array<size_t, 3> candidates{};
     size_t count = 0;
     for (const auto neighbor : sidewalkEdges[triangle])
         if (neighbor && neighbor != previous) candidates[count++] = *neighbor;
+    if (count && target) {
+        const auto distance = [&](size_t candidate) {
+            const auto& [a, b, c] = ground[candidate];
+            const auto delta = add(scale(add(add(a, b), c), 1.f / 3), scale(*target, -1));
+            return dot(delta, delta);
+        };
+        return *std::min_element(candidates.begin(), candidates.begin() + count,
+                                 [&](size_t a, size_t b) { return distance(a) < distance(b); });
+    }
     if (count) return candidates[draw % count];
     for (const auto neighbor : sidewalkEdges[triangle])
         if (neighbor) return neighbor;
@@ -1780,11 +1789,23 @@ bool crossesTraffic(const CityTerrain::VehicleFootprint& footprint, const Vec3& 
 }
 }
 
-void CityPedestrianWalk::advance(const CityTerrain& terrain, CityPlayerPose& pose, float speed,
-                                 uint32_t elapsedMs, const std::function<uint32_t()>& random)
+bool cityPoliceHasContact(const CityTerrain& terrain, const Vec3& officer, const Vec3& player)
 {
+    const auto delta = add(player, scale(officer, -1));
+    // Both retail police controllers use a 3,000 cm alert radius.
+    return dot(delta, delta) <= 9000000.f && !crossesWall(terrain, officer, player, 0);
+}
+
+void CityPedestrianWalk::advance(const CityTerrain& terrain, CityPlayerPose& pose, float speed,
+                                 uint32_t elapsedMs, const std::function<uint32_t()>& random, const Vec3* target)
+{
+    if (target && std::hypot((*target)[0] - pose.position[0], (*target)[1] - pose.position[1]) < 100.f) {
+        pose.clipTimeMs = (pose.walking ? 0 : pose.clipTimeMs) + elapsedMs;
+        pose.walking = false;
+        return;
+    }
     if (!destination && pose.groundTriangle) {
-        destination = terrain.pedestrianNeighbor(*pose.groundTriangle, previous, random());
+        destination = terrain.pedestrianNeighbor(*pose.groundTriangle, previous, random(), target);
         if (destination) {
             previous = pose.groundTriangle;
             sharedEdge = groundSharedEdge(terrain.ground.at(*previous), terrain.ground.at(*destination));
@@ -1826,11 +1847,14 @@ void CityPedestrianWalk::advance(const CityTerrain& terrain, CityPlayerPose& pos
 void CityAmbientDrive::advance(const CityTerrain& terrain, CityPlayerPose& pose,
                                const CityTerrain::VehicleFootprint& footprint, int32_t frameRate,
                                uint32_t elapsedMs, const std::vector<CityTrafficObstacle>& obstacles,
-                               std::optional<size_t> ownSlot)
+                               std::optional<size_t> ownSlot, const Vec3* pursuitTarget)
 {
     if (!pose.groundTriangle) return;
     if (!destination) {
-        destination = terrain.vehicleNeighbor(*pose.groundTriangle, previous, pose.position, pose.yaw);
+        const float heading = pursuitTarget
+            ? std::atan2((*pursuitTarget)[0] - pose.position[0], pose.position[1] - (*pursuitTarget)[1]) / radians
+            : pose.yaw;
+        destination = terrain.vehicleNeighbor(*pose.groundTriangle, previous, pose.position, heading);
         if (!destination) return;
         previous = pose.groundTriangle;
         sharedEdge = groundSharedEdge(terrain.ground.at(*previous), terrain.ground.at(*destination));

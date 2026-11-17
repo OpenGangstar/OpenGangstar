@@ -585,6 +585,7 @@ struct CityRender {
         int32_t groupType, objectType;
         CityPedestrianWalk walk;
         CityAmbientDrive drive;
+        bool pursuing = false;
     };
     std::minstd_rand spawnRandom;
     std::optional<CitySpawnScheduler> spawnScheduler;
@@ -2397,16 +2398,29 @@ void updateCitySpawns(CityRender& city, const CityCameraPose& camera, const City
         obstacles.push_back({current, pose->motion.yaw, body, slot});
     }
     const auto random = [&] { return static_cast<uint32_t>(city.spawnRandom()); };
+    const auto policeContact = [&](size_t slot, const auto& origin) {
+        return city.wanted.level() > 0 && isCityPoliceMetatype(scheduler.spawnPool().metatype(slot)) &&
+            cityPoliceHasContact(city.terrain, origin, position);
+    };
+    unsigned pursuers = 0;
     for (size_t obstacle = ambientStart; obstacle < obstacles.size(); ++obstacle) {
         auto& body = obstacles[obstacle];
         const auto slot = *body.spawnSlot;
         auto& pose = *city.spawnPoses[slot];
         const CitySpawnGroup group{pose.groupType, {}};
+        const bool contact = policeContact(slot, pose.motion.position);
+        if (pose.pursuing != contact) {
+            pose.walk = {};
+            pose.drive = {};
+        }
+        pose.pursuing = contact;
+        const auto* target = contact ? &position : nullptr;
         if (pose.objectType == 5)
-            pose.walk.advance(city.terrain, pose.motion, city.opening.walkSpeed, elapsedMs, random);
+            pose.walk.advance(city.terrain, pose.motion, city.opening.walkSpeed, elapsedMs, random, target);
         else if (pose.groupType == 3)
             pose.drive.advance(city.terrain, pose.motion, body.footprint,
-                               city.retailFrameRate, elapsedMs, obstacles, slot);
+                               city.retailFrameRate, elapsedMs, obstacles, slot, target);
+        if (policeContact(slot, pose.motion.position)) ++pursuers;
         body.position = pose.motion.position;
         body.yaw = pose.motion.yaw;
         ++context.activeCounts[group.populationIndex()];
@@ -2423,8 +2437,11 @@ void updateCitySpawns(CityRender& city, const CityCameraPose& camera, const City
             motion.groundTriangle = ground->triangle;
             city.spawnPoses[slot] = CityRender::SpawnPose{motion, point.rotation, point.objectType,
                 point.objectType == 3 || point.objectType == 11 ? 3 : 5};
+            if (policeContact(slot, origin)) ++pursuers;
             return true;
         });
+    city.wanted.setPursuers(pursuers);
+    city.wanted.update(elapsedMs);
 }
 
 bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr, uint32_t spawnElapsedMs = 0)
@@ -6194,6 +6211,27 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         touch->message(window, WM_KEYUP, 'E', 0);
                         if (!van.occupied || !render.vanEnteredForEscape || !render.vanPoliceEscapeScript)
                             throw std::runtime_error("Script 31 did not wait for zero stars after van entry.");
+                        const auto& pool = render.spawnScheduler->spawnPool();
+                        size_t officer = 0;
+                        while (officer < pool.capacity() && (pool.metatype(officer) != 48 || render.spawnPoses[officer]))
+                            ++officer;
+                        if (officer == pool.capacity()) throw std::runtime_error("Pursuit fixture has no officer slot.");
+                        const CityCameraPose nearby{van.position, van.position};
+                        const CityBounds emptyQuery{{100000, 100000, 0}, {100000, 100000, 0}};
+                        render.spawnPoses[officer] = CityRender::SpawnPose{
+                            CityPlayerPose{van.position, 0}, {}, 5, 5};
+                        for (int tick = 0; tick < 70; ++tick)
+                            updateCitySpawns(render, nearby, emptyQuery, *playback.player, &van, 250);
+                        if (!render.wanted.beingPursued() || render.wanted.level() != 2)
+                            throw std::runtime_error("Police contact did not hold the wanted level.");
+                        render.spawnPoses[officer].reset();
+                        const CityCameraPose away{{100000, 100000, 0}, {100000, 100001, 0}};
+                        for (int tick = 0; tick < 130; ++tick)
+                            updateCitySpawns(render, away, emptyQuery, *playback.player, &van, 250);
+                        update(0);
+                        if (render.wanted.level() != 0 || render.wanted.beingPursued() || render.vanPoliceEscapeScript)
+                            throw std::runtime_error("Script 31 did not advance after both wanted stars cleared.");
+                        std::cout << "Verified police contact and escape through the Script 31 objective.\n" << std::flush;
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

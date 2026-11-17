@@ -110,7 +110,7 @@ struct CityTerrain {
     void indexGround(const CityNavigation* navigation = nullptr);
     void indexWalls();
     std::optional<size_t> pedestrianNeighbor(size_t triangle, std::optional<size_t> previous,
-                                             uint32_t draw) const;
+                                             uint32_t draw, const std::array<float, 3>* target = nullptr) const;
     std::optional<size_t> vehicleNeighbor(size_t triangle, std::optional<size_t> previous,
                                           const std::array<float, 3>& position, float yaw) const;
     std::optional<float> vehicleRoadSpeed(size_t triangle, int32_t frameRate) const;
@@ -255,8 +255,11 @@ struct CityPedestrianWalk {
     std::optional<size_t> destination, previous;
     std::optional<std::array<float, 3>> sharedEdge;
     void advance(const CityTerrain& terrain, CityPlayerPose& pose, float speed, uint32_t elapsedMs,
-                 const std::function<uint32_t()>& random);
+                 const std::function<uint32_t()>& random, const std::array<float, 3>* target = nullptr);
 };
+
+bool cityPoliceHasContact(const CityTerrain& terrain, const std::array<float, 3>& officer,
+                          const std::array<float, 3>& player);
 
 struct CityTrafficObstacle {
     std::array<float, 3> position;
@@ -270,7 +273,7 @@ struct CityAmbientDrive {
     std::optional<std::array<float, 3>> sharedEdge;
     void advance(const CityTerrain& terrain, CityPlayerPose& pose, const CityTerrain::VehicleFootprint& footprint,
                  int32_t frameRate, uint32_t elapsedMs, const std::vector<CityTrafficObstacle>& obstacles = {},
-                 std::optional<size_t> ownSlot = std::nullopt);
+                 std::optional<size_t> ownSlot = std::nullopt, const std::array<float, 3>* target = nullptr);
 };
 
 struct CityVehiclePose {
