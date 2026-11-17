@@ -1311,6 +1311,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.script19ReturnFirstSurface = appendCheckpoint(*next.script19ReturnCheckpoint, 27);
         if (next.script20DriveCheckpoint)
             draw.script20DriveFirstSurface = appendCheckpoint(*next.script20DriveCheckpoint, 28);
+        if (next.script32Checkpoint)
+            draw.script32FirstSurface = appendCheckpoint(*next.script32Checkpoint, 29);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);

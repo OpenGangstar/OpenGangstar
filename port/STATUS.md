@@ -513,8 +513,10 @@ mission playthroughs for discovery or verification.
   reinforcements. The retreat runs the retail attack delay and sequential
   100 m escape checks. Windows NPCs use nearest-enemy targeting in the
   first two fights and fire from their scripted positions during the
-  retreat. Retail pursuit and target selection, the closing handoff to
-  Script 32, and the fourth van arrival look cue remain pending.
+  retreat. Script 20 closes with the retail dialogue and unlocks Script 32
+  without a payout. The Windows save restores the objective and the
+  CheckpointWalk_C3M0_01 marker. Script 32 execution, retail pursuit and
+  target selection, and the fourth van arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

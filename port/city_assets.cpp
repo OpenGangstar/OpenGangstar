@@ -4444,6 +4444,30 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     command.finish();
                     route.script20RetreatCommands.emplace_back(expected, std::move(payload));
                 }
+                auto closingTransition = nextScript.record(), script20ClosingExit = nextScript.record(),
+                    closingLine = nextScript.record(), closingEnd = nextScript.record(), closingUnlock = nextScript.record();
+                if (closingTransition.integer() != 15 || script20ClosingExit.integer() != 99 ||
+                    readScriptObject(script20ClosingExit) != "Player" || closingLine.integer() != 56 ||
+                    closingEnd.integer() != 16 || closingUnlock.integer() != 3)
+                    throw std::runtime_error("Invalid Script 20 closing sequence.");
+                closingTransition.finish();
+                closingEnd.finish();
+                const auto closingDialogue = readDialogueCommand(closingLine);
+                route.script20Closing.dialogue = resolveDialogue({
+                    {0, static_cast<uint32_t>(std::max(0, closingDialogue.durationMs)), closingDialogue.textId, closingDialogue.speaker}});
+                route.script20UnlockedScript = closingUnlock.integer();
+                closingUnlock.finish();
+                auto unlockedScript = scripts.script(route.script20UnlockedScript);
+                if (unlockedScript.integer() < 2) throw std::runtime_error("Truncated Script 32 handoff.");
+                auto nextObjective = unlockedScript.record(), nextCheckpoint = unlockedScript.record();
+                if (nextObjective.integer() != 66 || nextCheckpoint.integer() != 64)
+                    throw std::runtime_error("Invalid Script 32 handoff.");
+                const auto script32ObjectiveId = readMissionObjective(nextObjective);
+                const auto chapterThree = readLocalizedStrings(assets, "ch3", language);
+                if ((script32ObjectiveId >> 12 & 0xf) != 6 || (script32ObjectiveId & 0xfff) >= chapterThree.size())
+                    throw std::runtime_error("Invalid retail Script 32 objective.");
+                route.script32Objective = chapterThree[script32ObjectiveId & 0xfff];
+                route.script32Checkpoint = makeCheckpoint(readCheckpointCommand(nextCheckpoint, 64).object);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
