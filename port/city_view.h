@@ -177,9 +177,10 @@ struct CityDrawData : CityVehicleGeometry {
     std::optional<size_t> weaponShopApproachFirstSurface;
     std::optional<size_t> weaponShopEntranceFirstSurface;
     std::optional<size_t> returnToLcFirstSurface;
+    std::optional<size_t> postLcDriveFirstSurface;
     std::optional<CityVehicleGeometry> nextVehicleGeometry;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 9> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 10> checkpointMeshes;
     std::vector<CityVehicleLightMesh> vehicleLights;
 };
 
@@ -310,6 +311,7 @@ struct CityPlayback {
     bool payphoneDisablePending = false;
     bool payphoneOpponentDisabled = false;
     bool nextMissionVehicleActive = false;
+    bool postLcVehicleActive = false;
     bool nextMissionVehicleAcquired = false;
     std::optional<double> playerPunchMs;
     size_t playerPunchIndex = 0;
@@ -335,6 +337,8 @@ struct CityPlayback {
     void damagePlayer(int32_t amount, bool bypassArmor = false);
     CityDoorSounds drive(const CityOpening& opening, const CityTerrain& terrain,
                          std::array<float, 2> input, double deltaMs, bool interact);
+    bool spawnVehicle(const CityActor& actor, const CityTerrain& terrain,
+                      std::array<float, 3> position, float yaw);
     void orbitCamera(const CityOpening& opening, std::array<float, 2> drag, double deltaMs);
     void releaseCameraTap(const CityOpening& opening, uint64_t releasedMs);
     void recenterVehicleCamera(const CityOpening& opening);

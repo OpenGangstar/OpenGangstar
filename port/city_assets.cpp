@@ -2954,6 +2954,23 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail post-LC drive objective.");
                 route.postLcDriveObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                auto vehicleWait = postLc.record();
+                auto protectVehicle = postLc.record();
+                auto driveWait = postLc.record();
+                if (vehicleWait.integer() != 89 || protectVehicle.integer() != 70 || driveWait.integer() != 105)
+                    throw std::runtime_error("Invalid retail post-LC drive sequence.");
+                route.postLcVehicleWait = vehicleWait.remainingBytes();
+                route.postLcVehicleProtection = protectVehicle.remainingBytes();
+                route.postLcDriveWait = driveWait.remainingBytes();
+                const auto postLcProtection = readMissionCondition(protectVehicle, 70);
+                const auto postLcDestination = readCheckpointCommand(driveWait, 105);
+                if (readScriptObject(vehicleWait) != route.targetVehicle || !postLcProtection ||
+                    postLcProtection->target != route.targetVehicle || postLcDestination.vehicle != route.targetVehicle)
+                    throw std::runtime_error("Retail post-LC drive names a different vehicle.");
+                route.postLcDriveCheckpoint = makeCheckpoint(postLcDestination.object);
+                auto exitPostLc = postLc.record();
+                if (exitPostLc.integer() != 99 || readScriptObject(exitPostLc) != route.targetVehicle)
+                    throw std::runtime_error("Invalid retail post-LC vehicle exit.");
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.

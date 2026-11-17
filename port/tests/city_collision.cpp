@@ -1644,6 +1644,13 @@ void poseRetailDoor(const std::filesystem::path& root)
             postLcIntro.motions.size() == 3 && !hummerRoute.postLcDriveObjective.empty() &&
             cityTrackBrightness(postLcIntro.fades, 0) == 0,
             "Script 25 lost its introductory cameras, dialogue, movements, or first objective.");
+    const auto drivePostLc = decodeCityScriptCheckpoint({105, hummerRoute.postLcDriveWait});
+    const auto protectPostLc = decodeCityMissionCondition({70, hummerRoute.postLcVehicleProtection});
+    require(decodeCityWaitStolen({89, hummerRoute.postLcVehicleWait}) == hummerRoute.targetVehicle &&
+            protectPostLc && protectPostLc->target == hummerRoute.targetVehicle &&
+            drivePostLc.object == "CheckpointDrive_C2M201" && drivePostLc.vehicle == hummerRoute.targetVehicle &&
+            hummerRoute.postLcDriveCheckpoint && markerDraw.postLcDriveFirstSurface &&
+            !markerDraw.checkpointMeshes[9].empty(), "Script 25 lost its playable drive gates.");
     require(lcClosing.cameras.size() >= 4 && lcClosing.dialogue.size() == 3,
             "Retail LC camera or dialogue cues changed.");
     require(lcClosing.motions.size() == 3 && lcClosing.actorAnimations.at("LC_00").size() == 4,

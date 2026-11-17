@@ -1033,6 +1033,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.weaponShopEntranceFirstSurface = appendCheckpoint(*next.weaponShopEntranceMarker, 7);
         if (next.returnToLcCheckpoint)
             draw.returnToLcFirstSurface = appendCheckpoint(*next.returnToLcCheckpoint, 8);
+        if (next.postLcDriveCheckpoint)
+            draw.postLcDriveFirstSurface = appendCheckpoint(*next.postLcDriveCheckpoint, 9);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);
@@ -1113,7 +1115,7 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
         }
         const auto& next = opening.payphone->postFight.nextCheckpoint;
         if (playback.nextMissionVehicleActive && next && actor.name == next->targetVehicle)
-            return !playback.openingMissionsPaid[1];
+            return !playback.openingMissionsPaid[1] || playback.postLcVehicleActive;
         const auto* placement = cityPayphonePlacement(*opening.payphone,
             actor.name, *payphoneMs);
         return placement && placement->visible;
@@ -1475,26 +1477,34 @@ void CityPlayback::damagePlayer(int32_t amount, bool bypassArmor)
     playerHealth -= std::min(amount, playerHealth);
 }
 
+bool CityPlayback::spawnVehicle(const CityActor& actor, const CityTerrain& terrain,
+                                std::array<float, 3> position, float yaw)
+{
+    const auto hit = terrain.groundContact(position, std::nullopt, 120, 120);
+    if (!hit) return false;
+    position[2] = hit->height;
+    vehicle = CityVehiclePose{position, yaw};
+    vehicle->groundTriangle = hit->triangle;
+    vehicle->health = actor.vehicleHealth.value_or(0);
+    vehicle->maxHealth = actor.vehicleMaxHealth;
+    vehicle->damageEnabled = actor.vehicleDamageEnabled;
+    vehicle->collisionDamageScale = actor.collisionDamageScale;
+    return true;
+}
+
 CityDoorSounds CityPlayback::drive(const CityOpening& opening, const CityTerrain& terrain,
                                   std::array<float, 2> input, double deltaMs, bool interact)
 {
     if (!opening.vehicleActor || !opening.checkpoint || !player ||
-        (nextMissionVehicleActive && openingMissionsPaid[1])) return {};
+        (nextMissionVehicleActive && openingMissionsPaid[1] && !postLcVehicleActive)) return {};
     const auto& actor = opening.actors[*opening.vehicleActor];
     if (!vehicle) {
         auto location = actor.position;
         if (!nextMissionVehicleActive) location[2] = opening.checkpoint->position[2];
-        const auto hit = terrain.groundContact(location, std::nullopt, 120, 120);
-        if (!hit) return {};
-        location[2] = hit->height;
-        vehicle = CityVehiclePose{location, actor.rotationDegrees[2]};
-        vehicle->groundTriangle = hit->triangle;
-        vehicle->health = actor.vehicleHealth.value_or(0);
-        vehicle->maxHealth = actor.vehicleMaxHealth;
-        vehicle->damageEnabled = actor.vehicleDamageEnabled;
-        vehicle->collisionDamageScale = actor.collisionDamageScale;
+        if (!spawnVehicle(actor, terrain, location, actor.rotationDegrees[2])) return {};
     }
-    if (!timeAfterCheckpointMs || *timeAfterCheckpointMs < opening.checkpoint->nextTutorial.startMs) return {};
+    if (!nextMissionVehicleActive &&
+        (!timeAfterCheckpointMs || *timeAfterCheckpointMs < opening.checkpoint->nextTutorial.startMs)) return {};
     auto& car = *vehicle;
     const auto cameraOffsets = actor.vehicleCamera.value_or(defaultVehicleCamera);
     if (car.exploded) return {};
