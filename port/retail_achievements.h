@@ -72,4 +72,5 @@ private:
     bool gameLoaded;
 };
 
-std::optional<RetailAchievementState> loadMenuAchievementState(ResourceFileSystem& files);
+std::optional<RetailAchievementState> loadMenuAchievementState(ResourceFileSystem& files,
+                                                                const RetailSavedState* checkpoint = nullptr);

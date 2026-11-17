@@ -38,6 +38,8 @@ Use `--opening-smoke-test` to also load New Game, render the startup
 cinematic with muted audio, and check the first dialogue portrait. It then
 submits fixed vehicle objective and explosion scenes to Vulkan and exits without enabling
 player control.
+With a Windows checkpoint in the save directory, the opening smoke test
+instead selects **Continue** and checks the resumed state and next objective.
 Click Skip or press Esc during the New Game startup cinematic to move to
 the first mission's opening.
 Use `--language english`, `french`, `german`, `italian`, `japanese`, or

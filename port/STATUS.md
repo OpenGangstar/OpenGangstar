@@ -426,6 +426,11 @@ mission playthroughs for discovery or verification.
   checkpoint uses the retail block codec and a separate filename to preserve
   imported `Gangstar2.sav` files. Arbitrary retail saves and subsequent
   Windows checkpoints remain open.
+  The main menu reads achievement progress from the Windows checkpoint when
+  available and falls back to the imported retail save. The automated smoke
+  test selects Continue from the main menu with an isolated checkpoint in a
+  fresh process. Reopening GameSWF after destroying the last menu in the
+  same process still needs investigation.
   The native save codec reads the retail little-endian blocks, decodes known
   fields, and preserves unknown payloads when serializing. Windows can replace
   files in a separate save directory while the retail resource filesystem

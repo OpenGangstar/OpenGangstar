@@ -21,6 +21,7 @@ public:
     void navigate(const MenuNavigation& navigation, bool persistPreferences = true);
     bool takeNewGameRequest();
     bool takeContinueRequest();
+    bool canContinue() const;
     bool takeExitRequest();
     std::optional<RetailLanguage> takeLanguageRequest();
     Image draw(const Image& background);

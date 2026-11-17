@@ -282,8 +282,14 @@ std::deque<size_t> RetailAchievementState::takeNotifications()
     return std::exchange(notifications, {});
 }
 
-std::optional<RetailAchievementState> loadMenuAchievementState(ResourceFileSystem& files)
+std::optional<RetailAchievementState> loadMenuAchievementState(ResourceFileSystem& files,
+                                                                const RetailSavedState* checkpoint)
 {
+    if (checkpoint) {
+        RetailAchievementState state(readRetailAchievements(files), false);
+        state.restore(sampleRetailSave(*checkpoint, windowsOpeningCheckpointVersion, 0));
+        return state;
+    }
     const std::unique_ptr<IFileStream> save(files.openSavedFile(retailSaveFilename));
     if (!save || !save->size()) return std::nullopt;
     RetailAchievementState state(readRetailAchievements(files), false);

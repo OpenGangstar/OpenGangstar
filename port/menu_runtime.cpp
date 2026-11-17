@@ -261,8 +261,15 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
                          RetailLanguage language, bool startInOptions)
     : runtime(std::make_unique<Runtime>(assets))
 {
+    std::optional<RetailSavedState> checkpoint;
     try {
-        runtime->achievements = loadMenuAchievementState(assets);
+        checkpoint = readWindowsOpeningCheckpoint(assets);
+        runtime->canContinue = checkpoint.has_value();
+    } catch (const std::runtime_error& error) {
+        std::cerr << "Could not load the Windows checkpoint: " << error.what() << '\n';
+    }
+    try {
+        runtime->achievements = loadMenuAchievementState(assets, checkpoint ? &*checkpoint : nullptr);
         if (runtime->achievements)
             std::cout << "Restored " << runtime->achievements->completedCount() << " retail achievements.\n";
     } catch (const std::runtime_error& error) {
@@ -304,11 +311,6 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
     }
     // StringManager uses group 1 for menu.english. These indices come from MainMenu::GotFocus.
     constexpr std::array<unsigned, 4> labelIndices{0x25, 0x22, 0x2e, 0x1d};
-    try {
-        runtime->canContinue = readWindowsOpeningCheckpoint(assets).has_value();
-    } catch (const std::runtime_error& error) {
-        std::cerr << "Could not load the Windows checkpoint: " << error.what() << '\n';
-    }
     runtime->labels = readLocalizedStrings(assets, "menu", language);
     const auto& labels = runtime->labels;
     if (!labels.empty() && labels.size() <= *std::max_element(labelIndices.begin(), labelIndices.end()))
@@ -546,6 +548,11 @@ bool MenuRuntime::takeNewGameRequest()
 bool MenuRuntime::takeContinueRequest()
 {
     return runtime->page == Runtime::Page::main && runtime->canContinue && takeRelease(*runtime->continueButton);
+}
+
+bool MenuRuntime::canContinue() const
+{
+    return runtime->canContinue;
 }
 
 bool MenuRuntime::takeExitRequest()

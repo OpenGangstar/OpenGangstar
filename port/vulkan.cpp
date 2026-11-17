@@ -2901,7 +2901,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 PostQuitMessage(0);
                 return true;
             }
-            const bool continueGame = !openingSmokeTest && menu->takeContinueRequest();
+            const bool continueGame = menu->takeContinueRequest();
             if (openingSmokeTest || continueGame || menu->takeNewGameRequest()) {
                 try {
                     std::optional<RetailSavedState> checkpoint;
@@ -3176,6 +3176,25 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             drawFull(menu->draw(splash->background));
             std::cout << "Presented the GameSWF menu through Vulkan.\n" << std::flush;
             if (openingSmokeTest) {
+                if (menu->canContinue()) {
+                    const auto checkpoint = readWindowsOpeningCheckpoint(*assets);
+                    if (!checkpoint) throw std::runtime_error("The Continue smoke test checkpoint is missing.");
+                    const auto savedAchievements = loadMenuAchievementState(*assets, &*checkpoint);
+                    menu->navigate({0, true, false});
+                    update(0);
+                    if (!cityRender || cityRender->startup)
+                        throw std::runtime_error("Continue did not enter the saved gameplay state.");
+                    update(16);
+                    if (cityRender->playback.playerCash != checkpoint->cash ||
+                        cityRender->playback.playerArmor != checkpoint->armor[0] ||
+                        !cityRender->playback.openingMissionPaid || !cityRender->nextMissionMarker ||
+                        !cityRender->achievements || !savedAchievements ||
+                        cityRender->achievements->stat(49) != savedAchievements->stat(49))
+                        throw std::runtime_error("Continue did not restore the saved player, stats, and next objective.");
+                    std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
+                              << std::flush;
+                    return;
+                }
                 const auto menuBeforeNavigation = menu->draw(splash->background);
                 menu->navigate({1, false, false});
                 menu->navigate({1, true, false});
