@@ -492,7 +492,11 @@ mission playthroughs for discovery or verification.
   dialogue interlude and removes both actors. The interlude stages
   Loco_02 through Loco_04, fades in over 200 ms, and waits for all
   three defeats before the one-second cleanup wait and debrief.
-  The third fight and fourth van arrival look cue remain pending.
+  The second debrief stages and tags four Loco guards. After all
+  four defeats and the one-second cleanup wait, Checkpoint_C2M101
+  appears in the world and minimap. The automated fixture verifies
+  the guard gate and return trigger. The Script 19 closing scene and
+  the fourth van arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

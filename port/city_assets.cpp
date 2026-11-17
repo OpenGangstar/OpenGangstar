@@ -2344,6 +2344,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<AnimationCommand> script19ArrivalAnimations;
     std::vector<MotionCommand> script19ArrivalMotions;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script19SecondFightPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script19ThirdFightPlacements;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4189,33 +4190,43 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     !nextMissionObjectiveId || vanObjective(*nextMissionObjectiveId) != route.script19FightObjective)
                     throw std::runtime_error("Invalid Script 19 interlude handoff.");
                 route.script19Interlude.dialogue = resolveDialogue(script19InterludeDialogue);
+                const auto readFightPlacements = [&](const auto& names, auto& placements) {
+                    for (const auto* name : names) {
+                        auto command = unlockedVanScript.record();
+                        if (command.integer() != 21) throw std::runtime_error("Missing Script 19 fight placement.");
+                        auto placement = readActorPlacement(command, 21);
+                        if (placement.actor != name) throw std::runtime_error("Unexpected Script 19 fight actor.");
+                        placements.emplace_back(0, std::move(placement));
+                    }
+                };
+                const auto readFightCommands = [&](const auto& names, auto& commands) {
+                    const auto capture = [&](uint32_t opcode, const char* actor = nullptr) {
+                        auto command = unlockedVanScript.record();
+                        if (command.integer() != opcode)
+                            throw std::runtime_error("Invalid Script 19 fight command.");
+                        auto payload = command.remainingBytes();
+                        if (actor) {
+                            if (readScriptObject(command) != actor)
+                                throw std::runtime_error("Unexpected Script 19 fight target.");
+                        } else {
+                            if (opcode == 57 && command.signedInteger() < 0)
+                                throw std::runtime_error("Invalid Script 19 fight delay.");
+                            command.finish();
+                        }
+                        commands.emplace_back(opcode, std::move(payload));
+                    };
+                    for (const auto* name : names) capture(85, name);
+                    capture(46);
+                    capture(91);
+                    for (const auto* name : names) capture(23, name);
+                    capture(57);
+                };
                 constexpr std::array secondFightNames{"Loco_02", "Loco_03", "Loco_04"};
-                for (const auto* name : secondFightNames) {
-                    auto command = unlockedVanScript.record();
-                    if (command.integer() != 21) throw std::runtime_error("Missing Script 19 second fight placement.");
-                    auto placement = readActorPlacement(command, 21);
-                    if (placement.actor != name) throw std::runtime_error("Unexpected Script 19 second fight actor.");
-                    script19SecondFightPlacements.emplace_back(0, std::move(placement));
-                }
+                readFightPlacements(secondFightNames, script19SecondFightPlacements);
                 auto secondFightFade = unlockedVanScript.record();
                 if (secondFightFade.integer() != 41) throw std::runtime_error("Missing Script 19 second fight fade.");
                 route.script19SecondFightFadeMs = readFadeCommand(secondFightFade, 41, 0).durationMs;
-                for (const auto expected : {85u, 85u, 85u, 46u, 91u, 23u, 23u, 23u, 57u}) {
-                    auto command = unlockedVanScript.record();
-                    if (command.integer() != expected)
-                        throw std::runtime_error("Invalid Script 19 second fight command.");
-                    auto payload = command.remainingBytes();
-                    if (expected == 85 || expected == 23) {
-                        const auto index = route.script19SecondFightCommands.size() - (expected == 23 ? 5 : 0);
-                        if (readScriptObject(command) != secondFightNames.at(index))
-                            throw std::runtime_error("Unexpected Script 19 second fight target.");
-                    } else {
-                        if (expected == 57 && command.signedInteger() < 0)
-                            throw std::runtime_error("Invalid Script 19 second fight delay.");
-                        command.finish();
-                    }
-                    route.script19SecondFightCommands.emplace_back(expected, std::move(payload));
-                }
+                readFightCommands(secondFightNames, route.script19SecondFightCommands);
                 auto secondExit = unlockedVanScript.record(), secondBegin = unlockedVanScript.record();
                 auto secondDialogue = unlockedVanScript.record(), secondEnd = unlockedVanScript.record();
                 if (secondExit.integer() != 99 || readScriptObject(secondExit) != "Player" ||
@@ -4226,6 +4237,18 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 const auto secondLine = readDialogueCommand(secondDialogue);
                 route.script19SecondDebrief.dialogue = resolveDialogue({
                     {0, static_cast<uint32_t>(std::max(0, secondLine.durationMs)), secondLine.textId, secondLine.speaker}});
+                constexpr std::array thirdFightNames{"LocoGuard_00", "LocoGuard_01", "LocoGuard_02", "LocoGuard_03"};
+                readFightPlacements(thirdFightNames, script19ThirdFightPlacements);
+                readFightCommands(thirdFightNames, route.script19ThirdFightCommands);
+                auto returnObjective = unlockedVanScript.record(), returnCheckpoint = unlockedVanScript.record();
+                if (returnObjective.integer() != 66 || returnCheckpoint.integer() != 64)
+                    throw std::runtime_error("Missing Script 19 return objective or checkpoint.");
+                auto objectivePayload = returnObjective.remainingBytes();
+                auto checkpointPayload = returnCheckpoint.remainingBytes();
+                route.script19ReturnObjective = vanObjective(readMissionObjective(returnObjective));
+                route.script19ReturnCheckpoint = makeCheckpoint(readCheckpointCommand(returnCheckpoint, 64).object);
+                route.script19ThirdFightCommands.emplace_back(66, std::move(objectivePayload));
+                route.script19ThirdFightCommands.emplace_back(64, std::move(checkpointPayload));
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4299,6 +4322,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script19Placements, next->script19Intro.placements);
                 resolvePlacements(script19ArrivalPlacements, next->script19Arrival.placements);
                 resolvePlacements(script19SecondFightPlacements, next->script19SecondFightPlacements);
+                resolvePlacements(script19ThirdFightPlacements, next->script19ThirdFightPlacements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
             }
         }
@@ -4613,11 +4637,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 for (const auto& target : next.basketballFightTargets) prepareFightActor(target);
                 for (const auto& target : next.postBasketballAmbushTargets) prepareFightActor(target);
                 for (const auto& target : next.elToroSecondFightTargets) prepareFightActor(target);
-                for (const auto& cue : next.script19SecondFightPlacements) {
-                    loadCinematicActor(cue);
-                    const auto actor = findCinematicActor(cue.actor);
-                    if (actor != opening.actors.end() && !actor->fightIdle) prepareFightActor(cue.actor);
-                }
+                for (const auto* placements : {&next.script19SecondFightPlacements, &next.script19ThirdFightPlacements})
+                    for (const auto& cue : *placements) {
+                        loadCinematicActor(cue);
+                        const auto actor = findCinematicActor(cue.actor);
+                        if (actor != opening.actors.end() && !actor->fightIdle) prepareFightActor(cue.actor);
+                    }
                 for (const auto& cue : next.postBasketballApproach) {
                     loadCinematicActor(cue);
                     if (cue.actor != next.postBasketballVehicle) prepareFightActor(cue.actor);
