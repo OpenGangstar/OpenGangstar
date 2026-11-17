@@ -1557,6 +1557,51 @@ void uploadCity(CityRender& city, const CityDrawData& draw)
     VK_CALL(vkUnmapMemory)(vk.device, city.geometryMemory);
 }
 
+void activateNextMissionCheckpoint(CityRender& city)
+{
+    const auto& next = *city.opening.payphone->postFight.nextCheckpoint;
+    auto& script = city.nextMissionScript.emplace(CityScriptProgram{{{64, next.payload}}});
+    script.unlock(0, 0, 0);
+}
+
+void restoreOpeningCheckpoint(CityRender& city, const RetailSavedState& checkpoint)
+{
+    const auto& opening = city.opening;
+    if (!opening.payphone || !opening.payphone->postFight.nextCheckpoint ||
+        opening.payphone->postFight.unlockedScript != windowsOpeningCheckpointScript)
+        throw std::runtime_error("This game data does not contain the saved opening checkpoint.");
+    const auto ground = city.terrain.groundContact(*checkpoint.position);
+    if (!ground) throw std::runtime_error("No walkable ground at the saved checkpoint.");
+    auto& playback = city.playback;
+    playback = CityPlayback{};
+    const auto& route = *opening.payphone;
+    const auto& placements = route.postFight.placements;
+    const auto player = std::find_if(placements.rbegin(), placements.rend(), [](const auto& cue) {
+        return cue.actor == "Player" && cue.visible;
+    });
+    const float yaw = player == placements.rend() ? 0 : player->rotationDegrees[2];
+    playback.player = CityPlayerPose{*checkpoint.position, yaw};
+    playback.player->followCameraYaw = yaw;
+    playback.player->groundTriangle = ground->triangle;
+    playback.player->position[2] = ground->height;
+    playback.playerCash = *checkpoint.cash;
+    playback.playerArmor = *checkpoint.armor[0];
+    playback.openingMissionPaid = true;
+    playback.elapsedMs = opening.durationMs;
+    playback.nextDialogue = opening.dialogue.size();
+    playback.payphoneReached = true;
+    playback.enteredVehicle = true;
+    playback.payphoneOpponentDisabled = true;
+    playback.payphoneOpponentHealth = 0;
+    playback.protectionRegistered = true;
+    city.payphoneGameplayMs = route.cinematicDurationMs;
+    city.nextAudio = opening.audio.size();
+    city.startup.reset();
+    if (city.achievements)
+        city.achievements->restore(sampleRetailSave(checkpoint, windowsOpeningCheckpointVersion, 0));
+    activateNextMissionCheckpoint(city);
+}
+
 void activateNextMissionVehicle(CityRender& city)
 {
     auto& playback = city.playback;
@@ -2566,9 +2611,22 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     cityRender->postFightCinematic.reset();
                     cityRender->activeMissionCinematic = nullptr;
                     if (&scene == &handoff && handoff.nextCheckpoint) {
-                        auto& script = cityRender->nextMissionScript.emplace(
-                            CityScriptProgram{{{64, handoff.nextCheckpoint->payload}}});
-                        script.unlock(0, 0, 0);
+                        activateNextMissionCheckpoint(*cityRender);
+                        if (!smokeTest && playback.openingMissionPaid && playback.player &&
+                            handoff.unlockedScript == windowsOpeningCheckpointScript) {
+                            RetailSavedState save;
+                            save.cash = playback.playerCash;
+                            save.context = 0;
+                            save.position = playback.player->position;
+                            save.armor[0] = playback.playerArmor;
+                            save.completedScripts.push_back({windowsOpeningCheckpointScript, -1});
+                            if (cityRender->achievements) cityRender->achievements->capture(save);
+                            try {
+                                writeWindowsOpeningCheckpoint(*assets, save);
+                            } catch (const std::runtime_error& error) {
+                                std::cerr << "Could not save the Windows checkpoint: " << error.what() << '\n';
+                            }
+                        }
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cinematic) {
                         activateNextMissionVehicle(*cityRender);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->pierCinematic &&
@@ -2843,8 +2901,14 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 PostQuitMessage(0);
                 return true;
             }
-            if (openingSmokeTest || menu->takeNewGameRequest()) {
+            const bool continueGame = !openingSmokeTest && menu->takeContinueRequest();
+            if (openingSmokeTest || continueGame || menu->takeNewGameRequest()) {
                 try {
+                    std::optional<RetailSavedState> checkpoint;
+                    if (continueGame) {
+                        checkpoint = readWindowsOpeningCheckpoint(*assets);
+                        if (!checkpoint) throw std::runtime_error("The Windows checkpoint is missing.");
+                    }
                     const auto city = loadCityAssets(*assets);
                     const auto opening = loadCityOpening(*assets, city, language);
                     const auto size = info.imageExtent;
@@ -3001,6 +3065,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     render->billboards = std::move(geometry.billboards);
                     render->vertices = std::move(geometry.vertices);
                     render->terrain = std::move(geometry.terrain);
+                    if (checkpoint) restoreOpeningCheckpoint(*render, *checkpoint);
                     cityRender = std::move(render);
                     size_t scenes = 0;
                     size_t triangles = 0;
@@ -3021,7 +3086,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                               << opening.actors.size() << " scripted actor placements.\n" << std::flush;
                 } catch (const std::runtime_error& error) {
                     if (openingSmokeTest) throw;
-                    std::cerr << "New Game setup failed: " << error.what() << '\n' << std::flush;
+                    std::cerr << (continueGame ? "Continue" : "New Game") << " setup failed: "
+                              << error.what() << '\n' << std::flush;
                 }
                 if (cityRender) {
                     presentCity(*cityRender, info.imageExtent);
@@ -3029,7 +3095,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     std::cout << "Presented " << cityRender->indexCount / 3
                               << " retail opening scene triangles with Vulkan depth testing.\n" << std::flush;
                     touch->clearMenuPointerEvents();
-                    touch->startMenuPointer();
+                    if (continueGame) touch->stopMenuPointer();
+                    else touch->startMenuPointer();
                     touch->takePress();
                     touch->takeCutsceneSkip();
                     touch->takeVehiclePress();
@@ -3408,6 +3475,27 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 std::cout << "Submitted the retail armor and blinking health gauges through Vulkan.\n" << std::flush;
                 render.payphoneGameplayMs.reset();
                 std::cout << "Submitted the retail payphone gameplay handoff through Vulkan.\n" << std::flush;
+                const auto& placements = route.postFight.placements;
+                const auto player = std::find_if(placements.rbegin(), placements.rend(), [](const auto& cue) {
+                    return cue.actor == "Player" && cue.visible;
+                });
+                if (player == placements.rend())
+                    throw std::runtime_error("Opening checkpoint smoke test did not find a retail player placement.");
+                RetailSavedState checkpoint;
+                checkpoint.cash = 250;
+                checkpoint.armor[0] = 75;
+                checkpoint.position = player->position;
+                render.weaponShopUnlocked = false;
+                render.weaponShopApproach = false;
+                render.weaponShopDrive = false;
+                render.nextMissionMarker.reset();
+                restoreOpeningCheckpoint(render, checkpoint);
+                update(16);
+                if (render.playback.playerCash != 250 || render.playback.playerArmor != 75 ||
+                    !render.playback.openingMissionPaid || !render.nextMissionMarker)
+                    throw std::runtime_error("Opening checkpoint did not restore the next mission marker and player.");
+                std::cout << "Restored the opening checkpoint and presented the next objective through Vulkan.\n"
+                          << std::flush;
             }
         }
         return;

@@ -51,6 +51,9 @@ struct RetailAudioPreferences {
 
 inline constexpr char retailPreferencesFilename[] = "Gangstar2.preferences";
 inline constexpr char retailSaveFilename[] = "Gangstar2.sav";
+inline constexpr char windowsCheckpointFilename[] = "OpenGangstar.sav";
+inline constexpr int32_t windowsOpeningCheckpointScript = 18;
+inline constexpr int32_t windowsOpeningCheckpointVersion = 0x30500;
 RetailAudioPreferences readRetailAudioPreferences(IFileStream& file);
 std::optional<RetailLanguage> readRetailLanguagePreference(IFileStream& file);
 void saveRetailLanguagePreference(const ResourceFileSystem& files, RetailLanguage language);
@@ -63,3 +66,5 @@ RetailSavedState restoreRetailSavedState(const std::vector<SaveBlock>& blocks, i
 std::vector<SaveBlock> sampleRetailSave(const RetailSavedState& state, int32_t version, int32_t resetContext);
 void writeRetailSave(const ResourceFileSystem& files, const RetailSavedState& state,
                      int32_t version, int32_t resetContext);
+void writeWindowsOpeningCheckpoint(const ResourceFileSystem& files, const RetailSavedState& state);
+std::optional<RetailSavedState> readWindowsOpeningCheckpoint(const ResourceFileSystem& files);

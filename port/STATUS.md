@@ -297,7 +297,7 @@ mission playthroughs for discovery or verification.
   with a three-second hold. The reward uses the original BIGB cash glyphs
   at the retail position. Windows draws objective text with its caption renderer.
   Live prison context transitions,
-  persistence, the remainder of script 18,
+  general persistence, the remainder of script 18,
   and Juan's dynamic movement remain open.
   Opcodes 80 and 81 dispatch the retail weapon
   HUD restriction and release. Live dialogue and weapon HUD hosts remain open.
@@ -420,6 +420,12 @@ mission playthroughs for discovery or verification.
   Low-detail material parity, live spawning, and
   district activation beyond the opening remain open.
 - [ ] Port save application, game-state capture, settings, and persistence UI.
+  The Windows port writes an opening-mission checkpoint to `OpenGangstar.sav`
+  at the script 17 handoff. Continue restores the position, cash, armor, and
+  achievement stats and activates the retail script 18 entrance. The
+  checkpoint uses the retail block codec and a separate filename to preserve
+  imported `Gangstar2.sav` files. Arbitrary retail saves and subsequent
+  Windows checkpoints remain open.
   The native save codec reads the retail little-endian blocks, decodes known
   fields, and preserves unknown payloads when serializing. Windows can replace
   files in a separate save directory while the retail resource filesystem

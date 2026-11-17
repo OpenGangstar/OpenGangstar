@@ -436,3 +436,28 @@ void writeRetailSave(const ResourceFileSystem& files, const RetailSavedState& st
 {
     files.replaceSaveFile(retailSaveFilename, encodeRetailSave(sampleRetailSave(state, version, resetContext)));
 }
+
+void writeWindowsOpeningCheckpoint(const ResourceFileSystem& files, const RetailSavedState& state)
+{
+    files.replaceSaveFile(windowsCheckpointFilename,
+                          encodeRetailSave(sampleRetailSave(state, windowsOpeningCheckpointVersion, 0)));
+}
+
+std::optional<RetailSavedState> readWindowsOpeningCheckpoint(const ResourceFileSystem& files)
+{
+    const std::unique_ptr<IFileStream> file(files.openSavedFile(windowsCheckpointFilename));
+    if (!file) return std::nullopt;
+    const auto blocks = readRetailSave(*file);
+    auto state = restoreRetailSavedState(blocks, 0);
+    if (blocks.empty() || blocks.front().id != -1 ||
+        std::get<int32_t>(blocks.front().value) != windowsOpeningCheckpointVersion ||
+        state.context != 0 || !state.position || !state.cash || *state.cash < 0 ||
+        !state.armor[0] || *state.armor[0] < 0 || *state.armor[0] > 200 ||
+        !std::all_of(state.position->begin(), state.position->end(), [](float value) {
+            return std::isfinite(value);
+        }) || state.completedScripts.size() != 1 ||
+        state.completedScripts.front().script != windowsOpeningCheckpointScript ||
+        state.completedScripts.front().context != -1)
+        throw std::runtime_error("Unsupported Windows opening checkpoint.");
+    return state;
+}

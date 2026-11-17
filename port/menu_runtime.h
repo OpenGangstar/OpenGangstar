@@ -20,6 +20,7 @@ public:
     void pointer(int x, int y, bool down);
     void navigate(const MenuNavigation& navigation, bool persistPreferences = true);
     bool takeNewGameRequest();
+    bool takeContinueRequest();
     bool takeExitRequest();
     std::optional<RetailLanguage> takeLanguageRequest();
     Image draw(const Image& background);

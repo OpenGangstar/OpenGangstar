@@ -158,6 +158,8 @@ struct MenuRuntime::Runtime {
     gameswf::player player;
     gameswf::gc_ptr<gameswf::root> root;
     gameswf::gc_ptr<gameswf::character> newGameButton;
+    gameswf::character* continueButton = nullptr;
+    bool canContinue = false;
     std::optional<RetailAchievementState> achievements;
     enum class Page { main, options, sound, language, confirmExit };
     Page page = Page::main;
@@ -194,6 +196,7 @@ struct MenuRuntime::Runtime {
         main->set_visible(page == Page::main || page == Page::confirmExit);
         for (auto* button : {newGameButton.get_ptr(), optionsButton, exitButton})
             button->set_member("enabled", page == Page::main);
+        continueButton->set_member("enabled", page == Page::main && canContinue);
         options->set_visible(page == Page::options || page == Page::sound || page == Page::language);
         languagePage->set_visible(page == Page::language);
         soundButton->set_member("enabled", page == Page::options);
@@ -301,6 +304,11 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
     }
     // StringManager uses group 1 for menu.english. These indices come from MainMenu::GotFocus.
     constexpr std::array<unsigned, 4> labelIndices{0x25, 0x22, 0x2e, 0x1d};
+    try {
+        runtime->canContinue = readWindowsOpeningCheckpoint(assets).has_value();
+    } catch (const std::runtime_error& error) {
+        std::cerr << "Could not load the Windows checkpoint: " << error.what() << '\n';
+    }
     runtime->labels = readLocalizedStrings(assets, "menu", language);
     const auto& labels = runtime->labels;
     if (!labels.empty() && labels.size() <= *std::max_element(labelIndices.begin(), labelIndices.end()))
@@ -313,8 +321,8 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
         auto* clip = gameswf::cast_to<gameswf::character>(button.to_object());
         if (!clip) throw std::runtime_error("The retail menu button is missing its timeline.");
         if (!labels.empty()) clip->set_member("_retailLabel", labels[labelIndices[i]].c_str());
-        // Continue requires the gameplay systems to be able to apply the full save.
-        if (i == 0) {
+        if (i == 0) runtime->continueButton = clip;
+        if (i == 0 && !runtime->canContinue) {
             clip->set_member("enabled", false);
             clip->goto_labeled_frame("disabled");
             clip->set_play_state(gameswf::character::STOP);
@@ -493,7 +501,10 @@ void MenuRuntime::navigate(const MenuNavigation& navigation, bool persistPrefere
 
     std::vector<gameswf::character*> buttons;
     switch (runtime->page) {
-    case Page::main: buttons = {runtime->newGameButton.get_ptr(), runtime->optionsButton, runtime->exitButton}; break;
+    case Page::main:
+        buttons = {runtime->newGameButton.get_ptr(), runtime->optionsButton, runtime->exitButton};
+        if (runtime->canContinue) buttons.insert(buttons.begin(), runtime->continueButton);
+        break;
     case Page::options: buttons = {runtime->soundButton, runtime->languageButton, runtime->backButton}; break;
     case Page::sound: buttons = {runtime->mutes[0], runtime->mutes[1], runtime->backButton}; break;
     case Page::language:
@@ -530,6 +541,11 @@ void MenuRuntime::navigate(const MenuNavigation& navigation, bool persistPrefere
 bool MenuRuntime::takeNewGameRequest()
 {
     return runtime->page == Runtime::Page::main && takeRelease(*runtime->newGameButton);
+}
+
+bool MenuRuntime::takeContinueRequest()
+{
+    return runtime->page == Runtime::Page::main && runtime->canContinue && takeRelease(*runtime->continueButton);
 }
 
 bool MenuRuntime::takeExitRequest()

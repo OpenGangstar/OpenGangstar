@@ -325,6 +325,20 @@ void verifySaveDirectory()
         restored.statUpdates.size() != 1 || restored.statUpdates[0].second != 70 ||
         restored.completedAchievements != snapshot.completedAchievements)
         throw std::runtime_error("Writing a sampled game state lost retail save fields.");
+    RetailSavedState checkpoint;
+    checkpoint.cash = 250;
+    checkpoint.context = 0;
+    checkpoint.position = SavePosition{10.f, 20.f, 30.f};
+    checkpoint.armor[0] = 0;
+    checkpoint.completedScripts = {{windowsOpeningCheckpointScript, -1}};
+    checkpoint.statUpdates = {{49, 1}};
+    if (readWindowsOpeningCheckpoint(files))
+        throw std::runtime_error("A retail save incorrectly enabled the Windows checkpoint.");
+    writeWindowsOpeningCheckpoint(files, checkpoint);
+    const auto resumed = readWindowsOpeningCheckpoint(files);
+    if (!resumed || resumed->cash != checkpoint.cash || resumed->position != checkpoint.position ||
+        resumed->armor != checkpoint.armor || resumed->statUpdates.size() != 1 || read() != encodeRetailSave(sampled))
+        throw std::runtime_error("Windows checkpoint lost state or replaced the imported retail save.");
 
     if (files.openSavedFile("../retail/Gangstar2.sav") || files.openSavefile("../retail/Gangstar2.sav"))
         throw std::runtime_error("A save filename escaped the save directory.");
