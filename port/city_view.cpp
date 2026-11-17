@@ -2619,11 +2619,14 @@ void CityPlayback::advancePayphone(const CityOpening& opening, double deltaMs)
 
 static void pursueMeleeTarget(CityPlayback& playback, const CityOpening& opening, const CityTerrain& terrain,
                               const CityActor* actor, CityPlayerPose& pose, std::optional<double>& punchMs,
-                              size_t& punchIndex, double deltaMs)
+                              size_t& punchIndex, double deltaMs, CityFightOpponent* targetNpc = nullptr)
 {
     const auto& route = *opening.payphone;
-    if (playback.playerHealth == 0 && !punchMs) return;
-    const auto& target = playback.vehicle && playback.vehicle->occupied ? playback.vehicle->position : playback.player->position;
+    const auto targetHealth = [&] { return targetNpc ? targetNpc->health : playback.playerHealth; };
+    if (targetHealth() == 0 && !punchMs) return;
+    const bool playerInCar = !targetNpc && playback.vehicle && playback.vehicle->occupied;
+    const auto& target = targetNpc ? targetNpc->pose.position :
+        playerInCar ? playback.vehicle->position : playback.player->position;
     const auto dx = target[0] - pose.position[0], dy = target[1] - pose.position[1];
     const auto distance = std::hypot(dx, dy);
     if (distance > 0) pose.yaw = std::atan2(dx, -dy) / radians;
@@ -2633,7 +2636,7 @@ static void pursueMeleeTarget(CityPlayback& playback, const CityOpening& opening
         const auto& clips = *actor->handPunches;
         const auto canReach = [&] {
             return distance <= stoppingDistance && std::abs(target[2] - pose.position[2]) <= stoppingDistance &&
-                !(playback.vehicle && playback.vehicle->occupied) && !crossesWall(terrain, pose.position, target, 28);
+                !playerInCar && !crossesWall(terrain, pose.position, target, 28);
         };
         if (punchMs) {
             const auto previous = *punchMs;
@@ -2641,13 +2644,15 @@ static void pursueMeleeTarget(CityPlayback& playback, const CityOpening& opening
             const auto duration = clips[punchIndex].durationMs;
             // Approximate contact until the retail punch collision query is ported.
             const double impactMs = duration * 0.5;
-            if (previous < impactMs && *punchMs >= impactMs && canReach())
-                playback.damagePlayer(route.handDamage);
+            if (previous < impactMs && *punchMs >= impactMs && canReach()) {
+                if (targetNpc) targetNpc->health -= std::min(targetNpc->health, route.handDamage);
+                else playback.damagePlayer(route.handDamage);
+            }
             if (*punchMs < duration) return;
             punchMs.reset();
             punchIndex = (punchIndex + 1) % clips.size();
         }
-        if (playback.playerHealth == 0) return;
+        if (targetHealth() == 0) return;
         if (canReach()) {
             punchMs = 0;
             pose.walking = false;
@@ -2721,6 +2726,31 @@ void CityPlayback::updateLocoFight(const CityOpening& opening, const CityTerrain
             continue;
         }
         using Side = CityFightOpponent::Side;
+        if (opponent.scriptedMelee) {
+            const bool targetPlayer = opponent.side == Side::hostile && playerHealth > 0;
+            const auto& playerPosition = vehicle && vehicle->occupied ? vehicle->position : player->position;
+            const auto playerOffset = add(playerPosition, scale(opponent.pose.position, -1));
+            auto nearest = targetPlayer ? dot(playerOffset, playerOffset) : std::numeric_limits<float>::max();
+            CityFightOpponent* target = nullptr;
+            for (auto& [name, candidate] : locoOpponents) {
+                if (candidate.disabled || candidate.health == 0 ||
+                    candidate.side == Side::neutral || candidate.side == opponent.side) continue;
+                const auto offset = add(candidate.pose.position, scale(opponent.pose.position, -1));
+                if (const auto distance = dot(offset, offset); distance < nearest) {
+                    nearest = distance;
+                    target = &candidate;
+                }
+            }
+            if (target || targetPlayer)
+                pursueMeleeTarget(*this, opening, terrain, &actor, opponent.pose,
+                                  opponent.punchMs, opponent.punchIndex, deltaMs, target);
+            else {
+                opponent.punchMs.reset();
+                opponent.pose.walking = false;
+                opponent.pose.clipTimeMs += std::max(0., deltaMs);
+            }
+            continue;
+        }
         if ((opponent.rangedTarget || opponent.side != Side::neutral) && actor.scriptedRangedWeapon) {
             opponent.pose.walking = false;
             opponent.pose.clipTimeMs += std::max(0., deltaMs);

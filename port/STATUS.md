@@ -530,8 +530,10 @@ mission playthroughs for discovery or verification.
   markers appear in the world, with the nearer one on the minimap.
   The Script 36 marker plays its retail title and Latisha cutscene. The
   next objective sends the player to Checkpoint_C3M2_01 and plays the
-  arrival scene. The ensuing fight, Script 43 gameplay, rival collision,
-  and passenger ejection remain pending.
+  arrival scene. The first fight protects Juan, activates two unarmed
+  attackers after the retail delay, and waits for both targets. Windows
+  melee actors choose the nearest opponent. The next cutscene, Script 43
+  gameplay, rival collision, and passenger ejection remain pending.
   The chapter-three scripted actor
   cues, retail pursuit and target selection, and the fourth van arrival
   look cue also remain pending.

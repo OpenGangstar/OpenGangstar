@@ -2011,6 +2011,15 @@ std::string decodeCityActorGetOut(const CityScriptCommand& command)
     return readScriptObject(reader);
 }
 
+std::string decodeCityFightSideActor(const CityScriptCommand& command)
+{
+    if (command.opcode != 44 && command.opcode != 45)
+        throw std::runtime_error("Expected a retail fight side command.");
+    const std::string path = scriptMapPath;
+    CityDataReader reader(path, command.payload);
+    return readScriptObject(reader);
+}
+
 std::string decodeCityKillTarget(const CityScriptCommand& command)
 {
     if (command.opcode != 85) throw std::runtime_error("Expected the retail kill target opcode.");
@@ -4653,12 +4662,30 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     throw std::runtime_error("Invalid Script 36 travel handoff.");
                 route.script36TravelWait = travel36.remainingBytes();
                 route.script36TravelCheckpoint = makeCheckpoint(readCheckpointCommand(travel36, 64).object);
+                auto protectionPayload36 = protectJuan36.remainingBytes();
                 const auto protection36 = readMissionCondition(protectJuan36, 69);
                 if (!protection36 || protection36->target != "Juan_00")
                     throw std::runtime_error("Invalid Script 36 ally protection.");
                 route.script36ArrivalFadeMs = readFadeCommand(fadeTravel36, 42, 0).durationMs;
                 readChapterThreeCinematic(route.script36Arrival, script36ArrivalMoves, script36ArrivalDialogue,
                                           script36ArrivalPlacements, script36ArrivalAnimations, script36ArrivalMotions);
+                if (!nextMissionObjectiveId) throw std::runtime_error("Missing Script 36 fight objective.");
+                route.script36FightObjective = objective33(*nextMissionObjectiveId);
+                route.script36FightCommands.emplace_back(69, std::move(protectionPayload36));
+                for (const auto opcode : {57u, 45u, 44u, 45u, 46u, 85u, 85u, 91u, 57u}) {
+                    auto command = script36.record();
+                    if (command.integer() != opcode) throw std::runtime_error("Invalid Script 36 fight sequence.");
+                    auto payload = command.remainingBytes();
+                    if (opcode == 44 || opcode == 45 || opcode == 85) {
+                        const auto name = readScriptObject(command);
+                        const auto& weapons = route.script36Arrival.npcWeapons;
+                        if (!weapons.count(name) || weapons.at(name) != 0 ||
+                            ((opcode == 44) != (name == "Juan_00")))
+                            throw std::runtime_error("Invalid Script 36 unarmed fighter.");
+                    } else if (opcode == 57) command.integer();
+                    command.finish();
+                    route.script36FightCommands.emplace_back(opcode, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -5102,6 +5129,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     actor->scriptedRangedWeapon = pistol->second;
                     if (!actor->scriptedAim) actor->scriptedAim = readClip(library, &actor->model, "combat_gun_1handed_idle");
                 }
+                for (const auto& [name, type] : next.script36Arrival.npcWeapons)
+                    prepareFightActor(name);
                 const auto cooper = findObject("aCooper_00").vehicle;
                 if (!cooper) throw std::runtime_error("Missing retail Cooper vehicle definition.");
                 const auto postBasketballVehicle = findObject(next.postBasketballVehicle).vehicle;

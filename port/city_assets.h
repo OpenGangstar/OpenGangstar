@@ -670,7 +670,8 @@ struct CityPostFightScene : CityMissionCinematic {
         std::optional<CityMissionTitle> script36Title;
         CityMissionCinematic script36Intro, script36Arrival;
         std::optional<CityCheckpoint> script36TravelCheckpoint;
-        std::string script36TravelObjective;
+        std::string script36TravelObjective, script36FightObjective;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script36FightCommands;
         uint32_t script33RaceFadeMs = 0;
         std::optional<CityCheckpoint> script33RaceMarker;
         std::vector<std::array<float, 3>> script33RaceCourse, script33RivalPath;
@@ -885,6 +886,7 @@ CityWaitEscape decodeCityWaitEscape(const CityScriptCommand& command);
 std::string decodeCityWaitStolen(const CityScriptCommand& command);
 std::string decodeCityActorGetOut(const CityScriptCommand& command);
 std::string decodeCityKillTarget(const CityScriptCommand& command);
+std::string decodeCityFightSideActor(const CityScriptCommand& command);
 std::string decodeCityWaitKilled(const CityScriptCommand& command);
 std::string decodeCityWaitForLock(const CityScriptCommand& command);
 std::string decodeCityDeferredDisable(const CityScriptCommand& command);

@@ -329,6 +329,8 @@ void RetailScriptExecution::execute(uint32_t id, int32_t elapsedMs, int32_t play
             mission->disableActor(decodeCityDeferredDisable(command), skipBlockingCommands);
         } else if (command.opcode == 29 && mission && mission->actorAttack) {
             mission->actorAttack(decodeCityActorAttack(command));
+        } else if ((command.opcode == 44 || command.opcode == 45) && mission && mission->setFightSide) {
+            mission->setFightSide(decodeCityFightSideActor(command), command.opcode == 44);
         } else if (command.opcode == 46 && mission && mission->clearActorAttacks) {
             if (!command.payload.empty()) throw std::runtime_error("Invalid retail clear actor attacks payload.");
             mission->clearActorAttacks();

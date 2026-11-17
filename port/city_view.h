@@ -376,6 +376,7 @@ struct CityFightOpponent {
     enum class Side { neutral, friendly, hostile };
     Side side = Side::neutral;
     bool aiming = false;
+    bool scriptedMelee = false;
     double shotCooldownMs = 0;
     bool disablePending = false;
     bool disabled = false;

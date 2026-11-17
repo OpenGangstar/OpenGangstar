@@ -494,6 +494,7 @@ struct CityRender {
         destroyTexture(script20RetreatObjective);
         destroyTexture(script32Objective);
         destroyTexture(script36TravelObjective);
+        destroyTexture(script36FightObjective);
         for (const auto& objective : script33Objectives) destroyTexture(objective);
         destroyTexture(basketballFightObjective);
         destroyTexture(basketballTutorial);
@@ -594,7 +595,7 @@ struct CityRender {
     CityTexture script20DriveObjective, script20FightObjective, script20RetreatObjective, script32Objective;
     bool script32Unlocked = false;
     bool script36Travel = false;
-    CityTexture script36TravelObjective;
+    CityTexture script36TravelObjective, script36FightObjective;
     std::array<CityTexture, 2> script33Objectives;
     std::optional<RetailScriptExecution> script20RetreatScript;
     std::optional<RetailScriptExecution> missionCarDriveScript;
@@ -1405,7 +1406,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount + vanSecondArrivalLineCount + vanHandshakeLineCount + vanHandshakeBriefingLineCount + vanPoliceLineCount + vanEscapeLineCount + vanFourthArrivalLineCount + vanClosingLineCount + script19LineCount + script19ArrivalLineCount + script19InterludeLineCount + script19SecondDebriefLineCount + script19ClosingLineCount + script20LineCount + script20ArrivalLineCount + script20InterludeLineCount + script20RetreatLineCount + script20ClosingLineCount + script32LineCount + script33LineCount + script33ClosingLineCount + script36LineCount + script36ArrivalLineCount +
-                                             hasPayphoneObjective + (next ? 51 : 0) +
+                                             hasPayphoneObjective + (next ? 52 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() + statusHud->wantedStars.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1645,6 +1646,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.script33DriveObjective}, true, false, 432, 68, font.family()));
             upload(city.script36TravelObjective,
                    rasterCaption({0, 0, {}, next.script36TravelObjective}, true, false, 432, 68, font.family()));
+            upload(city.script36FightObjective,
+                   rasterCaption({0, 0, {}, next.script36FightObjective}, true, false, 432, 68, font.family()));
             upload(city.script19Objectives[3],
                    rasterCaption({0, 0, {}, next.script19ReturnObjective}, true, false, 432, 68, font.family()));
             upload(city.script19Objectives[2],
@@ -3608,6 +3611,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             overlay(city.script32Objective.descriptor, screen, city.captionVertex, 6);
         else if (city.script20RetreatScript)
             overlay(city.script20RetreatObjective.descriptor, screen, city.captionVertex, 6);
+        else if (city.taggedFightScript && city.missionTitleIndex == 12)
+            overlay(city.script36FightObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.taggedFightScript && city.missionTitleIndex == 10)
             overlay(city.script20FightObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.taggedFightScript && city.missionTitleIndex == 7 && city.elToroFightObjective.descriptor)
@@ -4582,6 +4587,22 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             program.front().push_back(std::move(command));
                         }
                         cityRender->script20RetreatScript.emplace(std::move(program)).unlock(0, 0, 0);
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->script36Arrival) {
+                        const auto& route = *handoff.nextCheckpoint;
+                        playback.locoOpponents.clear();
+                        playback.locoLockTarget.reset();
+                        playback.missionConditions.clear();
+                        for (auto placement : scene.placements) {
+                            if (!placement.visible || !scene.npcWeapons.count(placement.actor)) continue;
+                            if (const auto* motion = cityCinematicMotion(scene, placement.actor, scene.durationMs))
+                                placement.position = cityCinematicTravelPosition(motion->travel, scene.durationMs);
+                            playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, placement, false);
+                        }
+                        playback.locoOpponents.at("Juan_00").side = CityFightOpponent::Side::friendly;
+                        CityScriptProgram program(1);
+                        for (const auto& [opcode, payload] : route.script36FightCommands)
+                            program.front().push_back({opcode, payload});
+                        cityRender->taggedFightScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->script36Intro) {
                         cityRender->script36Travel = true;
                         cityRender->nextMissionMarker = cityRender->payphoneGameplayMs.value_or(0);
@@ -5074,6 +5095,11 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     fight.conditions = &playback.missionConditions;
                     fight.tutorialsEnabled = [] { return true; };
                     fight.showTutorial = [&](const CityScriptTutorial&) { cityRender->basketballTutorialVisible = true; };
+                    fight.setFightSide = [&](std::string_view name, bool friendly) {
+                        auto& opponent = getOpponent(name);
+                        opponent.side = friendly ? CityFightOpponent::Side::friendly : CityFightOpponent::Side::hostile;
+                        opponent.scriptedMelee = true;
+                    };
                     fight.clearActorAttacks = [&] {
                         for (auto& [name, opponent] : playback.locoOpponents) {
                             opponent.attacking = false;
@@ -5118,6 +5144,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                    [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, &travel, {}, &fight);
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->taggedFightScript.reset();
+                        if (cityRender->missionTitleIndex == 12) {
+                            for (auto& [name, opponent] : playback.locoOpponents) {
+                                opponent.scriptedMelee = false;
+                                opponent.punchMs.reset();
+                                opponent.pose.walking = false;
+                            }
+                        }
                         if (cityRender->missionTitleIndex == 9 && !cityRender->taggedFightNextScene) {
                             cityRender->pendingHummerCinematic =
                                 &cityRender->opening.payphone->postFight.nextCheckpoint->script19Closing;
@@ -7658,9 +7691,48 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             !render.missionCaptionBases.count(&arrival))
                             throw std::runtime_error("Script 36 did not stage its retail arrival.");
                         for (int step = 0; step < 180 && render.postFightCinematic; ++step) update(250, true);
-                        if (render.postFightCinematic)
-                            throw std::runtime_error("Script 36 did not finish its arrival cinematic.");
-                        std::cout << "Verified Script 36's opening, travel checkpoint, and arrival.\n" << std::flush;
+                        if (render.postFightCinematic || !render.taggedFightScript ||
+                            !render.script36FightObjective.descriptor || playback.locoOpponents.size() != 3)
+                            throw std::runtime_error("Script 36 did not stage the first fight.");
+                        auto& juan = playback.locoOpponents.at("Juan_00");
+                        auto& first = playback.locoOpponents.at("Loco_01");
+                        auto& second = playback.locoOpponents.at("Loco_02");
+                        update(0);
+                        auto conditions = playback.missionConditions;
+                        if (conditions.update(0, false, playback.player->position,
+                                [](std::string_view actor) -> std::optional<RetailMissionTargetState> {
+                                    return RetailMissionTargetState{{}, actor == "Juan_00"};
+                                }).failureCause != -1)
+                            throw std::runtime_error("Script 36 did not register Juan's protection.");
+                        update(1000);
+                        update(1000);
+                        if (first.taggedForKill || first.scriptedMelee || juan.scriptedMelee)
+                            throw std::runtime_error("Script 36 activated the fight before the retail delay.");
+                        update(1);
+                        if (!first.taggedForKill || !second.taggedForKill || !first.scriptedMelee ||
+                            !second.scriptedMelee || !juan.scriptedMelee || juan.taggedForKill)
+                            throw std::runtime_error("Script 36 did not activate its unarmed teams and kill targets.");
+                        auto isolatedFight = playback;
+                        auto& testJuan = isolatedFight.locoOpponents.at("Juan_00");
+                        isolatedFight.locoOpponents.at("Loco_01").pose.position = testJuan.pose.position;
+                        isolatedFight.player->position[0] += 20000;
+                        const auto juanHealth = testJuan.health;
+                        for (int step = 0; step < 40 && testJuan.health == juanHealth; ++step)
+                            isolatedFight.updateLocoFight(render.opening, render.terrain, 50);
+                        if (testJuan.health == juanHealth)
+                            throw std::runtime_error("Script 36's enemies could not strike Juan.");
+                        first.health = 0;
+                        update(0);
+                        if (!render.taggedFightScript || !second.taggedForKill)
+                            throw std::runtime_error("Script 36 did not wait for both attackers.");
+                        second.health = 0;
+                        update(1000);
+                        if (!render.taggedFightScript)
+                            throw std::runtime_error("Script 36 skipped its 1000 ms post-fight wait.");
+                        update(1);
+                        if (render.taggedFightScript || playback.missionFailure || juan.scriptedMelee)
+                            throw std::runtime_error("Script 36 did not release the fight wait.");
+                        std::cout << "Verified Script 36's opening, arrival, and protected melee encounter.\n" << std::flush;
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

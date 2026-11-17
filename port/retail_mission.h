@@ -84,6 +84,7 @@ struct RetailMissionHooks {
     std::function<void()> hideTutorial;
     std::function<void(int32_t)> blinkHud;
     std::function<void()> recordChapterEnd;
+    std::function<void(std::string_view, bool)> setFightSide;
     std::function<void()> clearActorAttacks;
     std::function<void(std::string_view)> tagKillTarget;
     std::function<int32_t()> wantedLevel;
