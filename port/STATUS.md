@@ -489,8 +489,10 @@ mission playthroughs for discovery or verification.
   at their final positions and shows the fight objective. The first
   fight tags the second opponent after 400 ms and waits for both
   defeats. After the authored 800 ms wait, the port fades into the
-  dialogue interlude and removes both actors. The second fight and
-  the fourth van arrival look cue remain pending.
+  dialogue interlude and removes both actors. The interlude stages
+  Loco_02 through Loco_04, fades in over 200 ms, and waits for all
+  three defeats before the one-second cleanup wait and debrief.
+  The third fight and fourth van arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.
