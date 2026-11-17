@@ -506,9 +506,12 @@ mission playthroughs for discovery or verification.
   including the four approach paths, camera cuts, dialogue, and gun-draw
   animations. The first shootout loads the NPC pistol from the retail data,
   protects Juan, LC, and El Toro, and waits for all four tagged Locos before
-  its timed handoff. Windows NPCs target the nearest opposing actor during
-  this fight. Retail target selection and the next cinematic remain pending,
-  along with the fourth van arrival look cue.
+  its timed handoff into the second encounter cinematic. The cutscene
+  restages the retail opponents, then the second wave carries ally health
+  forward and clears protection after all four targets are defeated.
+  Windows NPCs target the nearest opposing actor in both fights.
+  Retail target selection, Script 20's next cutscene, and the fourth van
+  arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

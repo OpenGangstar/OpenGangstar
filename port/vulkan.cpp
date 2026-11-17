@@ -1255,9 +1255,12 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* script20ArrivalLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->script20Arrival.dialogue : nullptr;
     const auto script20ArrivalLineCount = script20ArrivalLines ? script20ArrivalLines->size() : 0;
+    const auto* script20InterludeLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->script20Interlude.dialogue : nullptr;
+    const auto script20InterludeLineCount = script20InterludeLines ? script20InterludeLines->size() : 0;
     for (const auto* lines : {cooperClosingLines, brawlNextLines, basketballLines, basketballClosingLines,
                              postBasketballLines, ambush29Lines, briefing29Lines, repairArrivalLines, deliveryLines, elToroLines, elToroArrivalLines, elToroInterludeLines, elToroDepartureLines, elToroClosingLines, vanIntroLines, vanBriefingLines, vanArrivalLines, vanReentryLines, vanSecondArrivalLines, vanHandshakeLines,
-                             vanHandshakeBriefingLines, vanPoliceLines, vanEscapeLines, vanFourthArrivalLines, vanClosingLines, script19Lines, script19ArrivalLines, script19InterludeLines, script19SecondDebriefLines, script19ClosingLines, script20Lines, script20ArrivalLines})
+                             vanHandshakeBriefingLines, vanPoliceLines, vanEscapeLines, vanFourthArrivalLines, vanClosingLines, script19Lines, script19ArrivalLines, script19InterludeLines, script19SecondDebriefLines, script19ClosingLines, script20Lines, script20ArrivalLines, script20InterludeLines})
         if (lines)
             for (const auto& dialogue : *lines)
                 if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
@@ -1365,7 +1368,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount + vanSecondArrivalLineCount + vanHandshakeLineCount + vanHandshakeBriefingLineCount + vanPoliceLineCount + vanEscapeLineCount + vanFourthArrivalLineCount + vanClosingLineCount + script19LineCount + script19ArrivalLineCount + script19InterludeLineCount + script19SecondDebriefLineCount + script19ClosingLineCount + script20LineCount + script20ArrivalLineCount +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount + vanSecondArrivalLineCount + vanHandshakeLineCount + vanHandshakeBriefingLineCount + vanPoliceLineCount + vanEscapeLineCount + vanFourthArrivalLineCount + vanClosingLineCount + script19LineCount + script19ArrivalLineCount + script19InterludeLineCount + script19SecondDebriefLineCount + script19ClosingLineCount + script20LineCount + script20ArrivalLineCount + script20InterludeLineCount +
                                              hasPayphoneObjective + (next ? 46 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() + statusHud->wantedStars.size() : 0) +
@@ -1534,7 +1537,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount + vanSecondArrivalLineCount + vanHandshakeLineCount + vanHandshakeBriefingLineCount + vanPoliceLineCount + vanEscapeLineCount + vanFourthArrivalLineCount + vanClosingLineCount + script19LineCount + script19ArrivalLineCount + script19InterludeLineCount + script19SecondDebriefLineCount + script19ClosingLineCount + script20LineCount + script20ArrivalLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount + vanSecondArrivalLineCount + vanHandshakeLineCount + vanHandshakeBriefingLineCount + vanPoliceLineCount + vanEscapeLineCount + vanFourthArrivalLineCount + vanClosingLineCount + script19LineCount + script19ArrivalLineCount + script19InterludeLineCount + script19SecondDebriefLineCount + script19ClosingLineCount + script20LineCount + script20ArrivalLineCount + script20InterludeLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1677,7 +1680,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto script20ArrivalBase = city.captions.size() - script20ArrivalLineCount;
+        const auto script20InterludeBase = city.captions.size() - script20InterludeLineCount;
+        const auto script20ArrivalBase = script20InterludeBase - script20ArrivalLineCount;
         const auto script20Base = script20ArrivalBase - script20LineCount;
         const auto script19ClosingBase = script20Base - script19ClosingLineCount;
         const auto script19SecondDebriefBase = script19ClosingBase - script19SecondDebriefLineCount;
@@ -1787,6 +1791,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             uploadSceneCaptions(nextMission->script19Closing, script19ClosingBase);
             uploadSceneCaptions(nextMission->script20Intro, script20Base);
             uploadSceneCaptions(nextMission->script20Arrival, script20ArrivalBase);
+            uploadSceneCaptions(nextMission->script20Interlude, script20InterludeBase);
             uploadSceneCaptions(nextMission->brawlNextIntro, brawlNextBase);
             uploadSceneCaptions(nextMission->cooperNextClosing, cooperClosingBase);
             city.missionCaptionBases.emplace(&nextMission->cooperNextArrival, cooperArrivalBase);
@@ -4285,18 +4290,33 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         for (const auto& [opcode, payload] : route.vanPoliceEscapeCommands)
                             program.front().push_back({opcode, payload});
                         cityRender->vanPoliceEscapeScript.emplace(std::move(program)).unlock(0, 0, 0);
-                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->script20Arrival) {
+                    } else if (handoff.nextCheckpoint && (&scene == &handoff.nextCheckpoint->script20Arrival ||
+                                                         &scene == &handoff.nextCheckpoint->script20Interlude)) {
                         const auto& route = *handoff.nextCheckpoint;
-                        playback.locoOpponents.clear();
+                        const bool first = &scene == &route.script20Arrival;
+                        if (first) {
+                            playback.locoOpponents.clear();
+                            playback.missionConditions.clear();
+                        }
                         playback.locoLockTarget.reset();
                         CityScriptProgram program(1);
-                        for (const auto& [opcode, payload] : route.script20FightCommands)
+                        for (const auto& [opcode, payload] : first ? route.script20FightCommands : route.script20SecondFightCommands)
                             program.front().push_back({opcode, payload});
                         for (auto placement : scene.placements) {
-                            if (!placement.visible || !scene.npcWeapons.count(placement.actor)) continue;
+                            if (!placement.visible) continue;
                             if (const auto* motion = cityCinematicMotion(scene, placement.actor, scene.durationMs))
                                 placement.position = cityCinematicTravelPosition(motion->travel, scene.durationMs);
-                            playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, placement, false);
+                            if (scene.npcWeapons.count(placement.actor)) {
+                                playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, placement, false);
+                            } else if (auto ally = playback.locoOpponents.find(placement.actor);
+                                       ally != playback.locoOpponents.end()) {
+                                auto& pose = ally->second.pose;
+                                pose.position = placement.position;
+                                if (const auto ground = cityRender->terrain.groundContact(pose.position)) {
+                                    pose.position[2] = ground->height;
+                                    pose.groundTriangle = ground->triangle;
+                                }
+                            }
                         }
                         using Side = CityFightOpponent::Side;
                         for (const auto& command : program.front()) {
@@ -4307,7 +4327,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                 playback.locoOpponents.at(condition->target).side = Side::friendly;
                             }
                         }
-                        playback.missionConditions.clear();
+                        cityRender->taggedFightNextScene = first ? &route.script20Interlude : nullptr;
                         cityRender->taggedFightScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->script19Arrival) {
                         playback.locoOpponents.clear();
@@ -4781,7 +4801,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                    [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, &travel, {}, &fight);
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->taggedFightScript.reset();
-                        if (cityRender->missionTitleIndex == 10) {
+                        if (cityRender->missionTitleIndex == 10 && !cityRender->taggedFightNextScene) {
                             for (auto& [name, opponent] : playback.locoOpponents) {
                                 opponent.side = CityFightOpponent::Side::neutral;
                                 opponent.aiming = false;
@@ -7003,10 +7023,39 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         update(1000);
                         if (!render.taggedFightScript)
                             throw std::runtime_error("Script 20 skipped its 1000 ms post-fight wait.");
+                        const auto& interlude = route.script20Interlude;
                         update(1);
-                        if (render.taggedFightScript || playback.missionFailure)
-                            throw std::runtime_error("Script 20 did not release its first fight wait.");
-                        std::cout << "Verified Script 20's opening, arrival, and first shootout.\n" << std::flush;
+                        if (render.taggedFightScript || playback.missionFailure ||
+                            render.pendingHummerCinematic != &interlude)
+                            throw std::runtime_error("Script 20 did not queue its second encounter cinematic.");
+                        const auto juanHealth = playback.locoOpponents.at("Juan_00").health;
+                        update(0);
+                        if (!render.postFightCinematic || render.activeMissionCinematic != &interlude ||
+                            !render.missionCaptionBases.count(&interlude) || interlude.cameras.size() != 4 ||
+                            interlude.motions.size() != 7 || interlude.dialogue.size() != 1)
+                            throw std::runtime_error("Script 20 did not bind the retail second encounter cinematic.");
+                        for (int step = 0; step < 120 && render.postFightCinematic; ++step) update(250, true);
+                        if (render.postFightCinematic || !render.taggedFightScript ||
+                            playback.locoOpponents.at("Juan_00").health != juanHealth)
+                            throw std::runtime_error("Script 20 did not resume combat with the surviving allies.");
+                        update(0);
+                        for (auto& [name, opponent] : playback.locoOpponents) {
+                            if (opponent.side != Side::hostile) continue;
+                            if (!opponent.taggedForKill || opponent.health <= 0)
+                                throw std::runtime_error("Script 20 did not restore and tag the second wave.");
+                            opponent.health = 0;
+                        }
+                        update(500);
+                        if (!render.taggedFightScript)
+                            throw std::runtime_error("Script 20 skipped its second fight's 500 ms wait.");
+                        update(1);
+                        auto conditions = playback.missionConditions;
+                        if (render.taggedFightScript || conditions.update(0, false, playback.player->position,
+                                [](std::string_view) -> std::optional<RetailMissionTargetState> {
+                                    return RetailMissionTargetState{{}, true};
+                                }).failureCause)
+                            throw std::runtime_error("Script 20 did not clear ally protection after its second fight.");
+                        std::cout << "Verified Script 20's opening, arrival, and both shootouts.\n" << std::flush;
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

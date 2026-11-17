@@ -2359,6 +2359,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script20ArrivalPlacements;
     std::vector<AnimationCommand> script20ArrivalAnimations;
     std::vector<MotionCommand> script20ArrivalMotions;
+    std::vector<NamedMove> script20InterludeMoves;
+    std::vector<DialogueCommand> script20InterludeDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script20InterludePlacements;
+    std::vector<AnimationCommand> script20InterludeAnimations;
+    std::vector<MotionCommand> script20InterludeMotions;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4378,6 +4383,35 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     command.finish();
                     fight.emplace_back(expected, std::move(payload));
                 }
+                auto transition = nextScript.record(), interludeExit = nextScript.record();
+                if (transition.integer() != 15 || interludeExit.integer() != 99 ||
+                    readScriptObject(interludeExit) != "Player")
+                    throw std::runtime_error("Invalid Script 20 second encounter entrance.");
+                transition.finish();
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                readCinematic(readCinematic, nextScript, script20Count, 0, route.script20Interlude,
+                              script20InterludeMoves, script20InterludeDialogue, script20InterludePlacements,
+                              &script20InterludeAnimations, &script20InterludeMotions, nullptr, 66);
+                route.script20Interlude.dialogue = resolveDialogue(script20InterludeDialogue);
+                if (!nextMissionObjectiveId || vanObjective(*nextMissionObjectiveId) != route.script20FightObjective)
+                    throw std::runtime_error("Unexpected Script 20 second fight objective.");
+                for (const auto expected : {85u, 85u, 85u, 85u, 57u, 46u, 91u, 68u}) {
+                    auto command = nextScript.record();
+                    if (command.integer() != expected)
+                        throw std::runtime_error("Invalid Script 20 second fight command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 85) {
+                        const auto target = readScriptObject(command);
+                        if (!route.script20Interlude.npcWeapons.count(target) ||
+                            !route.script20Arrival.npcWeapons.count(target) ||
+                            route.script20Interlude.npcWeapons.at(target) != route.script20Arrival.npcWeapons.at(target))
+                            throw std::runtime_error("Unexpected Script 20 second fight weapon or actor.");
+                    }
+                    if (expected == 57) command.integer();
+                    command.finish();
+                    route.script20SecondFightCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4453,6 +4487,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script19ClosingPlacements, next->script19Closing.placements);
                 resolvePlacements(script20Placements, next->script20Intro.placements);
                 resolvePlacements(script20ArrivalPlacements, next->script20Arrival.placements);
+                resolvePlacements(script20InterludePlacements, next->script20Interlude.placements);
                 resolvePlacements(script19SecondFightPlacements, next->script19SecondFightPlacements);
                 resolvePlacements(script19ThirdFightPlacements, next->script19ThirdFightPlacements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
@@ -4872,6 +4907,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script19Closing, script19ClosingAnimations);
                 bindCinematic(next->script20Intro, script20Animations);
                 bindCinematic(next->script20Arrival, script20ArrivalAnimations);
+                bindCinematic(next->script20Interlude, script20InterludeAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -4951,7 +4987,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                             if (prior != scene.motions.rend()) start = prior->travel.to;
                         }
                         if ((&scene == &next->elToroArrival || &scene == &next->vanHandshake ||
-                             &scene == &next->vanFourthArrival) && !motion.followsPath) {
+                             &scene == &next->vanFourthArrival || &scene == &next->script20Interlude) &&
+                            !motion.followsPath) {
                             const auto prior = std::find_if(scene.motions.rbegin(), scene.motions.rend(),
                                 [&](const auto& cue) {
                                     return cue.travel.actor == motion.actor && cue.travel.startMs >= origin->timeMs;
@@ -5009,6 +5046,19 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->vanFourthArrival, vanFourthArrivalMotions);
                 bindMotions(next->script19Arrival, script19ArrivalMotions);
                 bindMotions(next->script20Arrival, script20ArrivalMotions);
+                for (const auto& cue : next->script20Arrival.placements) {
+                    if (!cue.visible || !next->script20Arrival.npcWeapons.count(cue.actor) ||
+                        next->script20Interlude.npcWeapons.count(cue.actor)) continue;
+                    auto origin = cue;
+                    origin.timeMs = 0;
+                    const auto& motions = next->script20Arrival.motions;
+                    const auto motion = std::find_if(motions.rbegin(), motions.rend(),
+                        [&](const auto& item) { return item.travel.actor == cue.actor; });
+                    if (motion != motions.rend()) origin.position = motion->travel.to;
+                    next->script20Interlude.placements.insert(next->script20Interlude.placements.begin(), std::move(origin));
+                }
+                bindInitialIdle(next->script20Interlude);
+                bindMotions(next->script20Interlude, script20InterludeMotions);
                 bindMotions(next->script19Closing, script19ClosingMotions);
                 for (const auto& approach : vanProtectionMotions) {
                     const auto& arrival = next->vanSecondArrival;
@@ -5175,6 +5225,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script19ClosingMoves)
                             next->script19Closing.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script20InterludeMoves)
+                            next->script20Interlude.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script20ArrivalMoves)
                             next->script20Arrival.cameras.push_back(
