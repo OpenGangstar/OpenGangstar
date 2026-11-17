@@ -455,10 +455,14 @@ mission playthroughs for discovery or verification.
   The retail entry cue seats the player in the van during the fade,
   and the handoff removes the defeated attackers, restores van
   protection, and starts El Toro's next briefing. The fixture verifies
-  the seated player, actor cleanup, and briefing timing. The third
-  destination is decoded. Its live checkpoint, passenger seating,
-  parallel script 21 race, retail payment presentation and audio,
-  unaffordable repair feedback, and scripted look cues remain open.
+  the seated player, actor cleanup, and briefing timing. The third van
+  checkpoint plays Juan's arrival scene, then runs the authored six-second
+  wait and police reveal. The automated fixture checks the checkpoint,
+  the wait boundary, and both police dialogue lines. The two-star command
+  and next objective are decoded. Live wanted behavior and pursuit,
+  passenger seating, the parallel script 21 race, retail payment
+  presentation and audio, unaffordable repair feedback, and scripted
+  look cues remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
