@@ -1657,6 +1657,21 @@ void poseRetailDoor(const std::filesystem::path& root)
             hummerRoute.locoNextTitle && hummerRoute.locoNextTitle->id == 9 &&
             hummerRoute.locoNextIntro.cameras.size() == 4 && hummerRoute.locoNextIntro.dialogue.size() == 2 &&
             !hummerRoute.locoNextObjective.empty(), "Retail Loco reward or script 26 handoff changed.");
+    const auto& cooperScene = hummerRoute.locoCooperIntro;
+    require(cooperScene.cameras.size() == 1 && cooperScene.dialogue.size() == 2 &&
+            cooperScene.vehicleDrives.size() == 1 && cooperScene.deferredDisables.size() == 1 &&
+            cooperScene.deferredDisables.front().second == "LocoGuard_00" &&
+            !hummerRoute.locoCooperObjective.empty() && markerDraw.cooperGeometry &&
+            markerDraw.cooperGeometry->vehicleVertexCount > 0,
+            "Retail Cooper cinematic data or independent geometry changed.");
+    const CityTerrain cooperTerrain;
+    const auto& cooperDrive = cooperScene.vehicleDrives.front();
+    const auto cooperParked = cityStagedVehiclePose(cooperScene, cooperDrive.actor, cooperTerrain, cooperDrive.startMs - 1.);
+    const auto cooperMoving = cityStagedVehiclePose(cooperScene, cooperDrive.actor, cooperTerrain, cooperDrive.startMs + 500.);
+    require(cooperDrive.actor == "aCooper_00" && std::abs(cooperDrive.speedCmPerMs - 60.f / 36) < 0.001f &&
+            !cityStagedVehiclePose(cooperScene, cooperDrive.actor, cooperTerrain, 0) && cooperParked && cooperMoving &&
+            cooperMoving->position != cooperParked->position && cooperMoving->wheelTravel > 0,
+            "Retail Cooper did not spawn and drive at its authored timing.");
     const auto& fightIntro = hummerRoute.postLcFightIntro;
     require(fightIntro.cameras.size() == 1 && fightIntro.dialogue.size() == 3 &&
             fightIntro.fades.size() == 4 && fightIntro.fades.front().durationMs == 350 &&

@@ -406,6 +406,7 @@ struct CityMissionCinematic {
         float speedCmPerMs;
     };
     std::vector<VehicleDrive> vehicleDrives;
+    std::vector<std::pair<uint32_t, std::string>> deferredDisables;
     uint32_t durationMs = 0;
     uint32_t nextScript = 0;
     std::optional<uint32_t> followCameraMs;
@@ -479,6 +480,8 @@ struct CityPostFightScene : CityMissionCinematic {
         std::optional<CityMissionTitle> locoNextTitle;
         CityMissionCinematic locoNextIntro;
         std::string locoNextObjective;
+        CityMissionCinematic locoCooperIntro;
+        std::string locoCooperObjective;
         std::optional<CityCinematicPlacement> locoGuardPlacement;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> locoGuardCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postLcFightCommands;

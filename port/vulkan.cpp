@@ -465,6 +465,7 @@ struct CityRender {
         destroyTexture(postLcConfrontationObjective);
         destroyTexture(postLcFightObjective);
         destroyTexture(locoNextObjective);
+        destroyTexture(locoCooperObjective);
         destroyTexture(weaponShopTutorial);
         for (const auto& texture : weaponShopInventory) destroyTexture(texture);
         for (const auto& texture : weaponShopConfirmation) destroyTexture(texture);
@@ -546,7 +547,12 @@ struct CityRender {
     bool postLcAmbushFinished = false;
     std::optional<RetailScriptExecution> postLcWalkScript;
     std::optional<RetailScriptExecution> postLcFightScript;
-    CityTexture locoNextObjective;
+    CityTexture locoNextObjective, locoCooperObjective;
+    bool locoCooperPending = false;
+    bool locoCooperIntroFinished = false;
+    std::optional<CityVehicleGeometry> cooperGeometry;
+    std::optional<size_t> cooperActor;
+    std::vector<CityVertex> cooperVertices;
     std::optional<RetailScriptExecution> locoGuardScript;
     struct WalkingMarker { size_t index; double startMs; };
     std::optional<WalkingMarker> postLcWalkMarker;
@@ -1062,6 +1068,12 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* locoNextLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->locoNextIntro.dialogue : nullptr;
     const auto locoNextLineCount = locoNextLines ? locoNextLines->size() : 0;
+    const auto* cooperLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->locoCooperIntro.dialogue : nullptr;
+    const auto cooperLineCount = cooperLines ? cooperLines->size() : 0;
+    if (cooperLines)
+        for (const auto& dialogue : *cooperLines)
+            if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
     if (locoNextLines)
         for (const auto& dialogue : *locoNextLines)
             if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
@@ -1150,8 +1162,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount +
-                                             hasPayphoneObjective + (next ? 16 : 0) +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount +
+                                             hasPayphoneObjective + (next ? 17 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1317,7 +1329,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1359,6 +1371,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.postLcFightObjective}, true, false, 432, 68, font.family()));
             upload(city.locoNextObjective,
                    rasterCaption({0, 0, {}, next.locoNextObjective}, true, false, 432, 68, font.family()));
+            upload(city.locoCooperObjective,
+                   rasterCaption({0, 0, {}, next.locoCooperObjective}, true, false, 432, 68, font.family()));
             auto tutorial = route->postFight.nextCheckpoint->weaponShopTutorial;
             tutorial.text = "Walk to the yellow marker and press E or gamepad A to enter.";
             upload(city.weaponShopTutorial, rasterCaption(tutorial, true, false, 432, 68, font.family()));
@@ -1402,7 +1416,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto locoNextBase = city.captions.size() - locoNextLineCount;
+        const auto cooperBase = city.captions.size() - cooperLineCount;
+        const auto locoNextBase = cooperBase - locoNextLineCount;
         const auto fightIntroBase = locoNextBase - fightIntroLineCount;
         const auto phoneBase = fightIntroBase - phoneLineCount;
         const auto confrontationBase = phoneBase - confrontationLineCount;
@@ -1437,6 +1452,12 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             for (size_t i = 0; i < postLcLineCount; ++i) {
                 const auto& line = (*postLcLines)[i];
                 upload(city.captions[postLcBase + i],
+                       rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
+            }
+            city.missionCaptionBases.emplace(&nextMission->locoCooperIntro, cooperBase);
+            for (size_t i = 0; i < cooperLineCount; ++i) {
+                const auto& line = (*cooperLines)[i];
+                upload(city.captions[cooperBase + i],
                        rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
             }
             city.missionCaptionBases.emplace(&nextMission->locoNextIntro, locoNextBase);
@@ -1998,6 +2019,15 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     std::optional<std::array<float, 2>> minimapMarker;
     size_t minimapMarkerStep = 0;
     const bool updateVehicle = vehicle && !city.vehicleVertices.empty();
+    std::optional<CityVehiclePose> cooperPose;
+    if (city.cooperActor && city.cooperGeometry) {
+        const auto& scene = city.opening.payphone->postFight.nextCheckpoint->locoCooperIntro;
+        if (city.locoCooperIntroFinished || (missionScene == &scene && postFightMs)) {
+            const auto time = city.locoCooperIntroFinished ? double(scene.durationMs) : *postFightMs;
+            const auto& actor = city.opening.actors[*city.cooperActor];
+            cooperPose = cityStagedVehiclePose(scene, actor.name, city.terrain, time);
+        }
+    }
     const auto wheelOffsets = updateVehicle
         ? cityVehicleWheelOffsets(city.opening.actors.at(*city.opening.vehicleActor), *vehicle,
                                   city.wheels, city.terrain) : std::vector<float>{};
@@ -2035,7 +2065,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         [](const CityVehicleEffect& effect) { return !effect.simulation.particles().empty(); });
     if (!city.skins.empty() || !city.billboards.empty() || updateVehicle || city.restoreVehicleGeometry || updateWalkMarker ||
         updateRouteMarker || updateVehicleMarker || updateNextMissionMarker || updateHummerMarker || updateShopMarker ||
-        updateLcMarker || updatePostLcDriveMarker || walkMarker || showMinimap || particlesVisible || lights) {
+        updateLcMarker || updatePostLcDriveMarker || walkMarker || cooperPose || showMinimap || particlesVisible || lights) {
         if (updateVehicle)
             poseCityVehicle(city.opening.actors[*city.opening.vehicleActor], *vehicle, city.vehicleVertices,
                             city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets);
@@ -2111,6 +2141,16 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             const auto* vertices = updateVehicle ? city.vertices.data() + city.vehicleFirstVertex : city.vehicleVertices.data();
             std::memcpy(static_cast<char*>(mapped) + offset, vertices, city.vehicleVertices.size() * sizeof(CityVertex));
             city.restoreVehicleGeometry = false;
+        }
+        if (cooperPose) {
+            const auto& geometry = *city.cooperGeometry;
+            const auto& actor = city.opening.actors[*city.cooperActor];
+            auto* vertices = city.vertices.data() + geometry.vehicleFirstVertex;
+            const auto offsets = cityVehicleWheelOffsets(actor, *cooperPose, geometry.wheels, city.terrain);
+            poseCityVehicle(actor, *cooperPose, city.cooperVertices, geometry.wheels,
+                            geometry.vehicleMorphs, vertices, offsets);
+            std::memcpy(static_cast<char*>(mapped) + geometry.vehicleFirstVertex * sizeof(CityVertex),
+                        vertices, city.cooperVertices.size() * sizeof(CityVertex));
         }
         for (size_t index = 0; index < city.checkpointMeshes.size(); ++index) {
             if (!updateMarkers[index]) continue;
@@ -2310,8 +2350,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     for (size_t i = 0; i < regularSurfaceCount; ++i) {
         if (i >= city.lowDetailFirstSurface && i < city.lowDetailEndSurface) continue;
         const auto& surface = city.surfaces[i];
-        if (!citySurfaceVisible(surface, city.opening, city.playback, actorSceneMs, actorMissionMs, actorScene) ||
-            (surface.bounds && (!cityBoundsVisible(*surface.bounds, frustum) ||
+        const bool cooperSurface = city.cooperActor && surface.payphoneActor == city.cooperActor;
+        const bool visible = cooperSurface ? cooperPose.has_value() && !surface.vehicleInterior :
+            citySurfaceVisible(surface, city.opening, city.playback, actorSceneMs, actorMissionMs, actorScene);
+        if (!visible || (surface.bounds && (!cityBoundsVisible(*surface.bounds, frustum) ||
                                 (surface.lodLimit && !surface.lodLimit->visible(cameraEye))))) continue;
         const auto atOrAfter = [i](std::optional<size_t> first) { return first && i >= *first; };
         std::optional<bool> marker;
@@ -2548,6 +2590,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.postLcIntroFinished && city.hummerRouteScript && city.postLcDriveObjective.descriptor)
             overlay(city.postLcDriveObjective.descriptor, screen, city.captionVertex, 6);
+        else if (city.locoCooperIntroFinished && city.locoCooperObjective.descriptor)
+            overlay(city.locoCooperObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.locoGuardScript && city.locoNextObjective.descriptor)
             overlay(city.locoNextObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.postLcFightScript && city.postLcFightObjective.descriptor)
@@ -3000,6 +3044,12 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     cityRender->postFightCinematic.emplace();
                 }
             }
+            if (cityRender->locoCooperPending && !playback.scriptedVehicleExit &&
+                !(playback.vehicle && (playback.vehicle->occupied || playback.vehicle->doorAction))) {
+                cityRender->locoCooperPending = false;
+                cityRender->activeMissionCinematic = &cityRender->opening.payphone->postFight.nextCheckpoint->locoCooperIntro;
+                cityRender->postFightCinematic.emplace();
+            }
             const bool postFight = cityRender->postFightCinematic.has_value();
             if (postFight) {
                 const auto& handoff = cityRender->opening.payphone->postFight;
@@ -3008,6 +3058,12 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 auto& cinematicPlayback = *cityRender->postFightCinematic;
                 const auto before = cinematicPlayback.elapsedMs();
                 const bool finished = cinematicPlayback.advance(scene, delta, pressed, playCue);
+                for (const auto& [time, actor] : scene.deferredDisables) {
+                    if (cinematicPlayback.elapsedMs() < time || cinematicPlayback.activeDialogue()) continue;
+                    const auto found = playback.locoOpponents.find(actor);
+                    if (found != playback.locoOpponents.end() && !found->second.disabled)
+                        found->second.disablePending = true;
+                }
                 if (&scene == &handoff && handoff.missionOverMs &&
                     cinematicPlayback.elapsedMs() >= *handoff.missionOverMs && cityRender->opening.missionTitle)
                     completeOpeningMission(*cityRender, 0, *cityRender->opening.missionTitle);
@@ -3090,6 +3146,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         script.unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->locoNextIntro) {
                         activateLocoGuard(*cityRender);
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->locoCooperIntro) {
+                        cityRender->locoCooperIntroFinished = true;
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postLcFightIntro) {
                         CityScriptProgram program(1);
                         for (const auto& [opcode, payload] : handoff.nextCheckpoint->postLcFightCommands)
@@ -3101,7 +3159,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             }
             const bool walking = movement && playback.elapsedMs >= *movement && !cityRender->terrain.ground.empty();
             const bool occupied = playback.vehicle && playback.vehicle->occupied;
-            const bool scriptedArrival = cityRender->returnToLcFadeMs ||
+            const bool scriptedArrival = cityRender->returnToLcFadeMs || cityRender->locoCooperPending ||
                 (cityRender->postLcIntroFinished && cityRender->pendingHummerCinematic);
             const auto input = scriptedArrival ? std::array<float, 2>{} : touch->movement(occupied);
             if (walking && !playback.missionFailure && !cinematic && !postFight &&
@@ -3191,7 +3249,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     auto& script = *cityRender->locoGuardScript;
                     script.execute(0, static_cast<int32_t>(std::clamp(delta, 0., 1000.)), 0,
                                    [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &guard);
-                    if (script.state(0) == RetailScriptState::locked) cityRender->locoGuardScript.reset();
+                    if (script.state(0) == RetailScriptState::locked) {
+                        cityRender->locoGuardScript.reset();
+                        cityRender->locoCooperPending = true;
+                    }
                 }
                 if (cityRender->nextMissionScript) {
                     const auto& next = *cityRender->opening.payphone->postFight.nextCheckpoint;
@@ -3667,6 +3728,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     render->vehicleMorphs = std::move(geometry.vehicleMorphs);
                     render->nextVehicleGeometry = std::move(geometry.nextVehicleGeometry);
                     render->nextVehicleFootprint = geometry.nextVehicleFootprint;
+                    render->cooperActor = geometry.cooperActor;
+                    render->cooperGeometry = std::move(geometry.cooperGeometry);
+                    if (render->cooperGeometry) {
+                        const auto& cooper = *render->cooperGeometry;
+                        const auto first = geometry.vertices.begin() + cooper.vehicleFirstVertex;
+                        render->cooperVertices.assign(first, first + cooper.vehicleVertexCount);
+                    }
                     render->checkpointMeshes = std::move(geometry.checkpointMeshes);
                     render->lowDetailFirstSurface = geometry.districtSurfaceCount;
                     render->lowDetailEndSurface = geometry.lowDetailEndSurface;
@@ -3988,6 +4056,16 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         update(1);
                         if (render.locoGuardScript || guard.defeatMs < 501)
                             throw std::runtime_error("Script 26 did not release the guard gate after the retail wait.");
+                        update(0);
+                        const auto& cooperScene = route.locoCooperIntro;
+                        if (render.activeMissionCinematic != &cooperScene || !render.postFightCinematic ||
+                            !render.cooperGeometry || !render.cooperActor || render.cooperVertices.empty())
+                            throw std::runtime_error("Script 26 did not start the Cooper cinematic after the guard.");
+                        for (int step = 0; step < 64 && render.postFightCinematic; ++step) update(250, true);
+                        if (render.postFightCinematic || !render.locoCooperIntroFinished ||
+                            !render.locoCooperObjective.descriptor || (!guard.disablePending && !guard.disabled) ||
+                            !playback.vehicle)
+                            throw std::runtime_error("Script 26 did not hand off the Cooper objective.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

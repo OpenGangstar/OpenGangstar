@@ -991,15 +991,20 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
         const auto* nextMission = opening.payphone && opening.payphone->postFight.nextCheckpoint
             ? &*opening.payphone->postFight.nextCheckpoint : nullptr;
         const bool nextVehicle = actor.payphoneOnly && nextMission && actor.name == nextMission->targetVehicle;
+        const bool cooper = actor.payphoneOnly && nextMission && !nextMission->locoCooperIntro.vehicleDrives.empty() &&
+            actor.name == nextMission->locoCooperIntro.vehicleDrives.front().actor;
         CityVehicleGeometry* vehicle = opening.vehicleActor == i ? &draw :
-            nextVehicle ? &draw.nextVehicleGeometry.emplace() : nullptr;
+            nextVehicle ? &draw.nextVehicleGeometry.emplace() : cooper ? &draw.cooperGeometry.emplace() : nullptr;
+        if (cooper) draw.cooperActor = i;
         appendScene(draw, city, actor.model, actorTransform(actor), actor.startMs, &actor, i, vehicle);
         if (vehicle) {
             vehicle->vehicleFirstVertex = first;
             vehicle->vehicleVertexCount = static_cast<uint32_t>(draw.vertices.size()) - first;
-            const auto footprint = measureVehicleFootprint(actor, draw.vertices, first);
-            if (nextVehicle) draw.nextVehicleFootprint = footprint;
-            else draw.terrain.vehicleFootprint = footprint;
+            if (!cooper) {
+                const auto footprint = measureVehicleFootprint(actor, draw.vertices, first);
+                if (nextVehicle) draw.nextVehicleFootprint = footprint;
+                else draw.terrain.vehicleFootprint = footprint;
+            }
             for (auto& wheel : vehicle->wheels) wheel.firstVertex -= first;
             for (auto& morph : vehicle->vehicleMorphs) morph.firstVertex -= first;
         }
@@ -1111,7 +1116,6 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
                 playback.vehicle && playback.vehicle->doorAction;
         const auto& actor = opening.actors.at(*surface.payphoneActor);
         const auto loco = playback.locoOpponents.find(actor.name);
-        if (!missionScene && loco != playback.locoOpponents.end()) return !loco->second.disabled;
         if (playback.payphoneOpponentDisabled && playback.payphoneAttack &&
             actor.name == playback.payphoneAttack->attacker) return false;
         if (missionMs && missionScene) {
@@ -1119,6 +1123,8 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
                 return cue->visible;
         }
         const auto& next = opening.payphone->postFight.nextCheckpoint;
+        if ((!missionScene || (next && missionScene == &next->locoCooperIntro)) &&
+            loco != playback.locoOpponents.end()) return !loco->second.disabled;
         if (playback.nextMissionVehicleActive && next && actor.name == next->targetVehicle)
             return !playback.openingMissionsPaid[1] || playback.postLcVehicleActive;
         const auto* placement = cityPayphonePlacement(*opening.payphone,
@@ -2399,6 +2405,19 @@ std::optional<std::array<float, 3>> cityTailingActorPosition(const CityMissionCi
     return position;
 }
 
+std::optional<CityVehiclePose> cityStagedVehiclePose(const CityMissionCinematic& scene,
+    std::string_view actor, const CityTerrain& terrain, double elapsedMs)
+{
+    const auto* placement = cinematicPlacement(scene.placements, actor, elapsedMs);
+    if (!placement || !placement->visible) return std::nullopt;
+    CityVehiclePose initial{placement->position, placement->rotationDegrees[2]};
+    if (const auto ground = terrain.groundContact(initial.position)) {
+        initial.position[2] = ground->height;
+        initial.groundTriangle = ground->triangle;
+    }
+    return cityCinematicVehiclePose(scene, actor, initial, terrain, elapsedMs).value_or(initial);
+}
+
 std::optional<CityVehiclePose> cityCinematicVehiclePose(const CityMissionCinematic& scene,
     std::string_view actor, const CityVehiclePose& initial, const CityTerrain& terrain, double elapsedMs)
 {
@@ -2461,8 +2480,10 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
                     const CityPlayback& playback, CityVertex* vertices, std::optional<double> payphoneMs,
                     std::optional<double> missionMs, const CityMissionCinematic* missionScene, const CityTerrain* terrain)
 {
-    const bool tailing = missionScene && opening.payphone && opening.payphone->postFight.nextCheckpoint &&
-        missionScene == &opening.payphone->postFight.nextCheckpoint->postLcTail;
+    const auto* route = opening.payphone && opening.payphone->postFight.nextCheckpoint
+        ? &*opening.payphone->postFight.nextCheckpoint : nullptr;
+    const bool tailing = route && missionScene == &route->postLcTail;
+    const bool showLiveOpponents = !missionScene || (route && missionScene == &route->locoCooperIntro);
     for (const auto& range : skins) {
         const auto& actor = opening.actors[range.actor];
         const auto elapsedMs = actor.payphoneOnly ? payphoneMs.value_or(-1) : playback.elapsedMs;
@@ -2477,7 +2498,7 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
             (actor.payphoneOnly || (player && *payphoneMs < opening.payphone->cinematicDurationMs))
             ? cityPayphonePlacement(*opening.payphone, actor.name, *payphoneMs) : nullptr;
         const auto locoEntry = playback.locoOpponents.find(actor.name);
-        const auto* loco = actor.payphoneOnly && !missionScene && locoEntry != playback.locoOpponents.end() &&
+        const auto* loco = actor.payphoneOnly && showLiveOpponents && !missionPlacement && locoEntry != playback.locoOpponents.end() &&
             !locoEntry->second.disabled ? &locoEntry->second : nullptr;
         if (actor.payphoneOnly && !loco && opening.vehicleActor != range.actor && (!staging || !staging->visible)) continue;
         if (staging && staging->visible) {

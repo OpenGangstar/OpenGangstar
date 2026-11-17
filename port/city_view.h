@@ -179,7 +179,8 @@ struct CityDrawData : CityVehicleGeometry {
     std::optional<size_t> returnToLcFirstSurface;
     std::optional<size_t> postLcDriveFirstSurface;
     std::array<std::optional<size_t>, 3> postLcWalkFirstSurfaces;
-    std::optional<CityVehicleGeometry> nextVehicleGeometry;
+    std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry;
+    std::optional<size_t> cooperActor;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint;
     std::array<std::vector<CityCheckpointMesh>, 13> checkpointMeshes;
     std::vector<CityVehicleLightMesh> vehicleLights;
@@ -430,6 +431,8 @@ const CityCinematicPlacement* cityPayphonePlacement(const CityPayphoneRoute& rou
 const CityMissionCinematic::Motion* cityCinematicMotion(const CityMissionCinematic& scene,
                                                        std::string_view actor, double elapsedMs);
 std::optional<std::array<float, 3>> cityTailingActorPosition(const CityMissionCinematic& scene,
+    std::string_view actor, const CityTerrain& terrain, double elapsedMs);
+std::optional<CityVehiclePose> cityStagedVehiclePose(const CityMissionCinematic& scene,
     std::string_view actor, const CityTerrain& terrain, double elapsedMs);
 std::optional<CityVehiclePose> cityCinematicVehiclePose(const CityMissionCinematic& scene,
     std::string_view actor, const CityVehiclePose& initial, const CityTerrain& terrain, double elapsedMs);

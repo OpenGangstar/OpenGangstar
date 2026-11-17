@@ -344,8 +344,13 @@ mission playthroughs for discovery or verification.
   Windows uses the existing melee approximation, with the guard idle
   until damaged and retaliating afterward. The guard defeat animation
   and retail 500 ms wait run before the player exit command. Automated
-  smoke covers damage, defeat, and that wait. The retail NPC AI and
-  the Cooper scene after the guard remain open.
+  smoke covers damage, defeat, and that wait. After any scripted Hummer
+  exit, the Cooper scene runs its authored camera and dialogue, then
+  returns to the follow camera with the next localized objective. The
+  Cooper spawns independently of the Hummer, rolls toward the retail
+  marker at 60 km/h, and holds its last pose. Windows samples that drive
+  in a straight line and defers the guard's removal until it leaves view.
+  Retail NPC AI, Loco's entry into the Cooper, and the live escape remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
