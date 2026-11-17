@@ -40,6 +40,7 @@ public:
     void setPursuers(unsigned count);
     bool update(double deltaMs);
     int32_t level() const { return stars; }
+    bool beingPursued() const { return pursuers != 0; }
     bool escaping() const { return phase == Phase::blinking; }
 
 private:

@@ -460,8 +460,9 @@ mission playthroughs for discovery or verification.
   wait and police reveal. The automated fixture checks the checkpoint,
   the wait boundary, both police dialogue lines, the two-star HUD, and van
   reentry. The next objective waits for zero stars. The retail escape timer
-  has isolated coverage. The city runtime still needs police pursuit input
-  to drive that timer and a blinking HUD during escape.
+  has isolated coverage. The wanted HUD plays the authored star and empty
+  frames while no police are pursuing the player. The city runtime still
+  needs police pursuit events to drive the escape timer and steady stars.
   Remaining work includes
   passenger seating, the parallel script 21 race, retail payment
   presentation and audio, unaffordable repair feedback, and scripted

@@ -174,7 +174,24 @@ RetailStatusHud loadRetailStatusHud(FileSystemBase& assets)
     constexpr std::array spyNames{"SPY_GAUGE_BG", "SPY_GAUGE", "SPY_GAUGE_ICON", "SPY_GAUGE_INDICATOR"};
     for (size_t i = 0; i < spyNames.size(); ++i) loadGaugeLayer(spyNames[i], hud.spyLayers[i]);
     constexpr std::array starNames{"STAR_01", "STAR_02", "STAR_03", "STAR_04", "STAR_05"};
-    for (size_t i = 0; i < starNames.size(); ++i) loadGaugeLayer(starNames[i], hud.wantedStars[i]);
+    for (size_t i = 0; i < starNames.size(); ++i) {
+        loadGaugeLayer(starNames[i], hud.wantedStars[i]);
+        // WantedMeter uses the next five animations when no police are in pursuit.
+        const auto& blink = sprite.animations.at(6 + i);
+        if (blink.name != std::string(starNames[i]) + "_BLINK" || blink.count != 2)
+            throw std::runtime_error("Unexpected retail wanted star animation.");
+        std::array<uint16_t, 2> durations{};
+        for (size_t j = 0; j < durations.size(); ++j) {
+            const auto& step = sprite.animationFrames.at(blink.first + j);
+            if (sprite.frames.at(step.frame).name != (j == 0 ? starNames[i] : "EMPTY"))
+                throw std::runtime_error("Unexpected retail wanted star animation frame.");
+            durations[j] = uint16_t(step.parameters[0]) | (uint16_t(step.parameters[1]) << 8);
+            if (!durations[j]) throw std::runtime_error("Empty retail wanted star animation duration.");
+        }
+        if (i == 0) hud.wantedBlink.frameDurations = durations;
+        else if (hud.wantedBlink.frameDurations != durations)
+            throw std::runtime_error("Retail wanted star animations have different timings.");
+    }
     // The default CHudManager cash widget uses LITTLEY digits and separators.
     constexpr std::array<size_t, retailCashCharacters.size()> cashFrames{
         96, 87, 88, 89, 90, 91, 92, 93, 94, 95, 86, 97, 172};
@@ -192,6 +209,13 @@ RetailStatusHud loadRetailStatusHud(FileSystemBase& assets)
         paintRetailSpriteDraws(sprite, atlas, composeRetailSpriteFrame(sprite, frameIndex), glyph);
     }
     return hud;
+}
+
+void RetailWantedBlink::update(bool beingPursued)
+{
+    const auto duration = 2u * (frameDurations[0] + frameDurations[1]);
+    // AnimObject advances by half a sprite frame per HUD update and restarts on animation changes.
+    halfFrame = beingPursued || !duration ? 0 : (halfFrame + 1) % duration;
 }
 
 std::string formatRetailCash(int32_t amount, RetailLanguage language)

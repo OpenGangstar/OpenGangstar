@@ -579,6 +579,7 @@ struct CityRender {
     std::optional<RetailScriptExecution> vanProtectionScript, vanHandshakeScript, vanPoliceWaitScript, vanPoliceEscapeScript;
     CityTexture vanPoliceWaitObjective, vanPoliceObjective, vanLosePoliceObjective;
     RetailWantedState wanted;
+    RetailWantedBlink wantedBlink;
     bool vanEnteredForEscape = false;
     double vanProtectionMs = 0;
     std::optional<RetailScriptExecution> vanAcquisitionScript, vanDriveScript, vanReentryScript;
@@ -3005,9 +3006,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         drawStatusGauge(lifeGauge, city.playback.playerHealth, CityPlayback::playerMaxHealth, city.healthBlink.hideFill);
         if (city.playback.playerArmor > 0 && !(vehicle && vehicle->occupied))
             drawStatusGauge(armorGauge, city.playback.playerArmor, CityPlayback::playerMaxArmor, false);
-        for (size_t i = 0; i < static_cast<size_t>(city.wanted.level()); ++i)
-            if (city.wantedStars[i].descriptor)
-                overlay(city.wantedStars[i].descriptor, screen, city.wantedStarVertices[i], 6);
+        if (city.wantedBlink.visible())
+            for (size_t i = 0; i < static_cast<size_t>(city.wanted.level()); ++i)
+                if (city.wantedStars[i].descriptor)
+                    overlay(city.wantedStars[i].descriptor, screen, city.wantedStarVertices[i], 6);
         if (city.spyGauge && city.spyWidth) {
             for (size_t i = 0; i < city.spyLayers.size() - 1; ++i)
                 overlay(city.spyLayers[i].descriptor, screen, city.spyVertices[i], 6);
@@ -4858,8 +4860,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 std::cout << "Opening mission failed with cause " << *playback.missionFailure
                           << " (attempt " << playback.missionFailureCount << ").\n" << std::flush;
             }
-            if (cityRender->payphoneGameplayMs && !cityRender->postFightCinematic)
+            if (cityRender->payphoneGameplayMs && !cityRender->postFightCinematic) {
                 cityRender->healthBlink.update(playback.playerHealth, delta);
+                cityRender->wantedBlink.update(cityRender->wanted.beingPursued());
+            }
             presentCity(*cityRender, info.imageExtent);
             if (previous < cityRender->opening.handoffMs && playback.elapsedMs >= cityRender->opening.handoffMs)
                 std::cout << "Started the visual track of retail script " << cityRender->opening.nextScript
@@ -5028,6 +5032,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     std::optional<RetailStatusHud> statusHud;
                     if (opening.payphone) {
                         statusHud = loadRetailStatusHud(*assets);
+                        render->wantedBlink = statusHud->wantedBlink;
                         for (size_t i = 0; i < statusHud->gauges.size(); ++i) {
                             const auto& source = statusHud->gauges[i];
                             auto& gauge = render->statusGauges[i];

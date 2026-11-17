@@ -46,10 +46,20 @@ struct RetailHudGauge {
 
 enum RetailStatusGauge { lifeGauge, armorGauge, statusGaugeCount };
 inline constexpr std::string_view retailCashCharacters = "0123456789$,.";
+struct RetailWantedBlink {
+    std::array<uint16_t, 2> frameDurations{};
+    void update(bool beingPursued);
+    bool visible() const { return !frameDurations[0] || halfFrame < 2u * frameDurations[0]; }
+
+private:
+    uint32_t halfFrame = 0;
+};
+
 struct RetailStatusHud {
     std::array<RetailHudGauge, statusGaugeCount> gauges;
     std::array<RetailHudGauge::Layer, 4> spyLayers;
     std::array<RetailHudGauge::Layer, 5> wantedStars;
+    RetailWantedBlink wantedBlink;
     std::array<Image, retailCashCharacters.size()> cashGlyphs;
 };
 RetailStatusHud loadRetailStatusHud(FileSystemBase& assets);

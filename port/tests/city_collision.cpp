@@ -1134,6 +1134,18 @@ void poseRetailDoor(const std::filesystem::path& root)
               << " moving spawn points with road flags, " << roadSpeeds.size() << " speed codes.\n";
     const auto minimap = loadRetailMinimap(assets);
     const auto hud = loadRetailStatusHud(assets);
+    auto wantedBlink = hud.wantedBlink;
+    require(wantedBlink.frameDurations == std::array<uint16_t, 2>{4, 4},
+            "Retail wanted star animation durations changed.");
+    for (int tick = 1; tick <= 16; ++tick) {
+        wantedBlink.update(false);
+        require(wantedBlink.visible() == (tick % 16 < 8), "Retail wanted stars blinked on the wrong tick.");
+    }
+    for (int tick = 0; tick < 8; ++tick) wantedBlink.update(false);
+    wantedBlink.update(true);
+    require(wantedBlink.visible(), "Wanted stars did not become steady when pursued.");
+    for (int tick = 0; tick < 7; ++tick) wantedBlink.update(false);
+    require(wantedBlink.visible(), "Wanted stars did not restart the blink after pursuit.");
     const auto& armor = hud.gauges[armorGauge];
     const auto& life = hud.gauges[lifeGauge];
     require(armor.layers[1].image.width == 171 && armor.layers[1].y == 17 &&
