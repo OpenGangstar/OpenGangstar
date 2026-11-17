@@ -829,6 +829,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city,
                             RetailLanguage language = RetailLanguage::english);
 void validateBresContainer(FileSystemBase& assets, const std::string& path);
 CityScene loadCityScene(FileSystemBase& assets, const std::string& path);
+std::map<uint8_t, CityActor> loadCitySpawnActors(FileSystemBase& assets, const CityAssets& city);
 CityAnimationClip readCityParticleClip(const CityScene& scene);
 std::vector<CityAnimationClip> loadCityDoorClips(FileSystemBase& assets, const std::string& path);
 void bindCityAnimationTracks(std::vector<CityAnimationClip>& clips, const CityScene& model);

@@ -1391,6 +1391,23 @@ CityScene loadCityScene(FileSystemBase& assets, const std::string& path)
     return loadScene(assets, path, true, true);
 }
 
+std::map<uint8_t, CityActor> loadCitySpawnActors(FileSystemBase& assets, const CityAssets& city)
+{
+    const auto animations = loadBres(assets, "anim_ingame.bdae");
+    std::map<uint8_t, CityActor> actors;
+    for (const auto& [id, definition] : city.spawnMetatypes) {
+        auto& actor = actors[id];
+        actor.name = definition.name;
+        actor.model = loadCityScene(assets, definition.model);
+        actor.scale = definition.scale;
+        if (definition.objectType != 5) continue;
+        actor.skins = readActorSkins(actor.model);
+        if (actor.skins.empty()) throw std::runtime_error("Missing ambient pedestrian skin for " + definition.model);
+        actor.fightIdle = readClip(animations, &actor.model, "move_idle");
+    }
+    return actors;
+}
+
 std::vector<CityHighlight> loadCityHighlights(FileSystemBase& assets)
 {
     const auto entries = readHighlights(assets);

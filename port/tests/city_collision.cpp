@@ -1040,6 +1040,28 @@ void poseRetailDoor(const std::filesystem::path& root)
     const auto city = loadCityAssets(assets);
     require(!city.spawnGroups.empty(), "Retail spawn group table was empty.");
     CitySpawnPool retailPool(city.spawnGroups);
+    CityDrawData ambientGeometry;
+    const auto ambientMeshes = appendCitySpawnMeshes(ambientGeometry, city, retailPool, assets);
+    require(ambientMeshes.size() == retailPool.capacity() && ambientGeometry.skins.empty(),
+            "Ambient meshes did not retain their own skin ranges.");
+    size_t animatedSlots = 0;
+    for (size_t slot = 0; slot < ambientMeshes.size(); ++slot) {
+        if (city.spawnMetatypes.at(retailPool.metatype(slot)).objectType != 5) continue;
+        const auto& mesh = ambientMeshes[slot];
+        require(mesh.actor->fightIdle && !mesh.skins.empty(), "Missing retail idle clip or ambient skin.");
+        const double duration = mesh.actor->fightIdle->durationMs;
+        require(duration > 0, "Retail ambient idle clip has no duration.");
+        std::vector<CityVertex> first(mesh.source.size()), middle(mesh.source.size()), loop(mesh.source.size());
+        poseCitySpawnMesh(mesh, {500, 500, 30}, {0, 0, 45}, 0, first.data());
+        poseCitySpawnMesh(mesh, {500, 500, 30}, {0, 0, 45}, duration * 0.37, middle.data());
+        poseCitySpawnMesh(mesh, {500, 500, 30}, {0, 0, 45}, duration, loop.data());
+        const auto samePosition = [](const CityVertex& a, const CityVertex& b) { return a.position == b.position; };
+        require(!std::equal(first.begin(), first.end(), middle.begin(), samePosition) &&
+                std::equal(first.begin(), first.end(), loop.begin(), samePosition),
+                "Retail ambient idle did not deform the mesh and loop at the clip boundary.");
+        ++animatedSlots;
+    }
+    require(animatedSlots > 0, "The retail spawn pool has no animated character slots.");
     for (const auto metatype : {38, 48, 161}) {
         std::array<std::optional<size_t>, 3> police{};
         for (auto& slot : police) slot = retailPool.acquire(static_cast<uint8_t>(metatype));

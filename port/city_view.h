@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -462,13 +463,14 @@ private:
 CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening);
 struct CitySpawnMesh {
     size_t firstVertex, firstSurface, surfaceCount;
-    std::array<float, 3> scale;
+    std::shared_ptr<const CityActor> actor;
     std::vector<CityVertex> source;
+    std::vector<CitySkinRange> skins;
 };
 std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,
                                                 const CitySpawnPool& pool, FileSystemBase& assets);
 void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& position,
-                       const std::array<float, 3>& rotation, CityVertex* target);
+                       const std::array<float, 3>& rotation, double elapsedMs, CityVertex* target);
 bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, const CityPlayback& playback,
                         std::optional<double> payphoneMs = {}, std::optional<double> missionMs = {},
                         const CityMissionCinematic* missionScene = nullptr);

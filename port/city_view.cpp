@@ -819,6 +819,71 @@ std::pair<const CityAnimationClip*, double> vehicleDoorFrame(const CityActor& ac
     return {};
 }
 
+std::vector<Transform> animatedSkeleton(const CityScene& model, const CityAnimationClip& clip,
+                                       double time, bool removeRootMotion)
+{
+    std::vector<Transform> transforms;
+    transforms.reserve(model.nodes.size());
+    for (size_t i = 0; i < model.nodes.size(); ++i) {
+        const auto& source = model.nodes[i];
+        CityNode pose{};
+        pose.translation = source.translation;
+        pose.rotation = source.rotation;
+        pose.scale = source.scale;
+        for (const auto& channel : clip.channels) {
+            if (channel.node != i) continue;
+            applyAnimationChannel(pose, channel, time);
+            // Movement already applies the walk cycle's net root displacement.
+            if (removeRootMotion && channel.transform == CityAnimationTransform::translation &&
+                source.name == "Bip01-node") {
+                const auto fraction = float(time / clip.durationMs);
+                for (size_t j = 0; j < 2; ++j)
+                    pose.translation[j] -= (channel.keys.back().value[j] - channel.keys.front().value[j]) * fraction;
+            }
+        }
+        const auto& parent = source.parent < 0 ? identity : transforms[source.parent];
+        transforms.push_back(compose(parent, nodeTransform(pose, true)));
+    }
+    return transforms;
+}
+
+void poseSkinnedMesh(const CityScene& model, const CitySkin& skin, const std::vector<Transform>& transforms,
+                     const Transform& world, const CityVehiclePose* vehicle, CityVertex* vertices)
+{
+    const auto bindShape = affine(skin.bindShape);
+    std::vector<Transform> joints;
+    joints.reserve(skin.joints.size());
+    for (const auto& joint : skin.joints)
+        joints.push_back(compose(transforms[joint.node], compose(affine(joint.inverseBind), bindShape)));
+    const auto mesh = std::find_if(model.meshes.begin(), model.meshes.end(),
+        [&](const CityMesh& entry) { return entry.name == skin.meshName; });
+    std::vector<Transform> jointNormals;
+    if (!mesh->normals.empty()) {
+        jointNormals.reserve(joints.size());
+        for (const auto& joint : joints) jointNormals.push_back(normalTransform(compose(world, joint)));
+    }
+    const auto morph = vehicle ? std::find_if(model.morphControllers.begin(), model.morphControllers.end(),
+        [&](const CityMorphController& entry) { return entry.source == skin.meshName; })
+        : model.morphControllers.end();
+    for (size_t i = 0; i < skin.vertices.size(); ++i) {
+        auto sourcePosition = mesh->positions[i];
+        auto sourceNormal = mesh->normals.empty() ? Vec3{} : mesh->normals[i];
+        if (morph != model.morphControllers.end())
+            morphVehicleVertex(model, *morph, *vehicle, i, sourcePosition, sourceNormal);
+        Vec3 position{}, normal{};
+        for (const auto& influence : skin.vertices[i]) {
+            position = add(position, scale(point(joints[influence.joint], sourcePosition), influence.weight));
+            if (!jointNormals.empty()) {
+                const auto transformed = direction(jointNormals[influence.joint], sourceNormal);
+                normal = add(normal, scale(transformed, influence.weight));
+            }
+        }
+        auto& vertex = vertices[i];
+        vertex.position = point(world, position);
+        vertex.normal = normal;
+    }
+}
+
 std::pair<const CityAnimationClip*, double> vehicleCharacterFrame(const CityOpening& opening,
                                                                  const CityVehiclePose& vehicle)
 {
@@ -998,34 +1063,50 @@ void CitySpawnScheduler::advance(uint32_t elapsedMs, const CityBounds& query, co
 std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,
                                                 const CitySpawnPool& pool, FileSystemBase& assets)
 {
-    std::map<std::string, CityScene> models;
+    auto definitions = loadCitySpawnActors(assets, city);
+    std::map<uint8_t, std::shared_ptr<const CityActor>> actors;
     std::vector<CitySpawnMesh> meshes;
     meshes.reserve(pool.capacity());
     for (size_t slot = 0; slot < pool.capacity(); ++slot) {
-        const auto& definition = city.spawnMetatypes.at(pool.metatype(slot));
-        auto [model, inserted] = models.try_emplace(definition.model);
-        if (inserted) model->second = loadCityScene(assets, definition.model);
+        const auto id = pool.metatype(slot);
+        auto [entry, inserted] = actors.try_emplace(id);
+        if (inserted) entry->second = std::make_shared<CityActor>(std::move(definitions.at(id)));
+        const auto& actor = entry->second;
         const auto firstVertex = draw.vertices.size(), firstSurface = draw.surfaces.size();
-        appendScene(draw, city, model->second, identity, 0);
+        const auto firstSkin = draw.skins.size();
+        appendScene(draw, city, actor->model, identity, 0, actor.get());
         if (draw.surfaces.size() == firstSurface)
-            throw std::runtime_error("Missing spawn geometry for " + definition.model);
-        meshes.push_back({firstVertex, firstSurface, draw.surfaces.size() - firstSurface, definition.scale,
-                          {draw.vertices.begin() + firstVertex, draw.vertices.end()}});
+            throw std::runtime_error("Missing spawn geometry for " + actor->name);
+        auto& mesh = meshes.emplace_back(CitySpawnMesh{firstVertex, firstSurface,
+            draw.surfaces.size() - firstSurface, actor,
+            {draw.vertices.begin() + firstVertex, draw.vertices.end()},
+            {draw.skins.begin() + firstSkin, draw.skins.end()}});
+        draw.skins.resize(firstSkin);
+        if (actor->fightIdle && mesh.skins.empty())
+            throw std::runtime_error("Missing ambient skin geometry for " + actor->name);
+        for (auto& skin : mesh.skins) skin.firstVertex -= static_cast<uint32_t>(firstVertex);
     }
     return meshes;
 }
 
 void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& position,
-                       const std::array<float, 3>& rotation, CityVertex* target)
+                       const std::array<float, 3>& rotation, double elapsedMs, CityVertex* target)
 {
-    const auto transform = placementTransform(position, rotation, mesh.scale, rotation[2]);
+    const auto& actor = *mesh.actor;
+    const auto transform = placementTransform(position, rotation, actor.scale, rotation[2]);
     const auto normals = normalTransform(transform);
-    for (const auto& vertex : mesh.source) {
-        *target = vertex;
-        target->position = point(transform, vertex.position);
-        target->normal = direction(normals, vertex.normal);
-        ++target;
+    for (size_t i = 0; i < mesh.source.size(); ++i) {
+        const auto& vertex = mesh.source[i];
+        target[i] = vertex;
+        target[i].position = point(transform, vertex.position);
+        target[i].normal = direction(normals, vertex.normal);
     }
+    if (!actor.fightIdle) return;
+    const auto& clip = *actor.fightIdle;
+    const auto transforms = animatedSkeleton(actor.model, clip, std::fmod(elapsedMs, clip.durationMs), false);
+    for (const auto& range : mesh.skins)
+        poseSkinnedMesh(actor.model, actor.skins[range.skin], transforms, transform, nullptr,
+                        target + range.firstVertex);
 }
 
 CityFrustum cityFrustum(const CityCameraMatrix& camera)
@@ -2855,65 +2936,12 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
             clipTime = player ? std::fmod(player->clipTimeMs, clip->durationMs)
                               : (loop ? std::fmod(loopTime, clip->durationMs) : time);
         }
-        const auto& model = actor.model;
-        std::vector<Transform> transforms;
-        transforms.reserve(model.nodes.size());
-        for (size_t i = 0; i < model.nodes.size(); ++i) {
-            const auto& source = model.nodes[i];
-            CityNode pose{};
-            pose.translation = source.translation;
-            pose.rotation = source.rotation;
-            pose.scale = source.scale;
-            for (const auto& channel : clip->channels) {
-                if (channel.node != i) continue;
-                applyAnimationChannel(pose, channel, clipTime);
-                // Movement already applies the walk cycle's net root displacement.
-                if (channel.transform == CityAnimationTransform::translation &&
-                    ((player && player->walking && clip == &opening.walk) ||
-                     ((walk || pursuer || loco) && clip->name == "move_walk") ||
-                     (motion && clip == &motion->clip)) && source.name == "Bip01-node") {
-                    const auto fraction = float(clipTime / clip->durationMs);
-                    for (size_t j = 0; j < 2; ++j)
-                        pose.translation[j] -= (channel.keys.back().value[j] - channel.keys.front().value[j]) * fraction;
-                }
-            }
-            const auto& parent = source.parent < 0 ? identity : transforms[source.parent];
-            transforms.push_back(compose(parent, nodeTransform(pose, true)));
-        }
-        const auto& skin = actor.skins[range.skin];
-        const auto bindShape = affine(skin.bindShape);
-        std::vector<Transform> joints;
-        joints.reserve(skin.joints.size());
-        for (const auto& joint : skin.joints)
-            joints.push_back(compose(transforms[joint.node], compose(affine(joint.inverseBind), bindShape)));
-        const auto mesh = std::find_if(model.meshes.begin(), model.meshes.end(),
-            [&](const CityMesh& entry) { return entry.name == skin.meshName; });
-        std::vector<Transform> jointNormals;
-        if (!mesh->normals.empty()) {
-            jointNormals.reserve(joints.size());
-            for (const auto& joint : joints) jointNormals.push_back(normalTransform(compose(world, joint)));
-        }
+        const bool removeRootMotion = (player && player->walking && clip == &opening.walk) ||
+            ((walk || pursuer || loco) && clip->name == "move_walk") || (motion && clip == &motion->clip);
+        const auto transforms = animatedSkeleton(actor.model, *clip, clipTime, removeRootMotion);
         const auto* vehicle = opening.vehicleActor == range.actor ? &*playback.vehicle : nullptr;
-        const auto morph = vehicle ? std::find_if(model.morphControllers.begin(), model.morphControllers.end(),
-            [&](const CityMorphController& entry) { return entry.source == skin.meshName; })
-            : model.morphControllers.end();
-        for (size_t i = 0; i < skin.vertices.size(); ++i) {
-            auto sourcePosition = mesh->positions[i];
-            auto sourceNormal = mesh->normals.empty() ? Vec3{} : mesh->normals[i];
-            if (morph != model.morphControllers.end())
-                morphVehicleVertex(model, *morph, *vehicle, i, sourcePosition, sourceNormal);
-            Vec3 position{}, normal{};
-            for (const auto& influence : skin.vertices[i]) {
-                position = add(position, scale(point(joints[influence.joint], sourcePosition), influence.weight));
-                if (!jointNormals.empty()) {
-                    const auto transformed = direction(jointNormals[influence.joint], sourceNormal);
-                    normal = add(normal, scale(transformed, influence.weight));
-                }
-            }
-            auto& vertex = vertices[range.firstVertex + i];
-            vertex.position = point(world, position);
-            vertex.normal = normal;
-        }
+        poseSkinnedMesh(actor.model, actor.skins[range.skin], transforms, world, vehicle,
+                        vertices + range.firstVertex);
     }
 }
 

@@ -582,6 +582,7 @@ struct CityRender {
     struct SpawnPose {
         std::array<float, 3> position, rotation;
         int32_t groupType, objectType;
+        double elapsedMs = 0;
     };
     std::minstd_rand spawnRandom;
     std::optional<CitySpawnScheduler> spawnScheduler;
@@ -2380,6 +2381,7 @@ void updateCitySpawns(CityRender& city, const CityCameraPose& camera, const City
             pose.reset();
             continue;
         }
+        pose->elapsedMs += elapsedMs;
         ++context.activeCounts[group.populationIndex()];
         context.nearbyObjects.push_back({pose->position, pose->objectType, 1});
     }
@@ -2597,7 +2599,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 if (!pose) continue;
                 const auto& mesh = city.spawnMeshes[slot];
                 auto* vertices = city.vertices.data() + mesh.firstVertex;
-                poseCitySpawnMesh(mesh, pose->position, pose->rotation, vertices);
+                poseCitySpawnMesh(mesh, pose->position, pose->rotation, pose->elapsedMs, vertices);
                 std::memcpy(static_cast<char*>(mapped) + mesh.firstVertex * sizeof(CityVertex),
                             vertices, mesh.source.size() * sizeof(CityVertex));
             }
@@ -6514,19 +6516,25 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 for (int frame = 0; frame < 10; ++frame)
                     presentCity(render, info.imageExtent, nullptr, 250);
                 const auto ambient = std::find_if(render.spawnPoses.begin(), render.spawnPoses.end(),
-                                                  [](const auto& pose) { return pose.has_value(); });
+                                                  [](const auto& pose) { return pose && pose->objectType == 5; });
                 if (ambient == render.spawnPoses.end())
-                    throw std::runtime_error("The retail spawn scheduler did not populate the gameplay handoff.");
+                    throw std::runtime_error("The retail spawn scheduler did not add a pedestrian at the gameplay handoff.");
                 const auto& mesh = render.spawnMeshes.at(ambient - render.spawnPoses.begin());
-                if (!mesh.surfaceCount || render.vertices.at(mesh.firstVertex).position == mesh.source.front().position)
-                    throw std::runtime_error("The ambient entity did not submit transformed retail geometry.");
+                if (!mesh.surfaceCount || mesh.skins.empty())
+                    throw std::runtime_error("The ambient pedestrian has no skinned geometry.");
+                const auto first = render.vertices.begin() + mesh.firstVertex;
+                const std::vector<CityVertex> beforePose(first, first + mesh.source.size());
+                presentCity(render, info.imageExtent, nullptr, 250);
+                if (std::equal(beforePose.begin(), beforePose.end(), first,
+                        [](const CityVertex& a, const CityVertex& b) { return a.position == b.position; }))
+                    throw std::runtime_error("The spawned pedestrian did not submit its next idle pose.");
                 const CityCameraPose away{{100000, 100000, 0}, {100000, 100001, 0}};
                 const CityBounds awayQuery{away.eye, away.target};
                 updateCitySpawns(render, away, awayQuery, *render.playback.player, nullptr, 16);
                 if (std::any_of(render.spawnPoses.begin(), render.spawnPoses.end(),
                                 [](const auto& pose) { return pose.has_value(); }))
                     throw std::runtime_error("The ambient spawn pool did not release distant entities.");
-                std::cout << "Submitted an ambient spawn from the retail city through Vulkan.\n" << std::flush;
+                std::cout << "Submitted an animated ambient pedestrian through Vulkan.\n" << std::flush;
                 render.payphoneGameplayMs.reset();
                 std::cout << "Submitted the retail payphone gameplay handoff through Vulkan.\n" << std::flush;
                 const auto& placements = route.postFight.placements;
