@@ -469,10 +469,14 @@ mission playthroughs for discovery or verification.
   selection approximate the retail event-driven pursuit controllers.
   The Script 31 fixture holds two stars during police contact, then
   clears both stars and releases the script gate after contact is lost.
-  Remaining work includes
-  passenger seating, the parallel script 21 race, retail payment
-  presentation and audio, unaffordable repair feedback, and scripted
-  look cues remain open.
+  The port shows the escape confirmation for the authored two-second
+  wait, then plays the debrief after the player exit animation.
+  The fourth objective requires the van at CheckpointDrive_C2M903.
+  The fixture checks the delay, debrief, and vehicle-only checkpoint.
+  The fourth arrival cinematic and mission closing remain pending.
+  Other open work includes passenger seating, the parallel script 21
+  race, retail payment presentation and audio, unaffordable repair
+  feedback, and scripted look cues.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

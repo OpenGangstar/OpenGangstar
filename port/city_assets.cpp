@@ -3987,7 +3987,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size() || !route.vanPoliceWantedLevel)
                     throw std::runtime_error("Missing retail police reveal objective or wanted level.");
                 route.vanPoliceObjective = chapterText[*nextMissionObjectiveId & 0xfff];
-                for (const auto expected : {89u, 66u, 90u}) {
+                const auto vanObjective = [&](uint32_t id) -> const std::string& {
+                    if ((id >> 12 & 0xf) != 4 || (id & 0xfff) >= chapterText.size())
+                        throw std::runtime_error("Invalid retail post-pursuit objective.");
+                    return chapterText[id & 0xfff];
+                };
+                for (const auto expected : {89u, 66u, 90u, 66u, 57u}) {
                     auto command = van.record();
                     if (command.integer() != expected)
                         throw std::runtime_error("Invalid retail script 31 police escape command.");
@@ -3997,16 +4002,37 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                             throw std::runtime_error("Invalid retail police escape vehicle.");
                     } else if (expected == 66) {
                         const auto id = readMissionObjective(command);
-                        if ((id >> 12 & 0xf) != 4 || (id & 0xfff) >= chapterText.size())
-                            throw std::runtime_error("Invalid retail lose-police objective.");
-                        route.vanLosePoliceObjective = chapterText[id & 0xfff];
+                        if (route.vanPoliceEscapeCommands.size() == 1) route.vanLosePoliceObjective = vanObjective(id);
+                        else {
+                            route.vanEscapeClearedObjectiveId = id;
+                            route.vanEscapeClearedObjective = vanObjective(id);
+                        }
                     } else {
-                        if (command.signedInteger() != 0)
-                            throw std::runtime_error("Invalid retail wanted level escape target.");
+                        const auto value = command.signedInteger();
+                        if ((expected == 90 && value != 0) || (expected == 57 && value < 0))
+                            throw std::runtime_error("Invalid retail wanted level escape value.");
                         command.finish();
                     }
                     route.vanPoliceEscapeCommands.emplace_back(expected, std::move(payload));
                 }
+                auto enter = van.record(), leaveVehicle = van.record(), debrief = van.record(), endDebrief = van.record();
+                if (enter.integer() != 15 || leaveVehicle.integer() != 99 ||
+                    readScriptObject(leaveVehicle) != "Player" || debrief.integer() != 56 || endDebrief.integer() != 16)
+                    throw std::runtime_error("Missing retail van escape debrief.");
+                enter.finish();
+                endDebrief.finish();
+                const auto line = readDialogueCommand(debrief);
+                route.vanEscapeDebrief.dialogue = resolveDialogue({
+                    {0, static_cast<uint32_t>(std::max(0, line.durationMs)), line.textId, line.speaker}});
+                auto fourthObjective = van.record(), fourthDrive = van.record();
+                if (fourthObjective.integer() != 66 || fourthDrive.integer() != 105)
+                    throw std::runtime_error("Missing retail fourth van drive.");
+                route.vanFourthDriveObjective = vanObjective(readMissionObjective(fourthObjective));
+                route.vanFourthDriveWait = fourthDrive.remainingBytes();
+                const auto fourthCheckpoint = readCheckpointCommand(fourthDrive, 105);
+                if (fourthCheckpoint.vehicle != "aVan_00")
+                    throw std::runtime_error("Retail fourth van drive requires a different vehicle.");
+                route.vanFourthDriveCheckpoint = makeCheckpoint(fourthCheckpoint.object);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
