@@ -470,6 +470,7 @@ struct CityRender {
         destroyTexture(cooperNextFightObjective);
         destroyTexture(brawlNextObjective);
         destroyTexture(postBasketballObjective);
+        destroyTexture(postBasketballAmbushObjective);
         destroyTexture(basketballFightObjective);
         destroyTexture(basketballTutorial);
         destroyTexture(weaponShopTutorial);
@@ -555,7 +556,8 @@ struct CityRender {
     std::optional<RetailScriptExecution> postLcFightScript;
     CityTexture locoNextObjective, locoCooperObjective, cooperNextDriveObjective, cooperNextFightObjective;
     std::optional<RetailScriptExecution> taggedFightScript;
-    CityTexture brawlNextObjective, postBasketballObjective;
+    CityTexture brawlNextObjective, postBasketballObjective, postBasketballAmbushObjective;
+    bool postBasketballAmbushActive = false;
     CityTexture basketballFightObjective, basketballTutorial;
     std::optional<RetailScriptExecution> basketballRouteScript, postBasketballRouteScript, postBasketballVehicleScript;
     std::optional<double> basketballMarker, postBasketballMarker;
@@ -1108,8 +1110,11 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* postBasketballLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->postBasketballIntro.dialogue : nullptr;
     const auto postBasketballLineCount = postBasketballLines ? postBasketballLines->size() : 0;
+    const auto* ambush29Lines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->postBasketballAmbush.dialogue : nullptr;
+    const auto ambush29LineCount = ambush29Lines ? ambush29Lines->size() : 0;
     for (const auto* lines : {cooperClosingLines, brawlNextLines, basketballLines, basketballClosingLines,
-                             postBasketballLines})
+                             postBasketballLines, ambush29Lines})
         if (lines)
             for (const auto& dialogue : *lines)
                 if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
@@ -1213,8 +1218,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount +
-                                             hasPayphoneObjective + (next ? 23 : 0) +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount +
+                                             hasPayphoneObjective + (next ? 24 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1380,7 +1385,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1428,6 +1433,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.cooperNextDriveObjective}, true, false, 432, 68, font.family()));
             upload(city.cooperNextFightObjective,
                    rasterCaption({0, 0, {}, next.cooperNextFightObjective}, true, false, 432, 68, font.family()));
+            upload(city.postBasketballAmbushObjective,
+                   rasterCaption({0, 0, {}, next.postBasketballAmbushObjective}, true, false, 432, 68, font.family()));
             upload(city.postBasketballObjective,
                    rasterCaption({0, 0, {}, next.postBasketballObjective}, true, false, 432, 68, font.family()));
             upload(city.brawlNextObjective,
@@ -1478,7 +1485,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto postBasketballBase = city.captions.size() - postBasketballLineCount;
+        const auto ambush29Base = city.captions.size() - ambush29LineCount;
+        const auto postBasketballBase = ambush29Base - postBasketballLineCount;
         const auto basketballClosingBase = postBasketballBase - basketballClosingLineCount;
         const auto basketballBase = basketballClosingBase - basketballLineCount;
         const auto brawlNextBase = basketballBase - brawlNextLineCount;
@@ -1534,6 +1542,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             uploadSceneCaptions(nextMission->basketballArrival, basketballBase);
             uploadSceneCaptions(nextMission->basketballClosing, basketballClosingBase);
             uploadSceneCaptions(nextMission->postBasketballIntro, postBasketballBase);
+            uploadSceneCaptions(nextMission->postBasketballAmbush, ambush29Base);
             uploadSceneCaptions(nextMission->brawlNextIntro, brawlNextBase);
             uploadSceneCaptions(nextMission->cooperNextClosing, cooperClosingBase);
             city.missionCaptionBases.emplace(&nextMission->cooperNextArrival, cooperArrivalBase);
@@ -2441,7 +2450,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     : nextPlacement ? city.payphoneGameplayMs.value_or(0) : elapsedMs - city.minimapTargetStartMs;
                 minimapMarkerStep = retailMinimapAnimationStep(city.minimapCheckpointAnimation, markerMs * 0.03);
             }
-            if (city.taggedFightScript) {
+            if (city.taggedFightScript || city.postBasketballAmbushActive) {
                 for (const auto& [name, opponent] : city.playback.locoOpponents) {
                     if (!opponent.taggedForKill || opponent.disabled || opponent.health <= 0) continue;
                     const auto& p = opponent.pose.position;
@@ -2813,6 +2822,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         else if (city.returningToLc && city.hummerRouteScript)
             overlay(city.returnToLcObjectives[city.hummerRouteMarker ? 1 : 0].descriptor,
                     screen, city.captionVertex, 6);
+        else if (city.postBasketballAmbushActive && city.postBasketballAmbushObjective.descriptor)
+            overlay(city.postBasketballAmbushObjective.descriptor, screen, city.captionVertex, 6);
         else if ((city.postBasketballRouteScript || city.postBasketballVehicleScript) &&
                  city.postBasketballObjective.descriptor)
             overlay(city.postBasketballObjective.descriptor, screen, city.captionVertex, 6);
@@ -3181,6 +3192,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->postBasketballRouteScript.reset();
                         cityRender->postBasketballMarker.reset();
                         cityRender->postBasketballVehicleScript.reset();
+                        cityRender->postBasketballAmbushActive = false;
                         cityRender->taggedFightScript.reset();
                         playback.locoOpponents.clear();
                         playback.locoLockTarget.reset();
@@ -3447,6 +3459,24 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             if (!smokeTest)
                                 saveOpeningCheckpoint(*cityRender, *assets, windowsPostBasketballCheckpointScript);
                         }
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postBasketballAmbush) {
+                        const auto& targets = handoff.nextCheckpoint->postBasketballAmbushTargets;
+                        const auto time = scene.followCameraMs.value_or(scene.durationMs);
+                        playback.locoOpponents.clear();
+                        playback.locoLockTarget.reset();
+                        playback.playerPunchMs.reset();
+                        for (const auto& target : targets) {
+                            const auto initial = std::find_if(scene.placements.rbegin(), scene.placements.rend(),
+                                [&](const auto& cue) { return cue.actor == target && cue.timeMs <= time; });
+                            if (initial == scene.placements.rend() || !initial->visible)
+                                throw std::logic_error("Missing retail script 29 ambush placement.");
+                            auto placement = *initial;
+                            if (const auto* motion = cityCinematicMotion(scene, target, time))
+                                placement.position = cityCinematicTravelPosition(motion->travel, time);
+                            playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, placement, false);
+                            playback.locoOpponents.at(target).taggedForKill = true;
+                        }
+                        cityRender->postBasketballAmbushActive = true;
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postBasketballIntro) {
                         const auto& wait = handoff.nextCheckpoint->postBasketballDestinationWait;
                         cityRender->postBasketballRouteScript.emplace(CityScriptProgram{{{64, wait}}}).unlock(0, 0, 0);
@@ -3801,8 +3831,12 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     auto& script = *cityRender->postBasketballVehicleScript;
                     script.execute(0, 0, 0, [](const auto&, int32_t) { return false; }, [] {}, [] {},
                                    false, &travel, {}, &mission);
-                    if (script.state(0) == RetailScriptState::locked)
+                    if (script.state(0) == RetailScriptState::locked) {
                         cityRender->postBasketballVehicleScript.reset();
+                        playback.vehicle->speed = 0;
+                        cityRender->activeMissionCinematic = &route.postBasketballAmbush;
+                        cityRender->postFightCinematic.emplace();
+                    }
                 }
                 if (cityRender->basketballRouteScript && playback.player) {
                     const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
@@ -4779,8 +4813,17 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             throw std::runtime_error("Script 29 did not stage its car and guards.");
                         playback.vehicle->occupied = true;
                         update(0);
-                        if (render.postBasketballVehicleScript || !playback.nextMissionVehicleAcquired)
-                            throw std::runtime_error("Script 29 did not accept its required vehicle.");
+                        if (render.postBasketballVehicleScript || !playback.nextMissionVehicleAcquired ||
+                            render.activeMissionCinematic != &route.postBasketballAmbush || !render.postFightCinematic ||
+                            route.postBasketballAmbush.cameras.size() != 4 || route.postBasketballAmbush.motions.size() != 3)
+                            throw std::runtime_error("Script 29 did not start the authored ambush from its required vehicle.");
+                        for (int step = 0; step < 96 && render.postFightCinematic; ++step) update(250, true);
+                        if (render.postFightCinematic || !render.postBasketballAmbushActive ||
+                            !render.postBasketballAmbushObjective.descriptor || !playback.vehicle->occupied ||
+                            playback.locoOpponents.size() != 5 ||
+                            !std::all_of(playback.locoOpponents.begin(), playback.locoOpponents.end(),
+                                         [](const auto& entry) { return entry.second.taggedForKill; }))
+                            throw std::runtime_error("Script 29 ambush did not restore the car and tag its enemies.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

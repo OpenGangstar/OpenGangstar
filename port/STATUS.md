@@ -391,9 +391,14 @@ mission playthroughs for discovery or verification.
   actor animation, music, and dialogue sequence. Script 29 shows the
   localized car objective and its approach marker in the city and on the
   minimap. Reaching it stages the protected car and four guards at their
-  authored positions. The vehicle wait tracks and accepts that car. The
-  scripted ambush after entry, repair tutorial, delivery, NPC and vehicle AI,
-  and Loco's seated model remain open.
+  authored positions. Entry starts the authored ambush cameras, actor
+  placement, running and weapon poses, dialogue, and fades. The follow
+  camera returns to the occupied car. Five enemies are staged at their
+  cinematic endpoints and tagged on the minimap with the combat objective.
+  The fixture verifies the occupied car and five live targets after the
+  cutscene. The scripted look cue and attack timing, ranged combat,
+  repair tutorial, delivery, NPC and vehicle AI, and Loco's seated model
+  remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
