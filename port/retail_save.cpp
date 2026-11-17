@@ -451,7 +451,8 @@ std::optional<RetailSavedState> readWindowsOpeningCheckpoint(const ResourceFileS
     auto state = restoreRetailSavedState(blocks, 0);
     const auto& unlocks = state.completedScripts;
     const bool pairedUnlock = unlocks.size() == 2 &&
-        unlocks[0].script == windowsPostScript33CheckpointScript && unlocks[0].context == -1 &&
+        (unlocks[0].script == windowsPostScript33CheckpointScript ||
+         unlocks[0].script == windowsPostScript36CheckpointScript) && unlocks[0].context == -1 &&
         unlocks[1].script == windowsPostScript33ParallelScript && unlocks[1].context == -1;
     if (blocks.empty() || blocks.front().id != -1 ||
         std::get<int32_t>(blocks.front().value) != windowsOpeningCheckpointVersion ||

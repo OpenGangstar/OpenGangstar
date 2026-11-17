@@ -2411,6 +2411,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script36ReinforcementPlacements;
     std::vector<AnimationCommand> script36ReinforcementAnimations;
     std::vector<MotionCommand> script36ReinforcementMotions;
+    std::vector<NamedMove> script36ClosingMoves;
+    std::vector<DialogueCommand> script36ClosingDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script36ClosingPlacements;
+    std::vector<AnimationCommand> script36ClosingAnimations;
+    std::vector<MotionCommand> script36ClosingMotions;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4744,6 +4749,19 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     command.finish();
                     route.script36SecondFightCommands.emplace_back(opcode, std::move(payload));
                 }
+                auto fade36Closing = script36.record();
+                if (fade36Closing.integer() != 42) throw std::runtime_error("Missing Script 36 closing fade.");
+                route.script36ClosingFadeMs = readFadeCommand(fade36Closing, 42, 0).durationMs;
+                readChapterThreeCinematic(route.script36Closing, script36ClosingMoves, script36ClosingDialogue,
+                                          script36ClosingPlacements, script36ClosingAnimations, script36ClosingMotions, 3);
+                if (!route.script36Closing.missionOverMs)
+                    throw std::runtime_error("Missing Script 36 MissionOver command.");
+                route.script36UnlockedScript = route.script36Closing.nextScript;
+                auto script37 = scripts.script(route.script36UnlockedScript);
+                if (!script37.integer()) throw std::runtime_error("Truncated Script 37.");
+                auto script37Gate = script37.record();
+                if (script37Gate.integer() != 64) throw std::runtime_error("Missing Script 37 checkpoint.");
+                route.script37Checkpoint = makeCheckpoint(readCheckpointCommand(script37Gate, 64).object);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4828,6 +4846,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script36Placements, next->script36Intro.placements);
                 resolvePlacements(script36ArrivalPlacements, next->script36Arrival.placements);
                 resolvePlacements(script36ReinforcementPlacements, next->script36Reinforcements.placements);
+                resolvePlacements(script36ClosingPlacements, next->script36Closing.placements);
                 for (const auto name : {"Player", "Juan_00"}) {
                     const auto& placements = next->script36Arrival.placements;
                     const auto origin = std::find_if(placements.rbegin(), placements.rend(), [&](const auto& cue) {
@@ -5292,6 +5311,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script36Arrival, script36ArrivalAnimations);
                 bindCinematic(next->script36Debrief, script36DebriefAnimations);
                 bindCinematic(next->script36Reinforcements, script36ReinforcementAnimations);
+                bindCinematic(next->script36Closing, script36ClosingAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -5338,6 +5358,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->script36Intro);
                 bindInitialIdle(next->script36Arrival);
                 bindInitialIdle(next->script36Reinforcements);
+                bindInitialIdle(next->script36Closing);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -5467,6 +5488,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->script36Arrival, script36ArrivalMotions);
                 bindMotions(next->script36Debrief, script36DebriefMotions);
                 bindMotions(next->script36Reinforcements, script36ReinforcementMotions);
+                bindMotions(next->script36Closing, script36ClosingMotions);
                 bindMotions(next->script19Closing, script19ClosingMotions);
                 for (const auto& approach : vanProtectionMotions) {
                     const auto& arrival = next->vanSecondArrival;
@@ -5636,6 +5658,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script36Moves)
                             next->script36Intro.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script36ClosingMoves)
+                            next->script36Closing.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script36ReinforcementMoves)
                             next->script36Reinforcements.cameras.push_back(

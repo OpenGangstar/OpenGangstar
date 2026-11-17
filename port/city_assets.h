@@ -669,7 +669,9 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> script36EntranceWait, script36TravelWait;
         uint32_t script36EntranceFadeMs = 0, script36ArrivalFadeMs = 0;
         std::optional<CityMissionTitle> script36Title;
-        CityMissionCinematic script36Intro, script36Arrival, script36Debrief, script36Reinforcements;
+        CityMissionCinematic script36Intro, script36Arrival, script36Debrief, script36Reinforcements, script36Closing;
+        uint32_t script36ClosingFadeMs = 0, script36UnlockedScript = 0;
+        std::optional<CityCheckpoint> script37Checkpoint;
         std::string script36PickupObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script36PickupCommands;
         std::optional<CityAnimationClip> pickupSeated;

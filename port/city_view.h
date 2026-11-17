@@ -233,13 +233,13 @@ struct CityDrawData : CityVehicleGeometry {
     std::optional<size_t> returnToLcFirstSurface;
     std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface, deliveryFirstSurface, elToroFirstSurface, elToroDestinationFirstSurface, elToroDriveFirstSurface, vanDriveFirstSurface, vanSecondDriveFirstSurface, vanThirdDriveFirstSurface, vanFourthDriveFirstSurface, script19DriveFirstSurface, script19ReturnFirstSurface, script20DriveFirstSurface, script32FirstSurface, script33FirstSurface, script33DriveFirstSurface, script33RaceFirstSurface;
     std::array<std::optional<size_t>, 2> script33UnlockedFirstSurfaces;
-    std::optional<size_t> script36TravelFirstSurface;
+    std::optional<size_t> script36TravelFirstSurface, script37FirstSurface;
     std::array<std::optional<size_t>, 3> postLcWalkFirstSurfaces;
     std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry, postBasketballVehicleGeometry, vanGeometry, lincolnGeometry, raceRivalGeometry, pickupGeometry;
     std::optional<size_t> raceRivalActor;
     std::optional<size_t> cooperActor;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint, cooperFootprint, vanFootprint, lincolnFootprint, pickupFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 36> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 37> checkpointMeshes;
     std::vector<CityVehicleLightMesh> vehicleLights;
 };
 
@@ -419,7 +419,7 @@ struct CityPlayback {
     int32_t playerHealth = playerMaxHealth;
     int32_t playerArmor = 0;
     int32_t playerCash = 0;
-    std::array<bool, 12> openingMissionsPaid{};
+    std::array<bool, 13> openingMissionsPaid{};
     int32_t payphoneOpponentHealth = 100;
     double payphoneDefeatMs = 0;
     std::map<std::string, CityFightOpponent, std::less<>> locoOpponents;

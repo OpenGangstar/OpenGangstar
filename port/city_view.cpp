@@ -1331,6 +1331,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
                 draw.script33UnlockedFirstSurfaces[index] = appendCheckpoint(*next.script33UnlockedCheckpoints[index], 33 + index);
         if (next.script36TravelCheckpoint)
             draw.script36TravelFirstSurface = appendCheckpoint(*next.script36TravelCheckpoint, 35);
+        if (next.script37Checkpoint)
+            draw.script37FirstSurface = appendCheckpoint(*next.script37Checkpoint, 36);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);
@@ -2985,8 +2987,11 @@ const CityCinematicPlacement* cityPayphonePlacement(const CityPayphoneRoute& rou
 const CityMissionCinematic::Motion* cityCinematicMotion(const CityMissionCinematic& scene,
                                                        std::string_view actor, double elapsedMs)
 {
+    const auto* placement = cinematicPlacement(scene.placements, actor, elapsedMs);
+    if (placement && !placement->visible) return nullptr;
     const auto cue = std::find_if(scene.motions.rbegin(), scene.motions.rend(), [&](const auto& entry) {
-        return entry.travel.actor == actor && entry.travel.startMs <= elapsedMs;
+        return entry.travel.actor == actor && entry.travel.startMs <= elapsedMs &&
+            (!placement || entry.travel.startMs >= placement->timeMs);
     });
     return cue == scene.motions.rend() ? nullptr : &*cue;
 }

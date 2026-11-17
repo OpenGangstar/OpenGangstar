@@ -421,6 +421,15 @@ void verifySaveDirectory()
         read() != encodeRetailSave(sampled))
         throw std::runtime_error("Script 33 did not preserve both mission unlocks.");
 
+    checkpoint.completedScripts[0].script = windowsPostScript36CheckpointScript;
+    writeWindowsOpeningCheckpoint(files, checkpoint);
+    const auto postScript36 = readWindowsOpeningCheckpoint(files);
+    if (!postScript36 || postScript36->cash != checkpoint.cash || postScript36->completedScripts.size() != 2 ||
+        postScript36->completedScripts[0].script != windowsPostScript36CheckpointScript ||
+        postScript36->completedScripts[1].script != windowsPostScript33ParallelScript ||
+        read() != encodeRetailSave(sampled))
+        throw std::runtime_error("Script 36 did not preserve the next and parallel mission unlocks.");
+
     if (files.openSavedFile("../retail/Gangstar2.sav") || files.openSavefile("../retail/Gangstar2.sav"))
         throw std::runtime_error("A save filename escaped the save directory.");
     bool overlapRejected = false;
