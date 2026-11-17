@@ -669,14 +669,14 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> script36EntranceWait, script36TravelWait;
         uint32_t script36EntranceFadeMs = 0, script36ArrivalFadeMs = 0;
         std::optional<CityMissionTitle> script36Title;
-        CityMissionCinematic script36Intro, script36Arrival, script36Debrief;
+        CityMissionCinematic script36Intro, script36Arrival, script36Debrief, script36Reinforcements;
         std::string script36PickupObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script36PickupCommands;
         std::optional<CityAnimationClip> pickupSeated;
         std::optional<std::array<CityVehicleCharacterClips, 2>> pickupClips;
         std::optional<CityCheckpoint> script36TravelCheckpoint;
-        std::string script36TravelObjective, script36FightObjective;
-        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script36FightCommands;
+        std::string script36TravelObjective, script36FightObjective, script36SecondFightObjective;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script36FightCommands, script36SecondFightCommands;
         uint32_t script33RaceFadeMs = 0;
         std::optional<CityCheckpoint> script33RaceMarker;
         std::vector<std::array<float, 3>> script33RaceCourse, script33RivalPath;

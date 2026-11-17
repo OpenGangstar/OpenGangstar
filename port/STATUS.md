@@ -535,8 +535,10 @@ mission playthroughs for discovery or verification.
   melee actors choose the nearest opponent. After the fight, Juan and
   the player start the debrief from their live positions. The next
   objective tracks the retail pickup and waits for its destruction.
-  The next encounter, Script 43 gameplay, rival collision, and
-  passenger ejection remain pending.
+  The reinforcement cutscene leads into a second fight that keeps Juan's
+  remaining health and protection. The two Locos fight unarmed, and
+  YakuzaA_00 uses the retail shotgun stats. The closing cutscene,
+  Script 43 gameplay, rival collision, and passenger ejection remain pending.
   The chapter-three scripted actor
   cues, retail pursuit and target selection, and the fourth van arrival
   look cue also remain pending.

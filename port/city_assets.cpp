@@ -2406,6 +2406,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> script36DebriefDialogue;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script36DebriefPlacements;
     std::vector<AnimationCommand> script36DebriefAnimations;
+    std::vector<NamedMove> script36ReinforcementMoves;
+    std::vector<DialogueCommand> script36ReinforcementDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script36ReinforcementPlacements;
+    std::vector<AnimationCommand> script36ReinforcementAnimations;
+    std::vector<MotionCommand> script36ReinforcementMotions;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4708,15 +4713,36 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (runner != "Juan_00") throw std::runtime_error("Unexpected Script 36 runner.");
                 script36DebriefMotions.push_back({runTime, std::move(runner), std::move(marker), true, false});
                 route.script36PickupObjective = objective33(readMissionObjective(pickupObjective));
-                for (const auto opcode : {57u, 87u}) {
+                for (const auto opcode : {57u, 87u, 99u, 57u}) {
                     auto command = script36.record();
                     if (command.integer() != opcode) throw std::runtime_error("Invalid Script 36 pickup objective.");
                     auto payload = command.remainingBytes();
                     if (opcode == 57) command.integer();
-                    else if (readScriptObject(command) != "aPickup_00")
-                        throw std::runtime_error("Unexpected Script 36 pickup.");
+                    else if (readScriptObject(command) != (opcode == 99 ? "Player" : "aPickup_00"))
+                        throw std::runtime_error("Unexpected Script 36 pickup command target.");
                     command.finish();
                     route.script36PickupCommands.emplace_back(opcode, std::move(payload));
+                }
+                readChapterThreeCinematic(route.script36Reinforcements, script36ReinforcementMoves,
+                                          script36ReinforcementDialogue, script36ReinforcementPlacements,
+                                          script36ReinforcementAnimations, script36ReinforcementMotions);
+                route.script36Reinforcements.fades.erase(route.script36Reinforcements.fades.begin());
+                if (!nextMissionObjectiveId) throw std::runtime_error("Missing Script 36 second fight objective.");
+                route.script36SecondFightObjective = objective33(*nextMissionObjectiveId);
+                for (const auto opcode : {57u, 45u, 44u, 45u, 45u, 46u, 85u, 85u, 85u, 91u, 57u}) {
+                    auto command = script36.record();
+                    if (command.integer() != opcode)
+                        throw std::runtime_error("Invalid Script 36 second fight sequence.");
+                    auto payload = command.remainingBytes();
+                    if (opcode == 44 || opcode == 45 || opcode == 85) {
+                        const auto name = readScriptObject(command);
+                        const bool unarmedActor = route.script36Arrival.npcWeapons.count(name) != 0;
+                        const bool armedActor = route.script36Reinforcements.npcWeapons.count(name) != 0;
+                        if ((!unarmedActor && !armedActor) || ((opcode == 44) != (name == "Juan_00")))
+                            throw std::runtime_error("Unexpected Script 36 second fight actor.");
+                    } else if (opcode == 57) command.integer();
+                    command.finish();
+                    route.script36SecondFightCommands.emplace_back(opcode, std::move(payload));
                 }
             }
             opening.payphone->postFight = std::move(postFight);
@@ -4801,6 +4827,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script33ClosingPlacements, next->script33Closing.placements);
                 resolvePlacements(script36Placements, next->script36Intro.placements);
                 resolvePlacements(script36ArrivalPlacements, next->script36Arrival.placements);
+                resolvePlacements(script36ReinforcementPlacements, next->script36Reinforcements.placements);
                 for (const auto name : {"Player", "Juan_00"}) {
                     const auto& placements = next->script36Arrival.placements;
                     const auto origin = std::find_if(placements.rbegin(), placements.rend(), [&](const auto& cue) {
@@ -5108,6 +5135,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.script33RaceIntro);
                 loadCinematicActors(next.script36Intro);
                 loadCinematicActors(next.script36Arrival);
+                loadCinematicActors(next.script36Reinforcements);
                 loadCinematicActors(next.vanPoliceReveal);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
@@ -5173,6 +5201,17 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 }
                 for (const auto& [name, type] : next.script36Arrival.npcWeapons)
                     prepareFightActor(name);
+                for (const auto& [name, type] : next.script36Reinforcements.npcWeapons) {
+                    prepareFightActor(name);
+                    const auto actor = findCinematicActor(name);
+                    // WeaponManager::createWeapon maps the retail shotgun type 2 to metatype 41.
+                    const auto shotgun = city.weaponMetatypes.find(41);
+                    if (type != 2 || shotgun == city.weaponMetatypes.end() || shotgun->second.weaponType != type ||
+                        shotgun->second.damage <= 0 || shotgun->second.range <= 0 || shotgun->second.shootFrequency <= 0)
+                        throw std::runtime_error("Missing Script 36 shotgun definition.");
+                    actor->scriptedRangedWeapon = shotgun->second;
+                    actor->scriptedAim = readClip(library, &actor->model, "combat_gun_2handed_idle");
+                }
                 const auto cooper = findObject("aCooper_00").vehicle;
                 if (!cooper) throw std::runtime_error("Missing retail Cooper vehicle definition.");
                 const auto postBasketballVehicle = findObject(next.postBasketballVehicle).vehicle;
@@ -5252,6 +5291,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script36Intro, script36Animations);
                 bindCinematic(next->script36Arrival, script36ArrivalAnimations);
                 bindCinematic(next->script36Debrief, script36DebriefAnimations);
+                bindCinematic(next->script36Reinforcements, script36ReinforcementAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -5297,6 +5337,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->script33Closing);
                 bindInitialIdle(next->script36Intro);
                 bindInitialIdle(next->script36Arrival);
+                bindInitialIdle(next->script36Reinforcements);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -5425,6 +5466,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->script36Intro, script36Motions);
                 bindMotions(next->script36Arrival, script36ArrivalMotions);
                 bindMotions(next->script36Debrief, script36DebriefMotions);
+                bindMotions(next->script36Reinforcements, script36ReinforcementMotions);
                 bindMotions(next->script19Closing, script19ClosingMotions);
                 for (const auto& approach : vanProtectionMotions) {
                     const auto& arrival = next->vanSecondArrival;
@@ -5594,6 +5636,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script36Moves)
                             next->script36Intro.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script36ReinforcementMoves)
+                            next->script36Reinforcements.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script36ArrivalMoves)
                             next->script36Arrival.cameras.push_back(
