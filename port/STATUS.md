@@ -378,8 +378,12 @@ mission playthroughs for discovery or verification.
   animates in the world and appears on the minimap. Reaching it on foot
   or in the player's active vehicle starts the authored court scene after
   any required exit. The scene blends back to the follow camera over
-  1,000 ms and displays the court fight objective. The live court fight,
-  retail NPC and vehicle AI, and Loco's seated model remain open.
+  1,000 ms and displays the court fight objective. The three guards stay
+  active with retail health. Script 28 runs the timed tutorial and
+  minimap tags, then waits for every guard to fall. Combat uses native
+  lock-on melee and retaliation after damage. The tutorial currently
+  clears on defeat. The retail fade and closing scene, NPC and vehicle
+  AI, and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

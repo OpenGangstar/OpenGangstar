@@ -470,6 +470,7 @@ struct CityRender {
         destroyTexture(cooperNextFightObjective);
         destroyTexture(brawlNextObjective);
         destroyTexture(basketballFightObjective);
+        destroyTexture(basketballTutorial);
         destroyTexture(weaponShopTutorial);
         for (const auto& texture : weaponShopInventory) destroyTexture(texture);
         for (const auto& texture : weaponShopConfirmation) destroyTexture(texture);
@@ -552,12 +553,12 @@ struct CityRender {
     std::optional<RetailScriptExecution> postLcWalkScript;
     std::optional<RetailScriptExecution> postLcFightScript;
     CityTexture locoNextObjective, locoCooperObjective, cooperNextDriveObjective, cooperNextFightObjective;
-    std::optional<RetailScriptExecution> cooperBrawlScript;
+    std::optional<RetailScriptExecution> taggedFightScript;
     CityTexture brawlNextObjective;
-    CityTexture basketballFightObjective;
+    CityTexture basketballFightObjective, basketballTutorial;
     std::optional<RetailScriptExecution> basketballRouteScript;
     std::optional<double> basketballMarker;
-    bool basketballArrivalFinished = false;
+    bool basketballTutorialVisible = false;
     bool locoCooperPending = false;
     std::optional<CityVehiclePose> locoCooper;
     std::optional<RetailScriptExecution> locoCooperScript;
@@ -1204,7 +1205,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount +
-                                             hasPayphoneObjective + (next ? 21 : 0) +
+                                             hasPayphoneObjective + (next ? 22 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1422,6 +1423,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.brawlNextObjective}, true, false, 432, 68, font.family()));
             upload(city.basketballFightObjective,
                    rasterCaption({0, 0, {}, next.basketballFightObjective}, true, false, 432, 68, font.family()));
+            upload(city.basketballTutorial, rasterCaption(next.basketballTutorial, true, false, 432, 68, font.family()));
             auto tutorial = route->postFight.nextCheckpoint->weaponShopTutorial;
             tutorial.text = "Walk to the yellow marker and press E or gamepad A to enter.";
             upload(city.weaponShopTutorial, rasterCaption(tutorial, true, false, 432, 68, font.family()));
@@ -2368,7 +2370,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     : nextPlacement ? city.payphoneGameplayMs.value_or(0) : elapsedMs - city.minimapTargetStartMs;
                 minimapMarkerStep = retailMinimapAnimationStep(city.minimapCheckpointAnimation, markerMs * 0.03);
             }
-            if (city.cooperBrawlScript) {
+            if (city.taggedFightScript) {
                 for (const auto& [name, opponent] : city.playback.locoOpponents) {
                     if (!opponent.taggedForKill || opponent.disabled || opponent.health <= 0) continue;
                     const auto& p = opponent.pose.position;
@@ -2669,7 +2671,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         };
         if (minimapMarker) drawMarker(*minimapMarker, minimapMarkerStep);
         if (!killTargetMarkers.empty()) {
-            const auto step = retailMinimapAnimationStep(city.minimapCheckpointAnimation, elapsedMs * 0.03);
+            const auto step = retailMinimapAnimationStep(city.minimapCheckpointAnimation, city.payphoneGameplayMs.value_or(elapsedMs) * 0.03);
             for (const auto& marker : killTargetMarkers) drawMarker(marker, step);
         }
         overlay(city.minimapTextures[2].descriptor, screen, city.minimapVertices[2], 6);
@@ -2740,9 +2742,11 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.basketballRouteScript && city.brawlNextObjective.descriptor)
             overlay(city.brawlNextObjective.descriptor, screen, city.captionVertex, 6);
-        else if (city.basketballArrivalFinished && city.basketballFightObjective.descriptor)
+        else if (city.basketballTutorialVisible && city.basketballTutorial.descriptor)
+            overlay(city.basketballTutorial.descriptor, screen, city.captionVertex, 6);
+        else if (city.taggedFightScript && city.missionTitleIndex == 5 && city.basketballFightObjective.descriptor)
             overlay(city.basketballFightObjective.descriptor, screen, city.captionVertex, 6);
-        else if (city.cooperBrawlScript && city.cooperNextFightObjective.descriptor)
+        else if (city.taggedFightScript && city.cooperNextFightObjective.descriptor)
             overlay(city.cooperNextFightObjective.descriptor, screen, city.captionVertex, 6);
         else if (cooperNextDrive && city.hummerRouteMarker && city.cooperNextDriveObjective.descriptor)
             overlay(city.cooperNextDriveObjective.descriptor, screen, city.captionVertex, 6);
@@ -3092,8 +3096,11 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 if (playback.acknowledgeFailure(opening, delta, pressed, animationFinished)) {
                     if (cityRender->audio) cityRender->audio->stopAll();
                     cityRender->fireSoundActive = false;
-                    if (cityRender->missionTitleIndex == 4) {
-                        cityRender->cooperBrawlScript.reset();
+                    if (cityRender->missionTitleIndex >= 4) {
+                        cityRender->basketballTutorialVisible = false;
+                        cityRender->basketballRouteScript.reset();
+                        cityRender->basketballMarker.reset();
+                        cityRender->taggedFightScript.reset();
                         playback.locoOpponents.clear();
                         playback.locoLockTarget.reset();
                         playback.playerPunchMs.reset();
@@ -3348,23 +3355,27 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->brawlNextIntro) {
                         const auto& wait = handoff.nextCheckpoint->basketballWait;
                         cityRender->basketballRouteScript.emplace(CityScriptProgram{{{64, wait}}}).unlock(0, 0, 0);
-                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->basketballArrival) {
-                        cityRender->basketballArrivalFinished = true;
-                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextArrival) {
+                    } else if (handoff.nextCheckpoint &&
+                               (&scene == &handoff.nextCheckpoint->basketballArrival ||
+                                &scene == &handoff.nextCheckpoint->cooperNextArrival)) {
+                        const auto& route = *handoff.nextCheckpoint;
+                        const bool basketball = &scene == &route.basketballArrival;
+                        const auto& targets = basketball ? route.basketballFightTargets : route.cooperFightTargets;
+                        const auto& commands = basketball ? route.basketballFightCommands : route.cooperFightCommands;
                         playback.locoOpponents.clear();
                         playback.locoLockTarget.reset();
                         playback.playerPunchMs.reset();
-                        for (const auto& target : handoff.nextCheckpoint->cooperFightTargets) {
+                        for (const auto& target : targets) {
                             const auto origin = std::find_if(scene.placements.rbegin(), scene.placements.rend(),
                                 [&](const auto& cue) { return cue.actor == target; });
                             if (origin == scene.placements.rend() || !origin->visible)
-                                throw std::logic_error("Missing retail C2M501 fight actor placement.");
+                                throw std::logic_error("Missing retail fight actor placement.");
                             playback.spawnFightOpponent(cityRender->opening, cityRender->terrain, *origin, false);
                         }
                         CityScriptProgram program(1);
-                        for (const auto& [opcode, payload] : handoff.nextCheckpoint->cooperFightCommands)
+                        for (const auto& [opcode, payload] : commands)
                             program.front().push_back({opcode, payload});
-                        cityRender->cooperBrawlScript.emplace(std::move(program)).unlock(0, 0, 0);
+                        cityRender->taggedFightScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextIntro) {
                         playback.missionConditions.clear();
                         playback.nextMissionVehicleAcquired = false;
@@ -3426,7 +3437,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                      interact && !enterShop && !scriptedArrival)
                     : CityDoorSounds{};
                 playback.pursuePayphoneTarget(cityRender->opening, cityRender->terrain, delta);
-                if (cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->cooperBrawlScript)
+                if (cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->taggedFightScript)
                     playback.punchLocoOpponent(cityRender->opening, cityRender->terrain, delta, punchPressed, lockPressed);
                 else playback.punchPayphoneOpponent(cityRender->opening, cityRender->terrain, delta,
                                                    punchPressed, cityRender->payphoneTargetLocked);
@@ -3492,14 +3503,16 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->locoCooperPending = true;
                     }
                 }
-                if (cityRender->cooperBrawlScript) {
+                if (cityRender->taggedFightScript) {
                     const auto getOpponent = [&](std::string_view name) -> CityFightOpponent& {
                         const auto found = playback.locoOpponents.find(name);
                         if (found == playback.locoOpponents.end())
-                            throw std::logic_error("Missing retail C2M501 fight target.");
+                            throw std::logic_error("Missing retail tagged fight target.");
                         return found->second;
                     };
                     RetailMissionHooks fight;
+                    fight.tutorialsEnabled = [] { return true; };
+                    fight.showTutorial = [&](const CityScriptTutorial&) { cityRender->basketballTutorialVisible = true; };
                     fight.clearActorAttacks = [&] {
                         for (auto& [name, opponent] : playback.locoOpponents) {
                             opponent.attacking = false;
@@ -3521,14 +3534,18 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         opponent.disabled = immediate;
                         opponent.disablePending = !immediate;
                     };
-                    auto& script = *cityRender->cooperBrawlScript;
+                    auto& script = *cityRender->taggedFightScript;
                     script.execute(0, static_cast<int32_t>(std::clamp(delta, 0., 1000.)), 0,
                                    [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &fight);
                     if (script.state(0) == RetailScriptState::locked) {
-                        cityRender->cooperBrawlScript.reset();
-                        playback.scriptedVehicleExit = playback.vehicle && playback.vehicle->occupied;
-                        cityRender->pendingHummerCinematic =
-                            &cityRender->opening.payphone->postFight.nextCheckpoint->cooperNextClosing;
+                        cityRender->taggedFightScript.reset();
+                        if (cityRender->missionTitleIndex == 5) {
+                            cityRender->basketballTutorialVisible = false;
+                        } else {
+                            playback.scriptedVehicleExit = playback.vehicle && playback.vehicle->occupied;
+                            cityRender->pendingHummerCinematic =
+                                &cityRender->opening.payphone->postFight.nextCheckpoint->cooperNextClosing;
+                        }
                     }
                 }
                 if (cityRender->locoCooperScript && playback.player && cityRender->locoCooper) {
@@ -3853,7 +3870,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     std::cerr << error.what() << '\n';
                 }
             }
-            if ((cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->cooperBrawlScript) &&
+            if ((cityRender->postLcFightScript || cityRender->locoGuardScript || cityRender->taggedFightScript) &&
                 !playback.missionFailure &&
                 playback.playerHealth == 0) {
                 playback.missionFailure = -1;
@@ -4468,7 +4485,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         if (render.activeMissionCinematic != &route.cooperNextArrival || !render.postFightCinematic)
                             throw std::runtime_error("Script 27 did not play the C2M501 arrival cinematic.");
                         for (int step = 0; step < 96 && render.postFightCinematic; ++step) update(250, true);
-                        if (render.postFightCinematic || !render.cooperBrawlScript ||
+                        if (render.postFightCinematic || !render.taggedFightScript ||
                             !render.cooperNextFightObjective.descriptor || playback.missionFailure)
                             throw std::runtime_error("Script 27 did not reach the next objective after C2M501.");
                         update(0);
@@ -4482,7 +4499,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         playback.locoOpponents.at("Loco_01").health = 0;
                         auto& lastOpponent = playback.locoOpponents.at("Loco_02");
                         update(1000);
-                        if (!render.cooperBrawlScript || !lastOpponent.taggedForKill ||
+                        if (!render.taggedFightScript || !lastOpponent.taggedForKill ||
                             lastOpponent.disablePending || lastOpponent.disabled)
                             throw std::runtime_error("Script 27 released the fight while a target was alive.");
                         playback.player->position = lastOpponent.pose.position;
@@ -4492,12 +4509,12 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             playback.punchLocoOpponent(render.opening, render.terrain, 50, false, false);
                         if (lastOpponent.health != 0) throw std::runtime_error("Script 27 last target survived lethal damage.");
                         update(0);
-                        if (!render.cooperBrawlScript || lastOpponent.taggedForKill)
+                        if (!render.taggedFightScript || lastOpponent.taggedForKill)
                             throw std::runtime_error("Script 27 did not clear tags before its retail wait.");
                         for (int step = 0; step < 3; ++step) update(1000);
-                        if (!render.cooperBrawlScript) throw std::runtime_error("Script 27 fight wait ended too early.");
+                        if (!render.taggedFightScript) throw std::runtime_error("Script 27 fight wait ended too early.");
                         update(1);
-                        if (render.cooperBrawlScript) throw std::runtime_error("Script 27 fight did not finish its retail wait.");
+                        if (render.taggedFightScript) throw std::runtime_error("Script 27 fight did not finish its retail wait.");
                         const auto cashBeforeClosing = playback.playerCash;
                         update(0);
                         if (render.activeMissionCinematic != &route.cooperNextClosing || !render.postFightCinematic ||
@@ -4540,9 +4557,37 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         if (render.activeMissionCinematic != &route.basketballArrival || !render.postFightCinematic)
                             throw std::runtime_error("Script 28 did not start the basketball cutscene.");
                         for (int step = 0; step < 96 && render.postFightCinematic; ++step) update(250, true);
-                        if (render.postFightCinematic || !render.basketballArrivalFinished ||
-                            !render.basketballFightObjective.descriptor)
-                            throw std::runtime_error("Script 28 did not hand off the basketball fight objective.");
+                        if (render.postFightCinematic || !render.taggedFightScript ||
+                            !render.basketballFightObjective.descriptor || playback.locoOpponents.size() != 3)
+                            throw std::runtime_error("Script 28 did not spawn the basketball fight opponents.");
+                        update(0);
+                        update(1000);
+                        if (render.basketballTutorialVisible)
+                            throw std::runtime_error("Script 28 showed the basketball tutorial before the first wait expired.");
+                        update(1);
+                        if (!render.basketballTutorialVisible || !render.basketballTutorial.descriptor ||
+                            playback.locoOpponents.at("LocoGuard_00").taggedForKill)
+                            throw std::runtime_error("Script 28 did not show its tutorial before tagging the guards.");
+                        update(1000);
+                        update(1000);
+                        auto& lastGuard = playback.locoOpponents.at("LocoGuard_02");
+                        for (auto& [name, guard] : playback.locoOpponents) {
+                            if (!guard.taggedForKill || guard.disabled || guard.health <= 0)
+                                throw std::runtime_error("Script 28 did not tag each authored guard.");
+                            if (&guard != &lastGuard) guard.health = 0;
+                        }
+                        update(16);
+                        if (!render.taggedFightScript || !lastGuard.taggedForKill)
+                            throw std::runtime_error("Script 28 cleared the fight before the last guard fell.");
+                        playback.player->position = lastGuard.pose.position;
+                        lastGuard.health = 1;
+                        playback.punchLocoOpponent(render.opening, render.terrain, 0, true, true);
+                        for (int step = 0; step < 20 && lastGuard.health > 0; ++step)
+                            playback.punchLocoOpponent(render.opening, render.terrain, 50, false, false);
+                        if (lastGuard.health != 0) throw std::runtime_error("Script 28 last guard survived lethal damage.");
+                        update(0);
+                        if (render.taggedFightScript || render.basketballTutorialVisible || lastGuard.taggedForKill)
+                            throw std::runtime_error("Script 28 did not clear the tutorial and tags after the court fight.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

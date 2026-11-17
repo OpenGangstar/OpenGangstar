@@ -3340,6 +3340,20 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail basketball fight objective.");
                 route.basketballFightObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expected : {57u, 47u, 57u, 46u, 85u, 85u, 85u, 91u}) {
+                    auto command = brawlNext.record();
+                    if (command.integer() != expected) throw std::runtime_error("Missing retail basketball fight command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 85) route.basketballFightTargets.push_back(decodeCityKillTarget({expected, payload}));
+                    else if (expected == 47) {
+                        const auto tutorial = decodeCityScriptTutorial({expected, payload});
+                        route.basketballTutorial = {0, 0, label(tutorial.title), label(tutorial.text)};
+                    } else {
+                        if (expected == 57) command.integer();
+                        command.finish();
+                    }
+                    route.basketballFightCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3683,6 +3697,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     prepareFightActor(attack.attacker);
                 }
                 for (const auto& target : next.cooperFightTargets) prepareFightActor(target);
+                for (const auto& target : next.basketballFightTargets) prepareFightActor(target);
                 if (next.locoGuardPlacement) {
                     loadCinematicActor(*next.locoGuardPlacement);
                     prepareFightActor(next.locoGuardPlacement->actor);

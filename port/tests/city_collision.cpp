@@ -1716,6 +1716,9 @@ void poseRetailDoor(const std::filesystem::path& root)
             basketball.cameras.size() == 3 && basketball.dialogue.size() == 2 && basketball.followCameraMs &&
             basketball.followCameraTransitionMs == 1000 && !hummerRoute.basketballFightObjective.empty(),
             "Retail basketball checkpoint, camera transition, or objective changed.");
+    require(hummerRoute.basketballFightTargets == std::vector<std::string>{"LocoGuard_00", "LocoGuard_01", "LocoGuard_02"} &&
+            hummerRoute.basketballFightCommands.size() == 8 && !hummerRoute.basketballTutorial.text.empty(),
+            "Retail basketball fight tutorial or target sequence changed.");
     const auto& closing = hummerRoute.cooperNextClosing;
     require(hummerRoute.cooperNextTitle->cashReward == 400 && hummerRoute.brawlUnlockedScript == 28 &&
             closing.cameras.size() == 2 && closing.dialogue.size() == 2 && closing.followCameraMs &&

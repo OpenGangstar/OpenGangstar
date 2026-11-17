@@ -506,6 +506,9 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> basketballWait;
         CityMissionCinematic basketballArrival;
         std::string basketballFightObjective;
+        CityDialogue basketballTutorial;
+        std::vector<std::string> basketballFightTargets;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> basketballFightCommands;
         std::vector<std::string> cooperFightTargets;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperFightCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperNextDriveCommands;
