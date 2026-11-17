@@ -14,7 +14,7 @@ struct MenuNavigation;
 class MenuRuntime {
 public:
     MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, std::string>& exports,
-                RetailLanguage language = RetailLanguage::english, bool startInOptions = false);
+                RetailLanguage language = RetailLanguage::english);
     ~MenuRuntime();
     void advance(double milliseconds);
     void pointer(int x, int y, bool down);
@@ -24,6 +24,7 @@ public:
     bool canContinue() const;
     bool takeExitRequest();
     std::optional<RetailLanguage> takeLanguageRequest();
+    void applyLanguage(RetailLanguage language);
     Image draw(const Image& background);
 
 private:

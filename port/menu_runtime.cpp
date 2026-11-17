@@ -258,7 +258,7 @@ struct MenuRuntime::Runtime {
 };
 
 MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, std::string>& exports,
-                         RetailLanguage language, bool startInOptions)
+                         RetailLanguage language)
     : runtime(std::make_unique<Runtime>(assets))
 {
     std::optional<RetailSavedState> checkpoint;
@@ -309,20 +309,13 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
                 clip->set_visible(false);
         }
     }
-    // StringManager uses group 1 for menu.english. These indices come from MainMenu::GotFocus.
-    constexpr std::array<unsigned, 4> labelIndices{0x25, 0x22, 0x2e, 0x1d};
-    runtime->labels = readLocalizedStrings(assets, "menu", language);
-    const auto& labels = runtime->labels;
-    if (!labels.empty() && labels.size() <= *std::max_element(labelIndices.begin(), labelIndices.end()))
-        throw std::runtime_error("The retail menu string table is missing primary button entries.");
-    for (size_t i = 0; i < labelIndices.size(); ++i) {
+    for (size_t i = 0; i < 4; ++i) {
         const auto name = "btnMain" + std::to_string(i);
         gameswf::as_value button;
         if (!menu->get_member(name.c_str(), &button) || !button.to_object())
             throw std::runtime_error(std::string("The retail SWF is missing menu button ") + name);
         auto* clip = gameswf::cast_to<gameswf::character>(button.to_object());
         if (!clip) throw std::runtime_error("The retail menu button is missing its timeline.");
-        if (!labels.empty()) clip->set_member("_retailLabel", labels[labelIndices[i]].c_str());
         if (i == 0) runtime->continueButton = clip;
         if (i == 0 && !runtime->canContinue) {
             clip->set_member("enabled", false);
@@ -334,28 +327,18 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
             if (i == 2) runtime->optionsButton = clip;
             if (i == 3) runtime->exitButton = clip;
         }
-        applyButtonLabel(*clip);
     }
     runtime->confirmExit = &clip(*movie, "widgetConfirm");
     runtime->yesButton = &clip(*runtime->confirmExit, "btnYes");
     runtime->noButton = &clip(*runtime->confirmExit, "btnNo");
     bindButton(*runtime->yesButton);
     bindButton(*runtime->noButton);
-    if (!labels.empty()) {
-        setText(clip(*runtime->confirmExit, "txtMessage"), labels.at(0x1e).c_str());
-        runtime->yesButton->set_member("_retailLabel", labels.at(0x29).c_str());
-        runtime->noButton->set_member("_retailLabel", labels.at(0x2a).c_str());
-        applyButtonLabel(*runtime->yesButton);
-        applyButtonLabel(*runtime->noButton);
-    }
 
     runtime->options = &clip(*movie, "widgetIGMenu");
     runtime->volumes = &clip(*movie, "widgetVolumes");
     auto& group = clip(*runtime->options, "groupBoutons");
-    constexpr std::array<unsigned, 4> optionLabels{0x11, 0x0d, 0, 0x17};
-    for (size_t i = 0; i < optionLabels.size(); ++i) {
+    for (size_t i = 0; i < 4; ++i) {
         auto& button = clip(group, ("btnMenu" + std::to_string(i)).c_str());
-        if (!labels.empty()) button.set_member("_retailLabel", labels.at(optionLabels[i]).c_str());
         if (i == 0) {
             runtime->soundButton = &button;
             bindButton(button);
@@ -367,14 +350,8 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
             button.goto_labeled_frame("disabled");
             button.set_play_state(gameswf::character::STOP);
         }
-        applyButtonLabel(button);
     }
     runtime->backButton = &clip(*runtime->options, "btnBack");
-    if (!labels.empty()) {
-        runtime->backButton->set_member("_retailLabel", labels.at(0x27).c_str());
-        applyButtonLabel(*runtime->backButton);
-        setText(clip(*runtime->options, "txtTitle"), labels.at(0x36).c_str());
-    }
     bindButton(*runtime->backButton);
     runtime->languagePage = &clip(*movie, "widgetLanguage");
     runtime->languageValue = &clip(*runtime->languagePage, "txtValue");
@@ -383,19 +360,7 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
     runtime->applyLanguage = &clip(*runtime->languagePage, "btnOk");
     for (auto* button : {runtime->previousLanguage, runtime->nextLanguage, runtime->applyLanguage})
         bindButton(*button);
-    if (!labels.empty()) {
-        setText(clip(*runtime->languagePage, "txtTitle"), labels.at(1).c_str());
-        runtime->applyLanguage->set_member("_retailLabel", labels.at(0x2b).c_str());
-        applyButtonLabel(*runtime->applyLanguage);
-    }
-    runtime->languageIndex = std::find(retailLanguagePacks.begin(), retailLanguagePacks.end(), language)
-        - retailLanguagePacks.begin();
-    runtime->stepLanguage(0);
     clip(*runtime->volumes, "playlist").set_visible(false);
-    if (!labels.empty()) {
-        setText(clip(*runtime->volumes, "txtSFX"), labels.at(0x13).c_str());
-        setText(clip(*runtime->volumes, "txtMusic"), labels.at(0x12).c_str());
-    }
     for (size_t i = 0; i < runtime->sliders.size(); ++i) {
         auto& bar = clip(*runtime->volumes, i == 0 ? "barSFX" : "barMusic");
         runtime->sliders[i] = &clip(bar, "btnVolume");
@@ -410,7 +375,8 @@ MenuRuntime::MenuRuntime(ResourceFileSystem& assets, const std::map<uint16_t, st
         std::cerr << "Could not load volume preferences: " << error.what() << '\n';
     }
     runtime->refreshVolumes();
-    runtime->show(startInOptions ? Runtime::Page::options : Runtime::Page::main);
+    applyLanguage(language);
+    runtime->show(Runtime::Page::main);
 
 
     std::cout << "GameSWF bound " << opener.boundCount << " retail menu bitmaps.\n";
@@ -563,6 +529,43 @@ bool MenuRuntime::takeExitRequest()
 std::optional<RetailLanguage> MenuRuntime::takeLanguageRequest()
 {
     return std::exchange(runtime->languageRequested, std::nullopt);
+}
+
+void MenuRuntime::applyLanguage(RetailLanguage language)
+{
+    auto labels = readLocalizedStrings(runtime->assets, "menu", language);
+    if ((!labels.empty() || !runtime->labels.empty()) && labels.size() <= 0x36)
+        throw std::runtime_error("The selected retail language is missing menu labels.");
+    runtime->labels = std::move(labels);
+    if (!runtime->labels.empty()) {
+        const auto text = [&](size_t index) { return runtime->labels[index].c_str(); };
+        const auto buttonText = [&](gameswf::character& button, size_t index) {
+            button.set_member("_retailLabel", text(index));
+            applyButtonLabel(button);
+        };
+        // StringManager group 1 uses the indices from MainMenu::GotFocus.
+        buttonText(*runtime->continueButton, 0x25);
+        buttonText(*runtime->newGameButton.get_ptr(), 0x22);
+        buttonText(*runtime->optionsButton, 0x2e);
+        buttonText(*runtime->exitButton, 0x1d);
+        buttonText(*runtime->yesButton, 0x29);
+        buttonText(*runtime->noButton, 0x2a);
+        buttonText(*runtime->backButton, 0x27);
+        buttonText(*runtime->applyLanguage, 0x2b);
+        auto& group = clip(*runtime->options, "groupBoutons");
+        constexpr std::array<unsigned, 4> optionLabels{0x11, 0x0d, 0, 0x17};
+        for (size_t i = 0; i < optionLabels.size(); ++i)
+            buttonText(clip(group, ("btnMenu" + std::to_string(i)).c_str()), optionLabels[i]);
+        setText(clip(*runtime->confirmExit, "txtMessage"), text(0x1e));
+        setText(clip(*runtime->options, "txtTitle"), text(0x36));
+        setText(clip(*runtime->languagePage, "txtTitle"), text(1));
+        setText(clip(*runtime->volumes, "txtSFX"), text(0x13));
+        setText(clip(*runtime->volumes, "txtMusic"), text(0x12));
+    }
+    runtime->languageIndex = std::find(retailLanguagePacks.begin(), retailLanguagePacks.end(), language)
+        - retailLanguagePacks.begin();
+    runtime->stepLanguage(0);
+    if (runtime->page == Runtime::Page::language) runtime->show(Runtime::Page::options);
 }
 
 Image MenuRuntime::draw(const Image& background)

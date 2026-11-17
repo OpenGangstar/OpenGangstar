@@ -429,8 +429,9 @@ mission playthroughs for discovery or verification.
   The main menu reads achievement progress from the Windows checkpoint when
   available and falls back to the imported retail save. The automated smoke
   test selects Continue from the main menu with an isolated checkpoint in a
-  fresh process. Reopening GameSWF after destroying the last menu in the
-  same process still needs investigation.
+  fresh process. Language switching updates labels on the live menu.
+  An isolated test still crashes when recreating GameSWF after destroying
+  its last player in the same process.
   The native save codec reads the retail little-endian blocks, decodes known
   fields, and preserves unknown payloads when serializing. Windows can replace
   files in a separate save directory while the retail resource filesystem

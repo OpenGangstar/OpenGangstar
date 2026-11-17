@@ -2885,16 +2885,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             menu->navigate(touch->takeMenuNavigation());
             menu->advance(milliseconds);
             if (const auto selected = menu->takeLanguageRequest()) {
-                // GameSWF has one global render handler. Destroy the old menu before installing a new one.
-                menu.reset();
                 nextMenuFrame = 0;
                 try {
-                    menu = std::make_unique<MenuRuntime>(*assets, splash->exports, *selected, true);
+                    menu->applyLanguage(*selected);
                     language = *selected;
                     saveRetailLanguagePreference(*assets, language);
                 } catch (const std::runtime_error& error) {
                     std::cerr << "Could not apply or save language: " << error.what() << '\n';
-                    if (!menu) menu = std::make_unique<MenuRuntime>(*assets, splash->exports, language, true);
                 }
             }
             if (menu->takeExitRequest()) {
@@ -3209,6 +3206,18 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     volumeLowered.bgra == volumeBefore.bgra)
                     throw std::runtime_error("Menu navigation did not adjust the volume slider.");
                 menu->navigate({0, false, true});
+                const auto optionsBeforeLanguage = menu->draw(splash->background);
+                menu->navigate({2, true, false});
+                menu->navigate({2, true, false});
+                menu->navigate({1, true, false});
+                const auto selectedLanguage = menu->takeLanguageRequest();
+                if (!selectedLanguage || *selectedLanguage == language)
+                    throw std::runtime_error("Menu navigation did not select another language.");
+                menu->applyLanguage(*selectedLanguage);
+                menu->advance(1000. / 30);
+                if (menu->draw(splash->background).bgra == optionsBeforeLanguage.bgra)
+                    throw std::runtime_error("Applying a language did not update the Options screen.");
+                menu->applyLanguage(language);
                 menu->navigate({0, false, true});
                 menu->navigate({0, true, false});
                 if (!menu->takeNewGameRequest())
