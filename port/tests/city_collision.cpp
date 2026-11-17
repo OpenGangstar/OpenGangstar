@@ -1661,6 +1661,14 @@ void poseRetailDoor(const std::filesystem::path& root)
             confrontation.motions.size() == 4 && confrontation.actorAnimations.size() == 6 &&
             confrontation.followCameraMs && !hummerRoute.postLcConfrontationObjective.empty(),
             "Script 25 lost authored confrontation cues or its next objective.");
+    constexpr std::array walkNames{"CheckpointWalk_C2M203", "CheckpointWalk_C2M202"};
+    for (size_t i = 0; i < walkNames.size(); ++i) {
+        const auto& checkpoint = hummerRoute.postLcWalkCheckpoints[i];
+        const auto wait = decodeCityScriptCheckpoint({64, hummerRoute.postLcWalkWaits[i]});
+        require(checkpoint && checkpoint->name == walkNames[i] && wait.object == checkpoint->name &&
+                checkpoint->animation && markerDraw.postLcWalkFirstSurfaces[i] &&
+                !markerDraw.checkpointMeshes[10 + i].empty(), "Script 25 lost a retail animated walking checkpoint.");
+    }
     require(hummerRoute.postLcArrivalFadeMs == 300 && !ambush.cameras.empty() &&
             ambush.dialogue.size() == 3 && !ambush.placements.empty() &&
             !hummerRoute.postLcAmbushObjective.empty(),

@@ -318,8 +318,11 @@ mission playthroughs for discovery or verification.
   cameras, dialogue, actor movements and animations. The player returns
   to the follow camera with the next localized objective. Automated
   Continue smoke covers the drive checkpoint, live tailing, closing fade,
-  and the confrontation handoff. NPC damage and the subsequent walking
-  checkpoints remain open.
+  and the confrontation handoff. Script 25 then activates the retail
+  walking checkpoints C2M203 and C2M202 in order, animates their world
+  markers, and tracks the active marker on the minimap. Automated
+  Continue smoke verifies the order and that both markers clear.
+  NPC damage and the phone cutscene after the second marker remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

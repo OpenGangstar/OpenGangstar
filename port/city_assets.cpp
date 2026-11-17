@@ -2754,7 +2754,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                       marker.position, marker.rotation, marker.scale, marker.radius, {}, {}};
             const auto modelName = std::filesystem::u8path(marker.model).filename();
             if (modelName == "checkpoint_arrow.bdae" || modelName == "checkpoint_mission.bdae" ||
-                modelName == "checkpoint_drive.bdae")
+                modelName == "checkpoint_drive.bdae" || modelName == "checkpoint_walk.bdae")
                 checkpoint.animation = readClip(checkpoint.model, &checkpoint.model, "AUTO_SceneAnims_Range");
             return checkpoint;
         };
@@ -3061,6 +3061,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail post-tailing objective.");
                 route.postLcConfrontationObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (size_t i = 0; i < route.postLcWalkCheckpoints.size(); ++i) {
+                    auto wait = postLc.record();
+                    if (wait.integer() != 64) throw std::runtime_error("Missing retail post-confrontation checkpoint.");
+                    route.postLcWalkWaits[i] = wait.remainingBytes();
+                    route.postLcWalkCheckpoints[i] = makeCheckpoint(readCheckpointCommand(wait, 64).object);
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.

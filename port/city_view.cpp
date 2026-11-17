@@ -1035,6 +1035,9 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.returnToLcFirstSurface = appendCheckpoint(*next.returnToLcCheckpoint, 8);
         if (next.postLcDriveCheckpoint)
             draw.postLcDriveFirstSurface = appendCheckpoint(*next.postLcDriveCheckpoint, 9);
+        for (size_t i = 0; i < next.postLcWalkCheckpoints.size(); ++i)
+            if (next.postLcWalkCheckpoints[i])
+                draw.postLcWalkFirstSurfaces[i] = appendCheckpoint(*next.postLcWalkCheckpoints[i], 10 + i);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);

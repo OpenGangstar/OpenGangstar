@@ -542,7 +542,9 @@ struct CityRender {
     CityTexture postLcAmbushObjective, postLcConfrontationObjective;
     bool postLcIntroFinished = false;
     bool postLcAmbushFinished = false;
-    bool postLcConfrontationFinished = false;
+    std::optional<RetailScriptExecution> postLcWalkScript;
+    struct WalkingMarker { size_t index; double startMs; };
+    std::optional<WalkingMarker> postLcWalkMarker;
     std::optional<double> postLcTailMs;
     std::optional<float> spyGauge;
     std::optional<double> postLcArrivalFadeMs;
@@ -611,7 +613,7 @@ struct CityRender {
     std::vector<CityTexture> minimapCheckpointTextures;
     std::vector<uint32_t> minimapCheckpointVertices;
     std::vector<RetailMinimapStep> minimapCheckpointAnimation;
-    enum class MinimapTarget { walkingCheckpoint, vehicle, payphone, fightActor, nextMission, nextVehicle, hummerRoute };
+    enum class MinimapTarget { walkingCheckpoint, vehicle, payphone, fightActor, nextMission, nextVehicle, hummerRoute, postLcWalk };
     std::optional<MinimapTarget> lastMinimapTarget;
     bool trackOpeningVehicle = false;
     double minimapTargetStartMs = 0;
@@ -633,6 +635,7 @@ struct CityRender {
     std::optional<size_t> weaponShopEntranceFirstSurface;
     std::optional<size_t> returnToLcFirstSurface;
     std::optional<size_t> postLcDriveFirstSurface;
+    std::array<std::optional<size_t>, 2> postLcWalkFirstSurfaces;
     std::vector<CitySkinRange> skins;
     std::vector<CityVertex> vertices;
     std::vector<CityVertex> vehicleVertices;
@@ -643,7 +646,7 @@ struct CityRender {
     std::vector<CityVehicleMorphRange> vehicleMorphs;
     std::optional<CityVehicleGeometry> nextVehicleGeometry;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 10> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 12> checkpointMeshes;
     uint32_t vehicleFirstVertex = 0;
     CityTerrain terrain;
     CityOpening opening{};
@@ -1603,7 +1606,7 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
     const bool worldTransparency = city.checkpointFirstSurface || city.vehicleObjectiveFirstSurface ||
         city.nextMissionFirstSurface || city.hummerRouteFirstSurface || city.weaponShopDriveFirstSurface ||
         city.weaponShopApproachFirstSurface || city.weaponShopEntranceFirstSurface || city.returnToLcFirstSurface ||
-        city.postLcDriveFirstSurface ||
+        city.postLcDriveFirstSurface || city.postLcWalkFirstSurfaces[0] || city.postLcWalkFirstSurfaces[1] ||
         !city.vehicleLights.empty() ||
         std::any_of(city.vehicleEffects.begin(),
         city.vehicleEffects.end(), [](const CityVehicleEffect& effect) { return !effect.texture.empty(); });
@@ -1828,7 +1831,8 @@ void activatePostLcDrive(CityRender& city)
     city.hummerRouteMarker.reset();
     city.postLcIntroFinished = true;
     city.postLcAmbushFinished = false;
-    city.postLcConfrontationFinished = false;
+    city.postLcWalkScript.reset();
+    city.postLcWalkMarker.reset();
     city.postLcTailMs.reset();
     city.spyGauge.reset();
     city.postLcArrivalFadeMs.reset();
@@ -1938,17 +1942,19 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         !city.checkpointMeshes[8].empty();
     const bool updatePostLcDriveMarker = city.hummerRouteMarker && city.postLcIntroFinished && !failed &&
         !city.checkpointMeshes[9].empty();
+    const auto walkMarker = !failed && !postFightMs ? city.postLcWalkMarker : std::nullopt;
     const std::array updateMarkers{updateWalkMarker, updateRouteMarker, updateVehicleMarker,
                                    updateNextMissionMarker && footMarkerIndex == 3,
                                    updateHummerMarker && !city.weaponShopDrive && !city.returningToLc &&
                                        !city.postLcIntroFinished, updateShopMarker,
                                    updateNextMissionMarker && footMarkerIndex == 6,
-                                   updateNextMissionMarker && footMarkerIndex == 7, updateLcMarker, updatePostLcDriveMarker};
+                                   updateNextMissionMarker && footMarkerIndex == 7, updateLcMarker, updatePostLcDriveMarker,
+                                   walkMarker && walkMarker->index == 0, walkMarker && walkMarker->index == 1};
     const bool particlesVisible = std::any_of(city.vehicleEffects.begin(), city.vehicleEffects.end(),
         [](const CityVehicleEffect& effect) { return !effect.simulation.particles().empty(); });
     if (!city.skins.empty() || !city.billboards.empty() || updateVehicle || city.restoreVehicleGeometry || updateWalkMarker ||
         updateRouteMarker || updateVehicleMarker || updateNextMissionMarker || updateHummerMarker || updateShopMarker ||
-        updateLcMarker || updatePostLcDriveMarker || showMinimap || particlesVisible || lights) {
+        updateLcMarker || updatePostLcDriveMarker || walkMarker || showMinimap || particlesVisible || lights) {
         if (updateVehicle)
             poseCityVehicle(city.opening.actors[*city.opening.vehicleActor], *vehicle, city.vehicleVertices,
                             city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets);
@@ -1989,6 +1995,12 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             poseCityCheckpoint(*city.opening.payphone->postFight.nextCheckpoint->postLcDriveCheckpoint,
                                city.checkpointMeshes[9], city.payphoneGameplayMs.value_or(0) - *city.hummerRouteMarker,
                                city.vertices.data());
+        if (walkMarker) {
+            const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
+            poseCityCheckpoint(*route.postLcWalkCheckpoints[walkMarker->index],
+                               city.checkpointMeshes[10 + walkMarker->index],
+                               city.payphoneGameplayMs.value_or(0) - walkMarker->startMs, city.vertices.data());
+        }
         // finishFrame waits for the graphics queue before this allocation is written again.
         void* mapped = nullptr;
         check(VK_CALL(vkMapMemory)(vk.device, city.geometryMemory, 0, city.indexOffset, 0, &mapped),
@@ -2057,7 +2069,11 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 });
                 return found == placements.rend() || !found->visible ? nullptr : &*found;
             }();
-            if (city.hummerRouteMarker) {
+            if (walkMarker) {
+                target = Target::postLcWalk;
+                targetPosition = &city.opening.payphone->postFight.nextCheckpoint
+                    ->postLcWalkCheckpoints[walkMarker->index]->position;
+            } else if (city.hummerRouteMarker) {
                 target = Target::hummerRoute;
                 const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
                 targetPosition = &(city.postLcIntroFinished ? route.postLcDriveCheckpoint :
@@ -2202,7 +2218,11 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         std::optional<bool> marker;
         bool vehicleMarker = false;
         bool arrowMarker = false;
-        if (atOrAfter(city.postLcDriveFirstSurface))
+        if (atOrAfter(city.postLcWalkFirstSurfaces[1]))
+            marker = walkMarker && walkMarker->index == 1;
+        else if (atOrAfter(city.postLcWalkFirstSurfaces[0]))
+            marker = walkMarker && walkMarker->index == 0;
+        else if (atOrAfter(city.postLcDriveFirstSurface))
             marker = city.postLcIntroFinished && city.hummerRouteMarker;
         else if (atOrAfter(city.returnToLcFirstSurface))
             marker = city.returningToLc && city.hummerRouteMarker;
@@ -2427,7 +2447,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                     screen, city.captionVertex, 6);
         else if (city.postLcIntroFinished && city.hummerRouteScript && city.postLcDriveObjective.descriptor)
             overlay(city.postLcDriveObjective.descriptor, screen, city.captionVertex, 6);
-        else if (city.postLcConfrontationFinished && city.postLcConfrontationObjective.descriptor)
+        else if (city.postLcWalkScript && city.postLcConfrontationObjective.descriptor)
             overlay(city.postLcConfrontationObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.postLcAmbushFinished && city.postLcAmbushObjective.descriptor)
             overlay(city.postLcAmbushObjective.descriptor, screen, city.captionVertex, 6);
@@ -2938,7 +2958,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         for (const auto& [opcode, payload] : handoff.nextCheckpoint->postLcTailConditions)
                             playback.missionConditions.apply({opcode, payload});
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postLcConfrontation) {
-                        cityRender->postLcConfrontationFinished = true;
+                        const auto& waits = handoff.nextCheckpoint->postLcWalkWaits;
+                        auto& script = cityRender->postLcWalkScript.emplace(CityScriptProgram{{{64, waits[0]}, {64, waits[1]}}});
+                        script.unlock(0, 0, 0);
                     }
                 }
             }
@@ -3061,6 +3083,31 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 const bool payphoneReached = playback.payphoneReached;
                 playback.advancePayphone(cityRender->opening, delta);
                 const bool nowOccupied = playback.vehicle && playback.vehicle->occupied;
+                if (cityRender->postLcWalkScript) {
+                    const auto& checkpoints = cityRender->opening.payphone->postFight.nextCheckpoint->postLcWalkCheckpoints;
+                    RetailTravelHooks travel;
+                    travel.setActive = [&](std::string_view name, bool active) {
+                        const auto found = std::find_if(checkpoints.begin(), checkpoints.end(),
+                            [&](const auto& checkpoint) { return checkpoint && checkpoint->name == name; });
+                        if (found == checkpoints.end()) throw std::logic_error("Missing retail Loco walking checkpoint.");
+                        if (active) {
+                            cityRender->postLcWalkMarker = CityRender::WalkingMarker{
+                                static_cast<size_t>(found - checkpoints.begin()), cityRender->payphoneGameplayMs.value_or(0)};
+                            cityRender->lastMinimapTarget.reset();
+                        } else cityRender->postLcWalkMarker.reset();
+                    };
+                    travel.reached = [&](const CityScriptCheckpoint&) {
+                        if (!playback.player || !playback.playerHealth || nowOccupied || !cityRender->postLcWalkMarker)
+                            return false;
+                        const auto& checkpoint = *checkpoints[cityRender->postLcWalkMarker->index];
+                        const auto& position = playback.player->position;
+                        return std::hypot(position[0] - checkpoint.position[0], position[1] - checkpoint.position[1],
+                                          position[2] - checkpoint.position[2]) < checkpoint.radius;
+                    };
+                    auto& script = *cityRender->postLcWalkScript;
+                    script.execute(0, 0, 0, [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, &travel);
+                    if (script.state(0) == RetailScriptState::locked) cityRender->postLcWalkScript.reset();
+                }
                 if (cityRender->hummerRouteScript) {
                     const auto& mission = *cityRender->opening.payphone->postFight.nextCheckpoint;
                     const auto& checkpoint = *(cityRender->postLcIntroFinished ? mission.postLcDriveCheckpoint :
@@ -3292,6 +3339,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     render->weaponShopEntranceFirstSurface = geometry.weaponShopEntranceFirstSurface;
                     render->returnToLcFirstSurface = geometry.returnToLcFirstSurface;
                     render->postLcDriveFirstSurface = geometry.postLcDriveFirstSurface;
+                    render->postLcWalkFirstSurfaces = geometry.postLcWalkFirstSurfaces;
                     const auto appendOverlay = [&](float left, float right, float top, float bottom) {
                         const auto vertex = static_cast<uint32_t>(geometry.vertices.size());
                         const CityVertex a{{left, top, 0}, {0, 0}}, b{{right, top, 0}, {1, 0}};
@@ -3619,9 +3667,22 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             render.activeMissionCinematic != &mission.postLcConfrontation)
                             throw std::runtime_error("Script 25 did not clear the tailing state and start the confrontation.");
                         for (int step = 0; step < 64 && render.postFightCinematic; ++step) update(1000, true);
-                        if (!render.postLcConfrontationFinished || !render.postLcConfrontationObjective.descriptor ||
+                        if (!render.postLcWalkScript || !render.postLcConfrontationObjective.descriptor ||
                             render.postFightCinematic || playback.missionFailure)
                             throw std::runtime_error("Script 25 confrontation did not hand off to its next objective.");
+                        const auto& checkpoints = mission.postLcWalkCheckpoints;
+                        playback.player->position = checkpoints[1]->position;
+                        update(0);
+                        if (!render.postLcWalkMarker || render.postLcWalkMarker->index != 0)
+                            throw std::runtime_error("Script 25 accepted the walking checkpoints out of order.");
+                        playback.player->position = checkpoints[0]->position;
+                        update(0);
+                        if (!render.postLcWalkMarker || render.postLcWalkMarker->index != 1)
+                            throw std::runtime_error("Script 25 did not activate its second walking checkpoint.");
+                        playback.player->position = checkpoints[1]->position;
+                        update(0);
+                        if (render.postLcWalkScript || render.postLcWalkMarker || playback.missionFailure)
+                            throw std::runtime_error("Script 25 did not release its final walking checkpoint.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

@@ -178,9 +178,10 @@ struct CityDrawData : CityVehicleGeometry {
     std::optional<size_t> weaponShopEntranceFirstSurface;
     std::optional<size_t> returnToLcFirstSurface;
     std::optional<size_t> postLcDriveFirstSurface;
+    std::array<std::optional<size_t>, 2> postLcWalkFirstSurfaces;
     std::optional<CityVehicleGeometry> nextVehicleGeometry;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 10> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 12> checkpointMeshes;
     std::vector<CityVehicleLightMesh> vehicleLights;
 };
 
