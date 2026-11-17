@@ -217,9 +217,10 @@ mission playthroughs for discovery or verification.
   the retail right and left punch clips when the on-foot target is in range
   and unobstructed. The port records Fists damage once at the midpoint of
   each clip, rechecking range and obstruction at contact. The fight uses
-  Character's retail starting health of 100 and displays a temporary health
-  bar. At zero health movement stops. The retail HUD, collision query,
-  defeat and respawn flow remain open. F or gamepad Y plays the player's
+  PlayerTest's retail starting health of 300. The HUD uses the retail
+  health gauge with a blinking fill below 150. At zero health movement stops.
+  The retail collision query, defeat and respawn flow remain open.
+  F or gamepad Y plays the player's
   punch. Locked, unblocked hits reduce Loco's provisional 100 health.
   The live WaitKilled ends the objective at zero health. Loco stays where
   he fell, using the retail fall-to-dead and dead-idle clips. Opcode 23

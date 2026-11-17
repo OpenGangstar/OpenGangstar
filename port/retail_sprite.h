@@ -35,7 +35,7 @@ struct RetailSpriteDraw {
     bool flipX, flipY;
 };
 
-struct RetailArmorGauge {
+struct RetailHudGauge {
     struct Layer {
         Image image;
         int32_t x, y;
@@ -43,8 +43,16 @@ struct RetailArmorGauge {
     std::array<Layer, 3> layers;
 };
 
-RetailArmorGauge loadRetailArmorGauge(FileSystemBase& assets);
-uint32_t retailArmorFillLeft(uint32_t width, int32_t armor);
+enum RetailStatusGauge { lifeGauge, armorGauge, statusGaugeCount };
+using RetailStatusGauges = std::array<RetailHudGauge, statusGaugeCount>;
+RetailStatusGauges loadRetailStatusGauges(FileSystemBase& assets);
+uint32_t retailGaugeFillLeft(uint32_t width, int32_t value, int32_t maximum);
+
+struct RetailHealthBlink {
+    double elapsedMs = 0;
+    bool hideFill = false;
+    void update(int32_t health, double deltaMs);
+};
 RetailSprite readRetailSprite(IFileStream& source);
 Image loadRetailSpriteAtlas(FileSystemBase& assets, const std::string& spritePath, const RetailSprite& sprite,
                            bool keepBitmapAlpha = false);

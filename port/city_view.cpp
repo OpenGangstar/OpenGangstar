@@ -1454,7 +1454,7 @@ bool CityPlayback::buyShopService(CityShopService service, uint32_t price)
 {
     if (playerHealth <= 0 || playerCash < 0 || price > static_cast<uint32_t>(playerCash)) return false;
     if (service == CityShopService::vest)
-        playerArmor = 200;
+        playerArmor = playerMaxArmor;
     else
         playerHealth = playerMaxHealth;
     playerCash -= static_cast<int32_t>(price);

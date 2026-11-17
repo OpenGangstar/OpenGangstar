@@ -298,7 +298,8 @@ struct CityPlayback {
     std::optional<CityPlayerPose> payphonePursuer;
     std::optional<double> payphonePunchMs;
     size_t payphonePunchIndex = 0;
-    static constexpr int32_t playerMaxHealth = 100;
+    static constexpr int32_t playerMaxHealth = 300;
+    static constexpr int32_t playerMaxArmor = 200;
     int32_t playerHealth = playerMaxHealth;
     int32_t playerArmor = 0;
     int32_t playerCash = 0;

@@ -1060,13 +1060,27 @@ void poseRetailDoor(const std::filesystem::path& root)
     std::cout << roadFlagCount << " retail triangle flag bytes, " << movingPoints
               << " moving spawn points with road flags, " << roadSpeeds.size() << " speed codes.\n";
     const auto minimap = loadRetailMinimap(assets);
-    const auto armorGauge = loadRetailArmorGauge(assets);
-    require(armorGauge.layers[1].image.width == 171 && armorGauge.layers[1].y == 17 &&
-            armorGauge.layers[2].x == 543 &&
-            std::any_of(armorGauge.layers[1].image.bgra.begin(), armorGauge.layers[1].image.bgra.end(),
+    const auto gauges = loadRetailStatusGauges(assets);
+    const auto& armor = gauges[armorGauge];
+    const auto& life = gauges[lifeGauge];
+    require(armor.layers[1].image.width == 171 && armor.layers[1].y == 17 &&
+            armor.layers[2].x == 543 &&
+            life.layers[1].image.width == 171 && life.layers[1].y == 8 &&
+            std::any_of(armor.layers[1].image.bgra.begin(), armor.layers[1].image.bgra.end(),
                         [](uint32_t pixel) { return (pixel >> 24) != 0; }) &&
-            retailArmorFillLeft(171, 100) == 86 && retailArmorFillLeft(171, 200) == 0 &&
-            retailArmorFillLeft(171, 0) == 171, "Retail armor HUD frames or integer fill clipping changed.");
+            std::any_of(life.layers[1].image.bgra.begin(), life.layers[1].image.bgra.end(),
+                        [](uint32_t pixel) { return (pixel >> 24) != 0; }) &&
+            retailGaugeFillLeft(171, 100, 200) == 86 && retailGaugeFillLeft(171, 200, 200) == 0 &&
+            retailGaugeFillLeft(171, 0, 300) == 171, "Retail HUD gauge frames or integer fill clipping changed.");
+    RetailHealthBlink blink;
+    blink.update(149, 499);
+    require(!blink.hideFill, "Health fill blinked before 500 ms.");
+    blink.update(149, 1);
+    require(blink.hideFill, "Low health fill remained visible at 500 ms.");
+    blink.update(149, 500);
+    require(!blink.hideFill, "Low health fill did not return at 1000 ms.");
+    blink.update(150, 500);
+    require(!blink.hideFill, "Health fill blinked at the healthy threshold.");
     const auto benchLod = readCityLodGroup(loadCityScene(assets, "bench_wood_00.bdae"));
     require(benchLod.levels.size() == 3 && benchLod.select(1000.f * 1000) != benchLod.select(6000.f * 6000) &&
             !benchLod.select(7100.f * 7100), "Retail bench LOD thresholds did not decode.");
@@ -2330,19 +2344,19 @@ void verifyPayphonePursuit()
     playback.pursuePayphoneTarget(opening, terrain, 50);
     require(playback.payphonePunchMs == 0 && playback.payphonePunchIndex == 0,
             "NPC did not start the first punch in range.");
-    require(playback.playerHealth == 100, "Punch applied damage before contact.");
+    require(playback.playerHealth == 300, "Punch applied damage before contact.");
     playback.pursuePayphoneTarget(opening, terrain, 50);
     require(playback.payphonePunchMs == 50 && playback.payphonePunchIndex == 0,
             "NPC changed punch clips before the first one finished.");
-    require(playback.playerHealth == 88, "Punch missed its contact time.");
+    require(playback.playerHealth == 288, "Punch missed its contact time.");
     playback.pursuePayphoneTarget(opening, terrain, 50);
     require(playback.payphonePunchMs == 0 && playback.payphonePunchIndex == 1,
             "NPC did not switch to the other punch after the first one finished.");
-    require(playback.playerHealth == 88, "Punch applied damage more than once.");
+    require(playback.playerHealth == 288, "Punch applied damage more than once.");
     playback.player->position[1] -= 200;
     playback.pursuePayphoneTarget(opening, terrain, 50);
     playback.pursuePayphoneTarget(opening, terrain, 50);
-    require(playback.playerHealth == 88, "Punch hit after the player moved out of reach.");
+    require(playback.playerHealth == 288, "Punch hit after the player moved out of reach.");
     playback.player->position[1] += 200;
     playback.playerHealth = 4;
     playback.payphonePunchMs = 0;
