@@ -281,8 +281,10 @@ mission playthroughs for discovery or verification.
   The entrance stays active for repeat visits. The Windows confirmation and
   error prompts use English. On foot, positive armor draws the three retail
   HUD layers and clips the fill from the left. Windows right-aligns the
-  gauge in its 480-pixel HUD coordinate space. The original shop layout,
-  weapon purchases, and the cash indicator remain open.
+  gauge in its 480-pixel HUD coordinate space. The cash balance uses retail
+  HUD sprites and language-specific grouping during gameplay and in the
+  Windows shop panel. The original cash visibility controls, shop layout,
+  and weapon purchases remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

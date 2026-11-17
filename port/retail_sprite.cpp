@@ -145,14 +145,14 @@ Image loadRetailSpriteAtlas(FileSystemBase& assets, const std::string& spritePat
     throw std::runtime_error("Missing retail sprite atlas for " + spritePath);
 }
 
-RetailStatusGauges loadRetailStatusGauges(FileSystemBase& assets)
+RetailStatusHud loadRetailStatusHud(FileSystemBase& assets)
 {
     constexpr char path[] = "huds.bsprite";
     const std::unique_ptr<IFileStream> file(assets.openResource(path));
     if (!file) throw std::runtime_error("Missing retail HUD sprite.");
     const auto sprite = readRetailSprite(*file);
     const auto atlas = loadRetailSpriteAtlas(assets, path, sprite, true);
-    RetailStatusGauges gauges;
+    RetailStatusHud hud;
     constexpr std::array<const char*, 6> names{
         "BAR_LIFE_BG", "BAR_LIFE", "BAR_LIFE_FT", "BAR_ARMOR_BG", "BAR_ARMOR", "BAR_ARMOR_FT"};
     for (size_t i = 0; i < names.size(); ++i) {
@@ -163,14 +163,47 @@ RetailStatusGauges loadRetailStatusGauges(FileSystemBase& assets)
         if (draws.size() != 1) throw std::runtime_error("Unexpected retail HUD gauge frame layout.");
         auto& draw = draws.front();
         const auto& module = sprite.modules.at(draw.module);
-        auto& layer = gauges[i / 3].layers[i % 3];
+        auto& layer = hud.gauges[i / 3].layers[i % 3];
         layer.x = draw.x;
         layer.y = draw.y;
         layer.image = {module.width, module.height, std::vector<uint32_t>(size_t(module.width) * module.height)};
         draw.x = draw.y = 0;
         paintRetailSpriteDraws(sprite, atlas, draws, layer.image);
     }
-    return gauges;
+    // The default CHudManager cash widget uses LITTLEY digits and separators.
+    constexpr std::array<size_t, retailCashCharacters.size()> cashFrames{
+        96, 87, 88, 89, 90, 91, 92, 93, 94, 95, 86, 97, 172};
+    for (size_t i = 0; i < cashFrames.size(); ++i) {
+        const auto frameIndex = cashFrames[i];
+        const auto& frame = sprite.frames.at(frameIndex);
+        const auto& bounds = frame.bounds;
+        const auto width = int64_t(bounds.right) - bounds.left;
+        const auto height = int64_t(bounds.bottom) - bounds.top;
+        if (bounds.left != 0 || bounds.top != 0 || width <= 0 || width > 64 || height <= 0 || height > 64)
+            throw std::runtime_error("Invalid retail cash glyph bounds.");
+        auto& glyph = hud.cashGlyphs[i];
+        glyph = {static_cast<uint32_t>(width), static_cast<uint32_t>(height),
+                 std::vector<uint32_t>(static_cast<size_t>(width * height))};
+        paintRetailSpriteDraws(sprite, atlas, composeRetailSpriteFrame(sprite, frameIndex), glyph);
+    }
+    return hud;
+}
+
+std::string formatRetailCash(int32_t amount, RetailLanguage language)
+{
+    auto digits = std::to_string(std::max(0, amount));
+    char separator = '.';
+    if (language == RetailLanguage::english) separator = ',';
+    if (language == RetailLanguage::french || language == RetailLanguage::spanish ||
+        language == RetailLanguage::italian)
+        separator = ' ';
+    if (separator != ' ' || language == RetailLanguage::italian || amount > 9999) {
+        for (int offset = static_cast<int>(digits.size()) - 3; offset > 0; offset -= 3)
+            digits.insert(static_cast<size_t>(offset), 1, separator);
+    }
+    if (language == RetailLanguage::english || language == RetailLanguage::spanish) return '$' + digits;
+    if (language == RetailLanguage::italian) return digits + '$';
+    return digits + " $";
 }
 
 uint32_t retailGaugeFillLeft(uint32_t width, int32_t value, int32_t maximum)

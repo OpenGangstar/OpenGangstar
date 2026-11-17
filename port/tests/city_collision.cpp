@@ -1060,9 +1060,9 @@ void poseRetailDoor(const std::filesystem::path& root)
     std::cout << roadFlagCount << " retail triangle flag bytes, " << movingPoints
               << " moving spawn points with road flags, " << roadSpeeds.size() << " speed codes.\n";
     const auto minimap = loadRetailMinimap(assets);
-    const auto gauges = loadRetailStatusGauges(assets);
-    const auto& armor = gauges[armorGauge];
-    const auto& life = gauges[lifeGauge];
+    const auto hud = loadRetailStatusHud(assets);
+    const auto& armor = hud.gauges[armorGauge];
+    const auto& life = hud.gauges[lifeGauge];
     require(armor.layers[1].image.width == 171 && armor.layers[1].y == 17 &&
             armor.layers[2].x == 543 &&
             life.layers[1].image.width == 171 && life.layers[1].y == 8 &&
@@ -1072,6 +1072,18 @@ void poseRetailDoor(const std::filesystem::path& root)
                         [](uint32_t pixel) { return (pixel >> 24) != 0; }) &&
             retailGaugeFillLeft(171, 100, 200) == 86 && retailGaugeFillLeft(171, 200, 200) == 0 &&
             retailGaugeFillLeft(171, 0, 300) == 171, "Retail HUD gauge frames or integer fill clipping changed.");
+    for (const auto& glyph : hud.cashGlyphs)
+        require(std::any_of(glyph.bgra.begin(), glyph.bgra.end(), [](uint32_t pixel) { return pixel >> 24; }),
+                "Retail cash glyph has no visible pixels.");
+    require(formatRetailCash(0, RetailLanguage::english) == "$0" &&
+            formatRetailCash(1234567, RetailLanguage::english) == "$1,234,567" &&
+            formatRetailCash(9999, RetailLanguage::french) == "9999 $" &&
+            formatRetailCash(10000, RetailLanguage::french) == "10 000 $" &&
+            formatRetailCash(1234, RetailLanguage::german) == "1.234 $" &&
+            formatRetailCash(1234, RetailLanguage::italian) == "1 234$" &&
+            formatRetailCash(1234, RetailLanguage::japanese) == "1.234 $" &&
+            formatRetailCash(12345, RetailLanguage::spanish) == "$12 345",
+            "Retail cash currency placement or grouping changed.");
     RetailHealthBlink blink;
     blink.update(149, 499);
     require(!blink.hideFill, "Health fill blinked before 500 ms.");

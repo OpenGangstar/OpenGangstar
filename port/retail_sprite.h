@@ -1,6 +1,7 @@
 #pragma once
 
 #include "texture.h"
+#include "retail_text.h"
 
 #include <array>
 #include <cstddef>
@@ -44,8 +45,13 @@ struct RetailHudGauge {
 };
 
 enum RetailStatusGauge { lifeGauge, armorGauge, statusGaugeCount };
-using RetailStatusGauges = std::array<RetailHudGauge, statusGaugeCount>;
-RetailStatusGauges loadRetailStatusGauges(FileSystemBase& assets);
+inline constexpr std::string_view retailCashCharacters = "0123456789$,.";
+struct RetailStatusHud {
+    std::array<RetailHudGauge, statusGaugeCount> gauges;
+    std::array<Image, retailCashCharacters.size()> cashGlyphs;
+};
+RetailStatusHud loadRetailStatusHud(FileSystemBase& assets);
+std::string formatRetailCash(int32_t amount, RetailLanguage language);
 uint32_t retailGaugeFillLeft(uint32_t width, int32_t value, int32_t maximum);
 
 struct RetailHealthBlink {

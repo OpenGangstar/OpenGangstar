@@ -465,6 +465,7 @@ struct CityRender {
         destroyTexture(weaponShopInsufficientCash);
         for (const auto& gauge : statusGauges)
             for (const auto& texture : gauge.layers) destroyTexture(texture);
+        for (const auto& texture : cashGlyphs) destroyTexture(texture);
         destroyTexture(failureTitle);
         destroyTexture(failurePrompt);
         destroyTexture(cinematicBars);
@@ -536,6 +537,11 @@ struct CityRender {
     };
     std::array<StatusGauge, statusGaugeCount> statusGauges;
     RetailHealthBlink healthBlink;
+    std::array<CityTexture, retailCashCharacters.size()> cashGlyphs;
+    std::array<uint32_t, retailCashCharacters.size()> cashGlyphVertices{}, cashGlyphWidths{};
+    RetailLanguage cashLanguage = RetailLanguage::english;
+    int32_t displayedCash = -1;
+    std::string cashLabel;
     uint32_t missionTitleLabelVertex = 0;
     std::optional<double> missionTitleMs;
     std::optional<double> missionRevealMs;
@@ -943,7 +949,7 @@ void updateVehicleEffects(CityRender& city, double deltaMs)
 }
 
 void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDrawData& draw,
-                         const RetailMinimapAssets* minimap, const RetailStatusGauges* statusGauges,
+                         const RetailMinimapAssets* minimap, const RetailStatusHud* statusHud,
                          RetailLanguage language)
 {
     auto& vk = city.context;
@@ -1025,7 +1031,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount +
                                              hasPayphoneObjective + (next ? 9 : 0) +
-                                             (statusGauges ? statusGauges->size() * statusGauges->front().layers.size() : 0) +
+                                             (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
+                                                          statusHud->cashGlyphs.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
                                              failure.size() + hasFailureTitle + hasFailurePrompt +
                                              titleTextures + city.portraits.size() +
@@ -1090,13 +1097,18 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         }
         upload(texture, pixels, districtTextures.count(path) ? city.districtSampler : city.sampler);
     }
-    if (statusGauges) {
-        for (size_t i = 0; i < statusGauges->size(); ++i) {
-            const auto& source = (*statusGauges)[i];
+    if (statusHud) {
+        for (size_t i = 0; i < statusHud->gauges.size(); ++i) {
+            const auto& source = statusHud->gauges[i];
             auto& gauge = city.statusGauges[i];
             for (size_t layer = 0; layer < gauge.layers.size(); ++layer)
                 upload(gauge.layers[layer], source.layers[layer].image);
             gauge.fillWidth = source.layers[1].image.width;
+        }
+        city.cashLanguage = language;
+        for (size_t i = 0; i < statusHud->cashGlyphs.size(); ++i) {
+            upload(city.cashGlyphs[i], statusHud->cashGlyphs[i]);
+            city.cashGlyphWidths[i] = statusHud->cashGlyphs[i].width;
         }
     }
     const auto dialogues = city.opening.dialogue.size();
@@ -2038,6 +2050,27 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             city.weaponShopConfirmPurchase ? city.weaponShopConfirmation[selected] : city.weaponShopInventory[selected];
         overlay(panel.descriptor, screen, city.weaponShopInventoryVertex, 6);
     }
+    if (city.cashGlyphs[0].descriptor && !failed &&
+        (city.weaponShopOpen || (city.payphoneGameplayMs && !city.payphoneRevealMs && !postFightMs))) {
+        if (city.displayedCash != city.playback.playerCash) {
+            city.displayedCash = city.playback.playerCash;
+            city.cashLabel = formatRetailCash(city.displayedCash, city.cashLanguage);
+        }
+        auto glyphTransform = screen;
+        glyphTransform[1][3] = (city.weaponShopOpen ? 8.f : 97.f) / 160.f;
+        uint32_t x = 6;
+        for (const char character : city.cashLabel) {
+            if (character == ' ') {
+                x += 8;
+                continue;
+            }
+            const auto glyph = retailCashCharacters.find(character);
+            glyphTransform[0][3] = x / 240.f;
+            overlay(city.cashGlyphs[glyph].descriptor, glyphTransform, city.cashGlyphVertices[glyph], 6,
+                    VK_NULL_HANDLE, 1);
+            x += city.cashGlyphWidths[glyph];
+        }
+    }
     VK_CALL(vkCmdEndRenderPass)(vk.command);
     finishFrame(vk, index, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
     return drewVehicleMarker;
@@ -2806,11 +2839,11 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             {{-0.051f, 0.043f, 0}, {}}, {{0, -0.065f, 0}, {}}, {{0.051f, 0.043f, 0}, {}}
                         });
                     }
-                    std::optional<RetailStatusGauges> statusGauges;
+                    std::optional<RetailStatusHud> statusHud;
                     if (opening.payphone) {
-                        statusGauges = loadRetailStatusGauges(*assets);
-                        for (size_t i = 0; i < statusGauges->size(); ++i) {
-                            const auto& source = (*statusGauges)[i];
+                        statusHud = loadRetailStatusHud(*assets);
+                        for (size_t i = 0; i < statusHud->gauges.size(); ++i) {
+                            const auto& source = statusHud->gauges[i];
                             auto& gauge = render->statusGauges[i];
                             for (size_t j = 0; j < source.layers.size(); ++j) {
                                 const auto& layer = source.layers[j];
@@ -2821,12 +2854,17 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                     (layer.y + int32_t(layer.image.height)) / 160.f - 1);
                             }
                         }
+                        for (size_t i = 0; i < statusHud->cashGlyphs.size(); ++i) {
+                            const auto& glyph = statusHud->cashGlyphs[i];
+                            render->cashGlyphVertices[i] = appendOverlay(-1, glyph.width / 240.f - 1,
+                                                                          -1, glyph.height / 160.f - 1);
+                        }
                     }
                     prepareVehicleEffects(*render, *assets, geometry);
                     render->vehicleLights = std::move(geometry.vehicleLights);
                     prepareCityTargets(*render, info.imageFormat, size);
                     prepareCityTextures(*render, *assets, geometry, minimap ? &*minimap : nullptr,
-                                        statusGauges ? &*statusGauges : nullptr, language);
+                                        statusHud ? &*statusHud : nullptr, language);
                     prepareCityPipeline(*render, size);
                     uploadCity(*render, geometry);
                     render->vehicleFirstVertex = geometry.vehicleFirstVertex;
@@ -3204,6 +3242,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     throw std::runtime_error("Weapon shop smoke frame did not prepare all shop panels.");
                 render.weaponShopTutorialVisible = false;
                 render.weaponShopOpen = true;
+                if (!render.cashGlyphs[0].descriptor)
+                    throw std::runtime_error("Cash HUD smoke frame did not prepare retail glyphs.");
+                render.playback.playerCash = 12345;
                 presentCity(render, info.imageExtent);
                 render.weaponShopConfirmPurchase = true;
                 presentCity(render, info.imageExtent);
@@ -3213,7 +3254,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 presentCity(render, info.imageExtent);
                 render.weaponShopSelection = 0;
                 render.weaponShopPurchaseDenied = true;
+                render.playback.playerCash = 50;
                 presentCity(render, info.imageExtent);
+                if (render.displayedCash != 50)
+                    throw std::runtime_error("Cash HUD smoke frame did not pick up a changed balance.");
                 render.weaponShopPurchaseDenied = false;
                 render.weaponShopOpen = false;
                 std::cout << "Submitted the weapon shop inventory through Vulkan.\n" << std::flush;
