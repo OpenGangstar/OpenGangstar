@@ -460,6 +460,7 @@ struct CityRender {
         destroyTexture(hummerTutorial);
         destroyTexture(weaponShopObjective);
         destroyTexture(weaponShopTutorial);
+        destroyTexture(weaponShopInventory);
         destroyTexture(failureTitle);
         destroyTexture(failurePrompt);
         destroyTexture(cinematicBars);
@@ -492,6 +493,7 @@ struct CityRender {
     VkDeviceSize indexOffset = 0;
     uint32_t indexCount = 0;
     uint32_t captionVertex = 0;
+    uint32_t weaponShopInventoryVertex = 0;
     uint32_t dialogueCaptionVertex = 0;
     uint32_t cinematicBarsVertex = 0;
     uint32_t cinematicSkipVertex = 0;
@@ -520,6 +522,7 @@ struct CityRender {
     CityTexture hummerTutorial;
     CityTexture weaponShopObjective;
     CityTexture weaponShopTutorial;
+    CityTexture weaponShopInventory;
     uint32_t missionTitleLabelVertex = 0;
     std::optional<double> missionTitleMs;
     std::optional<double> missionRevealMs;
@@ -588,6 +591,7 @@ struct CityRender {
     bool weaponShopApproach = false;
     bool weaponShopUnlocked = false;
     bool weaponShopTutorialVisible = false;
+    bool weaponShopOpen = false;
     std::optional<double> nextMissionMarker;
     std::optional<double> payphoneGameplayMs;
     std::optional<double> payphoneRevealMs;
@@ -1002,7 +1006,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount +
-                                             hasPayphoneObjective + (next ? 4 : 0) +
+                                             hasPayphoneObjective + (next ? 5 : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
                                              failure.size() + hasFailureTitle + hasFailurePrompt +
                                              titleTextures + city.portraits.size() +
@@ -1144,8 +1148,15 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, route->postFight.nextCheckpoint->weaponShopObjective},
                                  true, false, 432, 68, font.family()));
             auto tutorial = route->postFight.nextCheckpoint->weaponShopTutorial;
-            tutorial.text = "Follow the yellow marker to the weapon shop.";
+            tutorial.text = "Walk to the yellow marker and press E or gamepad A to enter.";
             upload(city.weaponShopTutorial, rasterCaption(tutorial, true, false, 432, 68, font.family()));
+            const auto menuLabels = readLocalizedStrings(assets, "menu", language);
+            auto inventory = menuLabels.at(88) + "\n\n";
+            for (const auto& item : route->postFight.nextCheckpoint->weaponShopInventory)
+                inventory += item.label + "   $" + std::to_string(item.price) + "\n";
+            inventory += "\nE / A";
+            upload(city.weaponShopInventory, rasterCaption({0, 0, {}, inventory},
+                                                           true, false, 320, 256, font.family()));
         }
         for (size_t i = 0; i < payphoneCount; ++i) {
             const auto& line = (*payphoneLines)[i];
@@ -1470,6 +1481,7 @@ void activateNextMissionVehicle(CityRender& city)
     city.weaponShopApproach = false;
     city.weaponShopUnlocked = false;
     city.weaponShopTutorialVisible = false;
+    city.weaponShopOpen = false;
     city.hummerTutorialVisible = false;
     if (checkpoint.vehicleCheckpoint) {
         auto& script = city.hummerRouteScript.emplace(CityScriptProgram{{{89, checkpoint.vehicleEntryWait},
@@ -1971,6 +1983,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                        {0, 0, 1, 0}, {0, 0, 0, 1}}};
         overlay(city.textures.at("").descriptor, arrow, city.routeArrowVertex, 3);
     }
+    if (city.weaponShopOpen)
+        overlay(city.weaponShopInventory.descriptor, screen, city.weaponShopInventoryVertex, 6);
     VK_CALL(vkCmdEndRenderPass)(vk.command);
     finishFrame(vk, index, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
     return drewVehicleMarker;
@@ -2107,6 +2121,18 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             cityRender->lastTick = now;
             const bool pressed = touch->takePress();
             bool skip = touch->takeCutsceneSkip();
+            const bool interact = touch->takeVehiclePress();
+            if (cityRender->weaponShopOpen) {
+                cityRender->weaponShopOpen = !(interact || skip);
+                touch->takeTargetLockPress();
+                touch->takePunchPress();
+                touch->takeRadioStep();
+                touch->takeCameraDrag();
+                touch->takeCameraTaps();
+                touch->takeCameraRecenter();
+                presentCity(*cityRender, info.imageExtent);
+                return false;
+            }
             if (cityRender->missionRevealMs) {
                 *cityRender->missionRevealMs += delta;
                 if (retailMissionRevealBrightness(*cityRender->missionRevealMs) == 1.f)
@@ -2200,7 +2226,6 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     std::cerr << error.what() << '\n';
                 }
             }
-            const bool interact = touch->takeVehiclePress();
             const bool lockPressed = touch->takeTargetLockPress();
             const bool punchPressed = touch->takePunchPress();
             const int radioStep = touch->takeRadioStep();
@@ -2373,6 +2398,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         const auto& checkpoint = currentCheckpoint();
                         if (target.object != checkpoint.name || !playback.player || !playback.playerHealth)
                             return false;
+                        if (cityRender->weaponShopUnlocked && (!interact || occupied))
+                            return false;
                         const auto& position = playback.vehicle && playback.vehicle->occupied
                             ? playback.vehicle->position : playback.player->position;
                         return std::hypot(position[0] - checkpoint.position[0], position[1] - checkpoint.position[1],
@@ -2390,7 +2417,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                    false, &travel, {}, &shop);
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->nextMissionScript.reset();
-                        if (!cityRender->weaponShopApproach) {
+                        if (cityRender->weaponShopUnlocked) {
+                            cityRender->weaponShopOpen = true;
+                        } else if (!cityRender->weaponShopApproach) {
                             if (next.fadeMs) cityRender->nextMissionFadeMs = 0;
                             else {
                                 cityRender->missionTitleIndex = 1;
@@ -2641,6 +2670,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         render->captionVertex = appendOverlay(left, right, top, bottom);
                         render->dialogueCaptionVertex = appendOverlay(2.f * 104 / 480 - 1, right, top, bottom);
                     }
+                    if (opening.payphone && opening.payphone->postFight.nextCheckpoint)
+                        render->weaponShopInventoryVertex = appendOverlay(-2.f / 3, 2.f / 3, -0.8f, 0.8f);
                     std::optional<RetailMinimapAssets> minimap;
                     if (opening.movementMs) {
                         try {
@@ -3064,6 +3095,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 render.weaponShopTutorialVisible = true;
                 presentCity(render, info.imageExtent);
                 std::cout << "Submitted the retail weapon shop entrance and tutorial through Vulkan.\n" << std::flush;
+                if (!render.weaponShopInventory.descriptor)
+                    throw std::runtime_error("Weapon shop inventory smoke frame did not prepare the price list.");
+                render.weaponShopTutorialVisible = false;
+                render.weaponShopOpen = true;
+                presentCity(render, info.imageExtent);
+                render.weaponShopOpen = false;
+                std::cout << "Submitted the weapon shop inventory through Vulkan.\n" << std::flush;
                 render.payphoneGameplayMs.reset();
                 std::cout << "Submitted the retail payphone gameplay handoff through Vulkan.\n" << std::flush;
             }
