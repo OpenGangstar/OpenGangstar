@@ -480,7 +480,11 @@ mission playthroughs for discovery or verification.
   the van protection, plays the final dialogue and fades, removes the
   van, and applies the retail reward once. The Script 19 unlock restores
   through Continue and displays the authored El Toro checkpoint.
-  Script 19 gameplay and the fourth arrival look cue remain pending.
+  The El Toro checkpoint starts Script 19 with its 200 ms fade,
+  retail title, and opening cinematic. The port stages and protects
+  aPimpCarF_00, waits for entry, and activates Checkpoint_C2M1001 on
+  the HUD and minimap. The arrival scene and subsequent Script 19
+  gameplay remain pending, along with the fourth van arrival look cue.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

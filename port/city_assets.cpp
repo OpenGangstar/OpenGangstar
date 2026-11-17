@@ -2334,6 +2334,10 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> vanFourthArrivalPlacements;
     std::vector<AnimationCommand> vanFourthArrivalAnimations;
     std::vector<MotionCommand> vanFourthArrivalMotions;
+    std::vector<NamedMove> script19Moves;
+    std::vector<DialogueCommand> script19Dialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script19Placements;
+    std::vector<AnimationCommand> script19Animations;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4080,13 +4084,52 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (!vanClosingMoves.empty() || !vanClosingPlacements.empty())
                     throw std::runtime_error("Unexpected retail van closing staging.");
                 auto unlockedVanScript = scripts.script(route.vanUnlockedScript);
-                unlockedVanScript.integer();
+                const auto unlockedCount = unlockedVanScript.integer();
+                if (unlockedCount < 4) throw std::runtime_error("Truncated Script 19.");
                 auto unlockedVanGate = unlockedVanScript.record();
                 if (unlockedVanGate.integer() != 64)
                     throw std::runtime_error("Missing retail checkpoint after the van.");
                 route.vanUnlockedWait = unlockedVanGate.remainingBytes();
                 if (readCheckpointCommand(unlockedVanGate, 64).object != route.elToroCheckpoint->name)
                     throw std::runtime_error("Unexpected retail checkpoint after the van.");
+                auto introFade = unlockedVanScript.record(), introTitle = unlockedVanScript.record();
+                if (introFade.integer() != 42 || introTitle.integer() != 65)
+                    throw std::runtime_error("Invalid Script 19 entrance.");
+                route.script19EntranceFadeMs = readFadeCommand(introFade, 42, 0).durationMs;
+                route.script19Title = missionTitle(introTitle.integer());
+                introTitle.finish();
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                route.script19Intro.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, unlockedVanScript, unlockedCount - 3, 0, route.script19Intro,
+                              script19Moves, script19Dialogue, script19Placements,
+                              &script19Animations, nullptr, nullptr, 66);
+                route.script19Intro.dialogue = resolveDialogue(script19Dialogue);
+                if (!nextMissionObjectiveId)
+                    throw std::runtime_error("Missing Script 19 vehicle objective.");
+                route.script19VehicleObjective = vanObjective(*nextMissionObjectiveId);
+                for (const auto expected : {70u, 89u, 66u, 105u}) {
+                    auto command = unlockedVanScript.record();
+                    if (command.integer() != expected)
+                        throw std::runtime_error("Invalid Script 19 drive command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 70) {
+                        const auto condition = readMissionCondition(command, expected);
+                        if (!condition || condition->target != route.postBasketballVehicle)
+                            throw std::runtime_error("Script 19 protects an unexpected vehicle.");
+                    } else if (expected == 89) {
+                        if (readScriptObject(command) != route.postBasketballVehicle)
+                            throw std::runtime_error("Script 19 requires an unexpected vehicle.");
+                    } else if (expected == 66) {
+                        route.script19DriveObjective = vanObjective(readMissionObjective(command));
+                    } else {
+                        const auto target = readCheckpointCommand(command, expected);
+                        if (target.vehicle != route.postBasketballVehicle)
+                            throw std::runtime_error("Script 19 checkpoint requires an unexpected vehicle.");
+                        route.script19DriveCheckpoint = makeCheckpoint(target.object);
+                    }
+                    route.script19DriveCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4157,6 +4200,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(vanHandshakeBriefingPlacements, next->vanHandshakeBriefing.placements);
                 resolvePlacements(vanThirdArrivalPlacements, next->vanThirdArrival.placements);
                 resolvePlacements(vanFourthArrivalPlacements, next->vanFourthArrival.placements);
+                resolvePlacements(script19Placements, next->script19Intro.placements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
             }
         }
@@ -4442,6 +4486,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.vanHandshake);
                 loadCinematicActors(next.vanThirdArrival);
                 loadCinematicActors(next.vanFourthArrival);
+                loadCinematicActors(next.script19Intro);
                 loadCinematicActors(next.vanPoliceReveal);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
@@ -4548,6 +4593,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->vanSecondArrival, vanSecondArrivalAnimations);
                 bindCinematic(next->vanHandshake, vanHandshakeAnimations);
                 bindCinematic(next->vanFourthArrival, vanFourthArrivalAnimations);
+                bindCinematic(next->script19Intro, script19Animations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -4581,6 +4627,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->vanHandshake);
                 bindInitialIdle(next->vanThirdArrival);
                 bindInitialIdle(next->vanFourthArrival);
+                bindInitialIdle(next->script19Intro);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -4837,6 +4884,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : vanThirdArrivalMoves)
                             next->vanThirdArrival.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script19Moves)
+                            next->script19Intro.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : vanFourthArrivalMoves)
                             next->vanFourthArrival.cameras.push_back(
