@@ -232,6 +232,12 @@ void RetailAchievementState::recordCashSpent(int32_t amount)
     incrementStat(11, amount);
 }
 
+void RetailAchievementState::recordRepair(int32_t amount)
+{
+    incrementStat(13, 1);
+    if (amount > stat(19)) setStat(19, amount);
+}
+
 void RetailAchievementState::incrementStat(size_t id, int32_t amount)
 {
     if (id >= stats.size() || amount <= 0) return;

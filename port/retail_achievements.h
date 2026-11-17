@@ -51,6 +51,7 @@ public:
     void recordMissionCash(int32_t amount);
     void recordMissionEnded();
     void recordCashSpent(int32_t amount);
+    void recordRepair(int32_t amount);
     void recordJumpRamps(uint32_t mask);
     void complete(size_t id);
     int32_t stat(size_t id) const { return stats.at(id); }

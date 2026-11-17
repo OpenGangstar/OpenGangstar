@@ -473,6 +473,7 @@ struct CityRender {
         destroyTexture(postBasketballAmbushObjective);
         destroyTexture(repairDriveObjective);
         destroyTexture(repairTutorial);
+        destroyTexture(repairPaymentPrompt);
         destroyTexture(basketballFightObjective);
         destroyTexture(basketballTutorial);
         destroyTexture(weaponShopTutorial);
@@ -562,9 +563,14 @@ struct CityRender {
     std::optional<RetailScriptExecution> postBasketballEscapeScript, repairDriveScript;
     CityTexture repairDriveObjective, repairTutorial;
     bool repairTutorialVisible = false;
+    enum class RepairShop { inactive, approach, entrance, confirm, repairing };
+    RepairShop repairShop = RepairShop::inactive;
+    CityTexture repairPaymentPrompt;
+    int32_t repairQuote = 0;
+    double repairElapsedMs = 0;
     CityTexture basketballFightObjective, basketballTutorial;
     std::optional<RetailScriptExecution> basketballRouteScript, postBasketballRouteScript, postBasketballVehicleScript;
-    std::optional<double> basketballMarker, postBasketballMarker, repairDriveMarker;
+    std::optional<double> basketballMarker, postBasketballMarker, repairDriveMarker, repairShopMarker;
     bool basketballTutorialVisible = false;
     bool locoCooperPending = false;
     std::optional<CityVehiclePose> locoCooper;
@@ -646,7 +652,7 @@ struct CityRender {
     std::vector<CityTexture> minimapCheckpointTextures;
     std::vector<uint32_t> minimapCheckpointVertices;
     std::vector<RetailMinimapStep> minimapCheckpointAnimation;
-    enum class MinimapTarget { walkingCheckpoint, vehicle, payphone, fightActor, nextMission, nextVehicle, hummerRoute, postLcWalk, basketball, postBasketball, repairDrive };
+    enum class MinimapTarget { walkingCheckpoint, vehicle, payphone, fightActor, nextMission, nextVehicle, hummerRoute, postLcWalk, basketball, postBasketball, repairDrive, repairShop };
     std::optional<MinimapTarget> lastMinimapTarget;
     bool trackOpeningVehicle = false;
     double minimapTargetStartMs = 0;
@@ -667,7 +673,7 @@ struct CityRender {
     std::optional<size_t> weaponShopApproachFirstSurface;
     std::optional<size_t> weaponShopEntranceFirstSurface;
     std::optional<size_t> returnToLcFirstSurface;
-    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface;
+    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface;
     std::array<std::optional<size_t>, 3> postLcWalkFirstSurfaces;
     std::vector<CitySkinRange> skins;
     std::vector<CityVertex> vertices;
@@ -679,7 +685,7 @@ struct CityRender {
     std::vector<CityVehicleMorphRange> vehicleMorphs;
     std::optional<CityVehicleGeometry> nextVehicleGeometry, postBasketballVehicleGeometry;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 17> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 18> checkpointMeshes;
     uint32_t vehicleFirstVertex = 0;
     CityTerrain terrain;
     CityOpening opening{};
@@ -1229,7 +1235,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount +
-                                             hasPayphoneObjective + (next ? 26 : 0) +
+                                             hasPayphoneObjective + (next ? 27 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1446,6 +1452,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.repairDriveObjective,
                    rasterCaption({0, 0, {}, next.repairDriveObjective}, true, false, 432, 68, font.family()));
             upload(city.repairTutorial, rasterCaption(next.repairTutorial, true, false, 432, 68, font.family()));
+            upload(city.repairPaymentPrompt, rasterCaption({0, 0, {}, next.repairPaymentPrompt +
+                "\n\n\n\nEnter / A: Confirm    Esc / B: Cancel"}, true, false, 320, 256, font.family()));
             upload(city.postBasketballAmbushObjective,
                    rasterCaption({0, 0, {}, next.postBasketballAmbushObjective}, true, false, 432, 68, font.family()));
             upload(city.postBasketballObjective,
@@ -1796,7 +1804,7 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
     const bool worldTransparency = city.checkpointFirstSurface || city.vehicleObjectiveFirstSurface ||
         city.nextMissionFirstSurface || city.hummerRouteFirstSurface || city.weaponShopDriveFirstSurface ||
         city.weaponShopApproachFirstSurface || city.weaponShopEntranceFirstSurface || city.returnToLcFirstSurface ||
-        city.postLcDriveFirstSurface || city.cooperNextDriveFirstSurface || city.basketballFirstSurface || city.postBasketballFirstSurface || city.repairDriveFirstSurface || city.postLcWalkFirstSurfaces[0] || city.postLcWalkFirstSurfaces[1] || city.postLcWalkFirstSurfaces[2] ||
+        city.postLcDriveFirstSurface || city.cooperNextDriveFirstSurface || city.basketballFirstSurface || city.postBasketballFirstSurface || city.repairDriveFirstSurface || city.repairShopFirstSurface || city.postLcWalkFirstSurfaces[0] || city.postLcWalkFirstSurfaces[1] || city.postLcWalkFirstSurfaces[2] ||
         !city.vehicleLights.empty() ||
         std::any_of(city.vehicleEffects.begin(),
         city.vehicleEffects.end(), [](const CityVehicleEffect& effect) { return !effect.texture.empty(); });
@@ -2236,6 +2244,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const bool updateLcMarker = city.hummerRouteMarker && city.returningToLc && !failed &&
         !city.checkpointMeshes[8].empty();
     const bool cooperNextDrive = city.missionTitleIndex == 4;
+    const bool updateRepairShopMarker = city.repairShopMarker && !failed && !postFightMs &&
+        !city.checkpointMeshes[17].empty();
     const bool updateRepairDriveMarker = city.repairDriveMarker && !failed && !postFightMs &&
         !city.checkpointMeshes[16].empty();
     const bool updatePostBasketballMarker = city.postBasketballMarker && !failed && !postFightMs &&
@@ -2254,12 +2264,12 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                    updateNextMissionMarker && footMarkerIndex == 6,
                                    updateNextMissionMarker && footMarkerIndex == 7, updateLcMarker, updatePostLcDriveMarker,
                                    walkMarker && walkMarker->index == 0, walkMarker && walkMarker->index == 1,
-                                   walkMarker && walkMarker->index == 2, updateCooperNextMarker, updateBasketballMarker, updatePostBasketballMarker, updateRepairDriveMarker};
+                                   walkMarker && walkMarker->index == 2, updateCooperNextMarker, updateBasketballMarker, updatePostBasketballMarker, updateRepairDriveMarker, updateRepairShopMarker};
     const bool particlesVisible = std::any_of(city.vehicleEffects.begin(), city.vehicleEffects.end(),
         [](const CityVehicleEffect& effect) { return !effect.simulation.particles().empty(); });
     if (!city.skins.empty() || !city.billboards.empty() || updateVehicle || city.restoreVehicleGeometry || updateWalkMarker ||
         updateRouteMarker || updateVehicleMarker || updateNextMissionMarker || updateHummerMarker || updateShopMarker ||
-        updateLcMarker || updatePostLcDriveMarker || updateCooperNextMarker || updateBasketballMarker || updatePostBasketballMarker || updateRepairDriveMarker || walkMarker || cooperPose || showMinimap || particlesVisible || lights) {
+        updateLcMarker || updatePostLcDriveMarker || updateCooperNextMarker || updateBasketballMarker || updatePostBasketballMarker || updateRepairDriveMarker || updateRepairShopMarker || walkMarker || cooperPose || showMinimap || particlesVisible || lights) {
         if (updateVehicle)
             poseCityVehicle(city.opening.actors[*city.opening.vehicleActor], *vehicle, city.vehicleVertices,
                             city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets);
@@ -2299,6 +2309,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         if (updatePostLcDriveMarker)
             poseCityCheckpoint(*city.opening.payphone->postFight.nextCheckpoint->postLcDriveCheckpoint,
                                city.checkpointMeshes[9], city.payphoneGameplayMs.value_or(0) - *city.hummerRouteMarker,
+                               city.vertices.data());
+        if (updateRepairShopMarker)
+            poseCityCheckpoint(*city.opening.payphone->postFight.nextCheckpoint->repairShopApproach,
+                               city.checkpointMeshes[17], city.payphoneGameplayMs.value_or(0) - *city.repairShopMarker,
                                city.vertices.data());
         if (updateRepairDriveMarker)
             poseCityCheckpoint(*city.opening.payphone->postFight.nextCheckpoint->repairDriveCheckpoint,
@@ -2413,6 +2427,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             } else if (guard) {
                 target = Target::fightActor;
                 targetPosition = &guard->pose.position;
+            } else if (city.repairShopMarker) {
+                target = Target::repairShop;
+                targetPosition = &city.opening.payphone->postFight.nextCheckpoint->repairShopApproach->position;
             } else if (city.repairDriveMarker) {
                 target = Target::repairDrive;
                 targetPosition = &city.opening.payphone->postFight.nextCheckpoint->repairDriveCheckpoint->position;
@@ -2470,7 +2487,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 minimapMarker = retailMinimapMarkerOffset(center, uv, right, city.minimapMarkerLimits,
                                                           zoom, city.minimapWidth, city.minimapHeight);
                 // AnimObject advances half a sprite tick per retail 60 Hz update.
-                const auto routeStart = target == Target::repairDrive ? city.repairDriveMarker :
+                const auto routeStart = target == Target::repairShop ? city.repairShopMarker :
+                    target == Target::repairDrive ? city.repairDriveMarker :
                     target == Target::postBasketball ? city.postBasketballMarker :
                     target == Target::basketball ? city.basketballMarker :
                     city.hummerRouteMarker ? city.hummerRouteMarker : city.nextMissionMarker;
@@ -2609,7 +2627,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         std::optional<bool> marker;
         bool vehicleMarker = false;
         bool arrowMarker = false;
-        if (atOrAfter(city.repairDriveFirstSurface))
+        if (atOrAfter(city.repairShopFirstSurface))
+            marker = updateRepairShopMarker;
+        else if (atOrAfter(city.repairDriveFirstSurface))
             marker = updateRepairDriveMarker;
         else if (atOrAfter(city.postBasketballFirstSurface))
             marker = updatePostBasketballMarker;
@@ -2922,6 +2942,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             x += city.cashGlyphWidths[glyph];
         }
     };
+    if (city.repairShop == CityRender::RepairShop::confirm) {
+        overlay(city.repairPaymentPrompt.descriptor, screen, city.weaponShopInventoryVertex, 6);
+        if (city.cashGlyphs[0].descriptor) drawCash(formatRetailCash(city.repairQuote, city.cashLanguage), 196, 152.f);
+    }
     if (city.cashGlyphs[0].descriptor && !failed &&
         (city.weaponShopOpen || (city.payphoneGameplayMs && !city.payphoneRevealMs && !postFightMs))) {
         if (city.displayedCash != city.playback.playerCash) {
@@ -3083,6 +3107,39 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             const bool pressed = touch->takePress() || scriptedPress;
             bool skip = touch->takeCutsceneSkip();
             const bool interact = touch->takeVehiclePress();
+            using RepairShop = CityRender::RepairShop;
+            if (cityRender->repairShop == RepairShop::confirm || cityRender->repairShop == RepairShop::repairing) {
+                const auto navigation = touch->takeMenuNavigation();
+                touch->clearMenuPointerEvents();
+                if (cityRender->repairShop == RepairShop::confirm) {
+                    if (navigation.back || skip) {
+                        cityRender->repairShop = RepairShop::inactive;
+                        touch->stopMenuPointer();
+                    } else if (navigation.accept) {
+                        playback.playerCash -= cityRender->repairQuote;
+                        if (cityRender->achievements)
+                            cityRender->achievements->recordRepair(cityRender->repairQuote);
+                        cityRender->repairElapsedMs = 0;
+                        cityRender->repairShop = RepairShop::repairing;
+                    }
+                } else {
+                    const auto before = cityRender->repairElapsedMs;
+                    cityRender->repairElapsedMs += delta;
+                    if (before <= 250 && cityRender->repairElapsedMs > 250) {
+                        auto& car = *playback.vehicle;
+                        car.health = car.maxHealth;
+                        car.destroyedMs = 0;
+                        car.frontDeformation = 0;
+                        car.rearDeformation = 0;
+                    }
+                    if (cityRender->repairElapsedMs > 1500) {
+                        cityRender->repairShop = RepairShop::inactive;
+                        touch->stopMenuPointer();
+                    }
+                }
+                presentCity(*cityRender, info.imageExtent);
+                return false;
+            }
             if (cityRender->weaponShopOpen) {
                 const auto navigation = touch->takeMenuNavigation();
                 touch->clearMenuPointerEvents();
@@ -3230,6 +3287,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->repairDriveScript.reset();
                         cityRender->repairDriveMarker.reset();
                         cityRender->repairTutorialVisible = false;
+                        cityRender->repairShop = CityRender::RepairShop::inactive;
+                        cityRender->repairShopMarker.reset();
                         cityRender->taggedFightScript.reset();
                         playback.locoOpponents.clear();
                         playback.locoLockTarget.reset();
@@ -3532,6 +3591,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->repairDriveScript.emplace(CityScriptProgram{{{105, wait}}}).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->repairArrival) {
                         cityRender->repairTutorialVisible = true;
+                        cityRender->repairShop = CityRender::RepairShop::approach;
+                        cityRender->repairShopMarker = cityRender->payphoneGameplayMs.value_or(0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->postBasketballIntro) {
                         const auto& wait = handoff.nextCheckpoint->postBasketballDestinationWait;
                         cityRender->postBasketballRouteScript.emplace(CityScriptProgram{{{64, wait}}}).unlock(0, 0, 0);
@@ -3876,6 +3937,36 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 const bool payphoneReached = playback.payphoneReached;
                 playback.advancePayphone(cityRender->opening, delta);
                 const bool nowOccupied = playback.vehicle && playback.vehicle->occupied;
+                if (cityRender->repairShop == RepairShop::approach || cityRender->repairShop == RepairShop::entrance) {
+                    const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                    const auto inside = [](const CityCheckpoint& gate, const std::array<float, 3>& position) {
+                        return std::hypot(position[0] - gate.position[0], position[1] - gate.position[1],
+                                          position[2] - gate.position[2]) < gate.radius;
+                    };
+                    const auto& position = nowOccupied ? playback.vehicle->position : playback.player->position;
+                    if (cityRender->repairShop == RepairShop::approach && inside(*route.repairShopApproach, position))
+                        cityRender->repairShop = RepairShop::entrance;
+                    if (cityRender->repairShop == RepairShop::entrance && nowOccupied &&
+                        inside(*route.repairShopEntrance, position)) {
+                        auto& car = *playback.vehicle;
+                        if (car.health < car.maxHealth && car.maxHealth > 0 && !car.exploded) {
+                            const auto loss = int64_t(car.maxHealth) - car.health;
+                            const auto price = int64_t(route.repairPriceAtZeroHealth) * loss / car.maxHealth;
+                            cityRender->repairQuote = static_cast<int32_t>(std::min<int64_t>(price, INT32_MAX));
+                            if (cityRender->repairQuote <= playback.playerCash) {
+                                car.speed = 0;
+                                cityRender->repairShop = RepairShop::confirm;
+                                touch->startMenuPointer();
+                            }
+                        } else if (car.health == car.maxHealth && !car.exploded) {
+                            cityRender->repairShop = RepairShop::inactive;
+                        }
+                        if (cityRender->repairShop != RepairShop::entrance) {
+                            cityRender->repairTutorialVisible = false;
+                            cityRender->repairShopMarker.reset();
+                        }
+                    }
+                }
                 if (cityRender->repairDriveScript) {
                     const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
                     const auto& checkpoint = *route.repairDriveCheckpoint;
@@ -4249,6 +4340,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     render->basketballFirstSurface = geometry.basketballFirstSurface;
                     render->postBasketballFirstSurface = geometry.postBasketballFirstSurface;
                     render->repairDriveFirstSurface = geometry.repairDriveFirstSurface;
+                    render->repairShopFirstSurface = geometry.repairShopFirstSurface;
                     render->postLcWalkFirstSurfaces = geometry.postLcWalkFirstSurfaces;
                     const auto appendOverlay = [&](float left, float right, float top, float bottom) {
                         const auto vertex = static_cast<uint32_t>(geometry.vertices.size());
@@ -4977,8 +5069,37 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             route.repairArrival.cameras.size() != 2 || route.repairArrival.dialogue.size() != 1)
                             throw std::runtime_error("Script 29 did not start the repair arrival cinematic.");
                         for (int step = 0; step < 96 && render.postFightCinematic; ++step) update(250, true);
-                        if (!render.repairTutorialVisible || !render.repairTutorial.descriptor || car.occupied)
+                        if (!render.repairTutorialVisible || !render.repairTutorial.descriptor || car.occupied ||
+                            !render.repairShopMarker || !render.repairShopFirstSurface || render.checkpointMeshes[17].empty())
                             throw std::runtime_error("Script 29 did not show the retail repair tutorial.");
+                        const auto& shop = *route.repairShopEntrance;
+                        const auto shopGround = render.terrain.groundContact(shop.position);
+                        if (!shopGround) throw std::runtime_error("Missing repair shop ground.");
+                        car.position = shop.position;
+                        car.position[2] = shopGround->height;
+                        car.groundTriangle = shopGround->triangle;
+                        car.occupied = true;
+                        car.health = car.maxHealth / 2;
+                        car.frontDeformation = 0.5f;
+                        const auto cashBeforeRepair = playback.playerCash;
+                        update(0);
+                        if (render.repairShop != CityRender::RepairShop::confirm ||
+                            !render.repairPaymentPrompt.descriptor || render.repairShopMarker || render.repairQuote <= 0 ||
+                            playback.playerCash != cashBeforeRepair)
+                            throw std::runtime_error("Script 29 did not quote the damaged car repair.");
+                        touch->message(window, WM_KEYDOWN, VK_RETURN, 0);
+                        update(0);
+                        touch->message(window, WM_KEYUP, VK_RETURN, 0);
+                        if (render.repairShop != CityRender::RepairShop::repairing ||
+                            playback.playerCash != cashBeforeRepair - render.repairQuote || car.health == car.maxHealth)
+                            throw std::runtime_error("Script 29 did not charge exactly once before repair.");
+                        update(250);
+                        update(1);
+                        update(1250);
+                        if (render.repairShop != CityRender::RepairShop::inactive || car.health != car.maxHealth ||
+                            car.frontDeformation != 0 || playback.playerCash != cashBeforeRepair - render.repairQuote ||
+                            render.achievements->stat(13) != 1 || render.achievements->stat(19) != render.repairQuote)
+                            throw std::runtime_error("Script 29 did not complete the paid repair and record its stats.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

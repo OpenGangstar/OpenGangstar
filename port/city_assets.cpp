@@ -3542,6 +3542,28 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 repairArrival.durationMs += repairFade.durationMs;
                 const auto repairTutorialText = readScriptTutorial(repairTutorial);
                 route.repairTutorial = {0, 0, label(repairTutorialText.title), label(repairTutorialText.text)};
+                auto repairSetMe = postBasketball.record();
+                auto repairLock = postBasketball.record();
+                auto repairApproach = postBasketball.record();
+                auto repairUnlock = postBasketball.record();
+                auto repairEnter = postBasketball.record();
+                auto repairHide = postBasketball.record();
+                if (repairSetMe.integer() != 0 || repairLock.integer() != 76 || repairApproach.integer() != 64 ||
+                    repairUnlock.integer() != 77 || repairEnter.integer() != 64 || repairHide.integer() != 48)
+                    throw std::runtime_error("Invalid retail repair shop tutorial flow.");
+                route.repairShopEntrance = makeCheckpoint(readScriptObject(repairSetMe));
+                route.repairShopApproach = makeCheckpoint(readCheckpointCommand(repairApproach, 64).object);
+                if (readScriptObject(repairLock) != "Me" || readScriptObject(repairUnlock) != "Me" ||
+                    readCheckpointCommand(repairEnter, 64).object != "Me")
+                    throw std::runtime_error("Retail repair checkpoint commands target different shops.");
+                repairHide.finish();
+                route.repairPaymentPrompt = label(0x302b);
+                const auto repairVehicle = findObject(route.postBasketballVehicle).vehicle;
+                if (!repairVehicle) throw std::runtime_error("Missing retail repair vehicle definition.");
+                // Vehicle::Load copies serialized offset 92 to the repair price field used by Shop::trigger.
+                route.repairPriceAtZeroHealth = repairVehicle->vehicleWords[(92 - 72) / 4];
+                if (route.repairPriceAtZeroHealth < 0)
+                    throw std::runtime_error("Invalid retail vehicle repair price.");
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
