@@ -2350,6 +2350,10 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script19ClosingPlacements;
     std::vector<AnimationCommand> script19ClosingAnimations;
     std::vector<MotionCommand> script19ClosingMotions;
+    std::vector<NamedMove> script20Moves;
+    std::vector<DialogueCommand> script20Dialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script20Placements;
+    std::vector<AnimationCommand> script20Animations;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4286,12 +4290,41 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.script19Closing.fades.push_back(script19Reveal);
                 route.script19Closing.durationMs += script19Reveal.durationMs;
                 auto nextScript = scripts.script(route.script19UnlockedScript);
-                nextScript.integer();
+                const auto script20Count = nextScript.integer();
+                if (script20Count < 4) throw std::runtime_error("Truncated Script 20.");
                 auto nextGate = nextScript.record();
                 if (nextGate.integer() != 64) throw std::runtime_error("Missing Script 20 start checkpoint.");
                 route.script19UnlockedWait = nextGate.remainingBytes();
                 if (readCheckpointCommand(nextGate, 64).object != route.elToroCheckpoint->name)
                     throw std::runtime_error("Unexpected Script 20 start checkpoint.");
+                auto script20Fade = nextScript.record(), script20Title = nextScript.record();
+                if (script20Fade.integer() != 42 || script20Title.integer() != 65)
+                    throw std::runtime_error("Invalid Script 20 entrance.");
+                route.script20EntranceFadeMs = readFadeCommand(script20Fade, 42, 0).durationMs;
+                route.script20Title = missionTitle(script20Title.integer());
+                script20Title.finish();
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                route.script20Intro.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, nextScript, script20Count - 3, 0, route.script20Intro,
+                              script20Moves, script20Dialogue, script20Placements, &script20Animations,
+                              nullptr, nullptr, 66);
+                route.script20Intro.dialogue = resolveDialogue(script20Dialogue);
+                if (!nextMissionObjectiveId) throw std::runtime_error("Missing Script 20 drive objective.");
+                route.script20DriveObjective = vanObjective(*nextMissionObjectiveId);
+                auto script20Entry = nextScript.record(), script20Drive = nextScript.record();
+                if (script20Entry.integer() != 89 || script20Drive.integer() != 105)
+                    throw std::runtime_error("Invalid Script 20 vehicle entry or drive checkpoint.");
+                auto entryPayload = script20Entry.remainingBytes();
+                auto script20DrivePayload = script20Drive.remainingBytes();
+                if (readScriptObject(script20Entry) != route.postBasketballVehicle)
+                    throw std::runtime_error("Unexpected Script 20 vehicle.");
+                const auto script20Target = readCheckpointCommand(script20Drive, 105);
+                if (script20Target.vehicle != route.postBasketballVehicle)
+                    throw std::runtime_error("Script 20 checkpoint requires an unexpected vehicle.");
+                route.script20DriveCheckpoint = makeCheckpoint(script20Target.object);
+                route.script20DriveCommands.emplace_back(89, std::move(entryPayload));
+                route.script20DriveCommands.emplace_back(105, std::move(script20DrivePayload));
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4365,6 +4398,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script19Placements, next->script19Intro.placements);
                 resolvePlacements(script19ArrivalPlacements, next->script19Arrival.placements);
                 resolvePlacements(script19ClosingPlacements, next->script19Closing.placements);
+                resolvePlacements(script20Placements, next->script20Intro.placements);
                 resolvePlacements(script19SecondFightPlacements, next->script19SecondFightPlacements);
                 resolvePlacements(script19ThirdFightPlacements, next->script19ThirdFightPlacements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
@@ -4655,6 +4689,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.script19Intro);
                 loadCinematicActors(next.script19Arrival);
                 loadCinematicActors(next.script19Closing);
+                loadCinematicActors(next.script20Intro);
                 loadCinematicActors(next.vanPoliceReveal);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
@@ -4770,6 +4805,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script19Intro, script19Animations);
                 bindCinematic(next->script19Arrival, script19ArrivalAnimations);
                 bindCinematic(next->script19Closing, script19ClosingAnimations);
+                bindCinematic(next->script20Intro, script20Animations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -4806,6 +4842,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->script19Intro);
                 bindInitialIdle(next->script19Arrival);
                 bindInitialIdle(next->script19Closing);
+                bindInitialIdle(next->script20Intro);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -5064,6 +5101,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : vanThirdArrivalMoves)
                             next->vanThirdArrival.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script20Moves)
+                            next->script20Intro.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script19ClosingMoves)
                             next->script19Closing.cameras.push_back(

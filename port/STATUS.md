@@ -499,7 +499,10 @@ mission playthroughs for discovery or verification.
   500 ms fade and 250 ms wait, clears protection, removes the mission
   car, and plays the retail closing. MissionOver pays once, and the
   Script 20 unlock saves and restores the El Toro checkpoint.
-  Script 20 gameplay and the fourth van arrival look cue remain pending.
+  Script 20 now opens at El Toro with the retail title, camera moves,
+  gestures, dialogue, and audio. It stages the mission car, requires
+  entry, and tracks Checkpoint_C2M1101 in the world and on the minimap.
+  The Script 20 arrival and fourth van arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

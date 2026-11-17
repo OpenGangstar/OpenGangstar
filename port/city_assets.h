@@ -647,6 +647,12 @@ struct CityPostFightScene : CityMissionCinematic {
         uint32_t script19ClosingFadeMs = 0, script19ClosingWaitMs = 0, script19MissionOverMs = 0;
         uint32_t script19UnlockedScript = 0;
         std::vector<uint8_t> script19UnlockedWait;
+        uint32_t script20EntranceFadeMs = 0;
+        std::optional<CityMissionTitle> script20Title;
+        CityMissionCinematic script20Intro;
+        std::string script20DriveObjective;
+        std::optional<CityCheckpoint> script20DriveCheckpoint;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script20DriveCommands;
         std::string script19VehicleObjective, script19DriveObjective;
         std::optional<CityCheckpoint> script19DriveCheckpoint;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script19DriveCommands;
