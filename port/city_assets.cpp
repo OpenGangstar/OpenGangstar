@@ -2206,7 +2206,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> lcClosingMoves;
     std::vector<NamedMove> postLcMoves;
     std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves, postLcFightIntroMoves, locoNextMoves, locoCooperMoves, cooperNextMoves, cooperArrivalMoves, cooperClosingMoves, brawlNextMoves, basketballMoves;
-    std::vector<NamedMove> basketballClosingMoves, postBasketballMoves, postBasketballAmbushMoves, repairArrivalMoves, deliveryMoves, elToroMoves;
+    std::vector<NamedMove> basketballClosingMoves, postBasketballMoves, postBasketballAmbushMoves, repairArrivalMoves, deliveryMoves, elToroMoves, elToroArrivalMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2229,7 +2229,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<AnimationCommand> lcClosingAnimations;
     std::vector<AnimationCommand> postLcAnimations;
     std::vector<AnimationCommand> postLcAmbushAnimations, postLcConfrontationAnimations, postLcPhoneAnimations, postLcFightIntroAnimations, locoNextAnimations, cooperNextAnimations, cooperArrivalAnimations, cooperClosingAnimations, brawlNextAnimations;
-    std::vector<AnimationCommand> postBasketballAnimations, postBasketballAmbushAnimations, deliveryAnimations, elToroAnimations;
+    std::vector<AnimationCommand> postBasketballAnimations, postBasketballAmbushAnimations, deliveryAnimations, elToroAnimations, elToroArrivalAnimations;
     struct MotionCommand {
         uint32_t time;
         std::string actor;
@@ -2237,7 +2237,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         bool running;
         bool followsPath;
     };
-    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions, postLcAmbushMotions, postLcTailMotions, postLcConfrontationMotions, cooperArrivalMotions, postBasketballAmbushMotions;
+    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions, postLcAmbushMotions, postLcTailMotions, postLcConfrontationMotions, cooperArrivalMotions, postBasketballAmbushMotions, elToroArrivalMotions;
     struct VehicleDriveCommand {
         uint32_t time;
         std::string actor, marker;
@@ -2271,7 +2271,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
     std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue, cooperNextDialogue, cooperArrivalDialogue, cooperClosingDialogue, brawlNextDialogue, basketballDialogue;
-    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue, postBasketballAmbushDialogue, postBasketballBriefingDialogue, repairArrivalDialogue, deliveryDialogue, elToroDialogue;
+    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue, postBasketballAmbushDialogue, postBasketballBriefingDialogue, repairArrivalDialogue, deliveryDialogue, elToroDialogue, elToroArrivalDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2281,7 +2281,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements, cooperNextPlacements, cooperArrivalPlacements, cooperClosingPlacements, brawlNextPlacements, basketballPlacements;
-    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements, postBasketballApproach, postBasketballAmbushPlacements, repairArrivalPlacements, deliveryPlacements, elToroPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements, postBasketballApproach, postBasketballAmbushPlacements, repairArrivalPlacements, deliveryPlacements, elToroPlacements, elToroArrivalPlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -3620,7 +3620,34 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 auto elToroDestination = elToro.record();
                 if (elToroDestination.integer() != 64)
                     throw std::runtime_error("Missing retail script 30 destination.");
+                route.elToroDestinationWait = elToroDestination.remainingBytes();
                 route.elToroDestination = makeCheckpoint(readCheckpointCommand(elToroDestination, 64).object);
+                auto elToroExit = elToro.record();
+                if (elToroExit.integer() != 99 || readScriptObject(elToroExit) != "Player")
+                    throw std::runtime_error("Missing retail script 30 checkpoint exit.");
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                route.elToroArrival.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, elToro, elToroLength, 0, route.elToroArrival,
+                              elToroArrivalMoves, elToroArrivalDialogue, elToroArrivalPlacements,
+                              &elToroArrivalAnimations, &elToroArrivalMotions, nullptr, 66);
+                route.elToroArrival.dialogue = resolveDialogue(elToroArrivalDialogue);
+                if (!nextMissionObjectiveId || (*nextMissionObjectiveId >> 12 & 0xf) != 4 ||
+                    (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
+                    throw std::runtime_error("Invalid retail script 30 fight objective.");
+                route.elToroFightObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expected : {57u, 46u, 85u, 85u, 91u, 57u}) {
+                    auto command = elToro.record();
+                    if (command.integer() != expected)
+                        throw std::runtime_error("Missing retail script 30 fight command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 85) route.elToroFightTargets.push_back(readScriptObject(command));
+                    else {
+                        if (expected == 57) command.integer();
+                        command.finish();
+                    }
+                    route.elToroFightCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3678,6 +3705,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(repairArrivalPlacements, next->repairArrival.placements);
                 resolvePlacements(deliveryPlacements, next->deliveryClosing.placements);
                 resolvePlacements(elToroPlacements, next->elToroIntro.placements);
+                resolvePlacements(elToroArrivalPlacements, next->elToroArrival.placements);
             }
         }
     }
@@ -3952,6 +3980,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.postBasketballAmbush);
                 loadCinematicActors(next.deliveryClosing);
                 loadCinematicActors(next.elToroIntro);
+                loadCinematicActors(next.elToroArrival);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
                     const auto actor = findCinematicActor(name);
@@ -3977,6 +4006,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 for (const auto& target : next.cooperFightTargets) prepareFightActor(target);
                 for (const auto& target : next.basketballFightTargets) prepareFightActor(target);
                 for (const auto& target : next.postBasketballAmbushTargets) prepareFightActor(target);
+                for (const auto& target : next.elToroFightTargets) prepareFightActor(target);
                 for (const auto& cue : next.postBasketballApproach) {
                     loadCinematicActor(cue);
                     if (cue.actor != next.postBasketballVehicle) prepareFightActor(cue.actor);
@@ -4025,6 +4055,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->postBasketballAmbush, postBasketballAmbushAnimations);
                 bindCinematic(next->deliveryClosing, deliveryAnimations);
                 bindCinematic(next->elToroIntro, elToroAnimations);
+                bindCinematic(next->elToroArrival, elToroArrivalAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
                         if (!cue.visible || cue.actor == next->targetVehicle) continue;
@@ -4047,6 +4078,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->postBasketballAmbush);
                 bindInitialIdle(next->deliveryClosing);
                 bindInitialIdle(next->elToroIntro);
+                bindInitialIdle(next->elToroArrival);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
                     if (!cue.visible || cue.actor == next->targetVehicle) continue;
@@ -4086,6 +4118,19 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 [&](const auto& cue) { return cue.travel.actor == motion.actor; });
                             if (prior != scene.motions.rend()) start = prior->travel.to;
                         }
+                        if (&scene == &next->elToroArrival && !motion.followsPath) {
+                            const auto prior = std::find_if(scene.motions.rbegin(), scene.motions.rend(),
+                                [&](const auto& cue) {
+                                    return cue.travel.actor == motion.actor && cue.travel.startMs >= origin->timeMs;
+                                });
+                            if (prior != scene.motions.rend()) {
+                                const auto& travel = prior->travel;
+                                const float t = travel.durationMs ?
+                                    std::min(1.f, float(motion.time - travel.startMs) / travel.durationMs) : 1.f;
+                                for (size_t axis = 0; axis < start.size(); ++axis)
+                                    start[axis] = travel.from[axis] + (travel.to[axis] - travel.from[axis]) * t;
+                            }
+                        }
                         auto previous = start;
                         float distance = 0;
                         const auto accumulate = [&](const auto& point) {
@@ -4122,6 +4167,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->postLcConfrontation, postLcConfrontationMotions);
                 bindMotions(next->cooperNextArrival, cooperArrivalMotions);
                 bindMotions(next->postBasketballAmbush, postBasketballAmbushMotions);
+                bindMotions(next->elToroArrival, elToroArrivalMotions);
             }
         }
     }
@@ -4232,6 +4278,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : elToroMoves)
                             next->elToroIntro.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : elToroArrivalMoves)
+                            next->elToroArrival.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : basketballClosingMoves)
                             next->basketballClosing.cameras.push_back(

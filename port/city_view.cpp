@@ -1069,6 +1069,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.deliveryFirstSurface = appendCheckpoint(*next.deliveryCheckpoint, 18);
         if (next.elToroCheckpoint)
             draw.elToroFirstSurface = appendCheckpoint(*next.elToroCheckpoint, 19);
+        if (next.elToroDestination)
+            draw.elToroDestinationFirstSurface = appendCheckpoint(*next.elToroDestination, 20);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);

@@ -415,12 +415,15 @@ mission playthroughs for discovery or verification.
   updates the mission count. The smoke fixture covers the delivery and
   payout. The finale saves the main mission handoff, and Continue
   restores the new marker at El Toro rather than the earlier LC marker.
-  Script 30 plays its retail title and opening cutscene there. The
-  objective and destination after the opening are decoded. The parallel
-  script 21 race unlock and the rest of script 30 remain open, along
-  with retail payment presentation and audio, unaffordable repair
-  feedback, the scripted look cue, NPC weapon attacks, NPC and vehicle
-  AI, and Loco's seated model.
+  Script 30 plays its retail title and opening cutscene there, then
+  shows the localized objective and destination in the city and minimap.
+  The arrival plays the confrontation with its authored camera, actor
+  motion, dialogue, and music. Two opponents enter the melee fight from
+  their cinematic endpoints. The automated fixture exercises the marker
+  handoff, the two-target gate, and the delay after defeat. The following
+  scene and the parallel script 21 race remain open, along with retail
+  payment presentation and audio, unaffordable repair feedback, scripted
+  look cues, NPC weapon attacks, NPC and vehicle AI, and Loco's seated model.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
