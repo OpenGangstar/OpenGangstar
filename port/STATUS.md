@@ -294,8 +294,8 @@ mission playthroughs for discovery or verification.
   and priority audio cue. The audio mixer starts the retail ambient loop
   selected by the player context. The opening route uses street ambience.
   The completion objective uses retail opening and closing banner artwork,
-  with a three-second hold. Windows draws the localized text with its
-  caption renderer and uses smaller reward cash glyphs.
+  with a three-second hold. The reward uses the original BIGB cash glyphs
+  at the retail position. Windows draws objective text with its caption renderer.
   Live prison context transitions,
   persistence, the remainder of script 18,
   and Juan's dynamic movement remain open.

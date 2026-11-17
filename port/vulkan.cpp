@@ -468,6 +468,7 @@ struct CityRender {
         for (const auto& texture : cashGlyphs) destroyTexture(texture);
         destroyTexture(failureTitle);
         destroyTexture(missionCompleteObjective);
+        destroyTexture(missionRewardCash);
         for (const auto& animation : missionObjectiveAnimations)
             for (const auto& frame : animation.textures) destroyTexture(frame);
         for (const auto& frame : missionRewardFrames) destroyTexture(frame);
@@ -557,7 +558,7 @@ struct CityRender {
     std::vector<CityTexture> missionRewardFrames;
     std::vector<uint32_t> missionRewardFrameEnds;
     std::optional<double> missionRewardMs;
-    std::string missionRewardCash;
+    CityTexture missionRewardCash;
     static constexpr double missionCompleteMessageMs = 3000;
     double hudAnimationMs(const std::vector<uint32_t>& frameEnds) const
     {
@@ -1076,7 +1077,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                                                           statusHud->cashGlyphs.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
                                              failure.size() + hasFailureTitle + hasFailurePrompt +
-                                             rewardFrames.size() + hasMissionCompleteObjective +
+                                             rewardFrames.size() + !rewardFrames.empty() + hasMissionCompleteObjective +
                                              objectiveFrames[0].size() + objectiveFrames[1].size() +
                                              titleTextures + city.portraits.size() +
                                              (minimap ? city.minimapTextures.size() + minimap->checkpointAnimation.size() : 0));
@@ -1173,7 +1174,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         }
     }
     if (!rewardFrames.empty()) {
-        city.missionRewardCash = formatRetailCash(openingMission->cashReward, language);
+        upload(city.missionRewardCash, rasterRetailMissionCash(assets, openingMission->cashReward, language));
         city.missionRewardFrames.resize(rewardFrames.size());
         uint32_t ticks = 0;
         for (size_t i = 0; i < rewardFrames.size(); ++i) {
@@ -2161,8 +2162,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         const auto end = std::upper_bound(city.missionRewardFrameEnds.begin(), city.missionRewardFrameEnds.end(), tick);
         const auto frame = std::min<size_t>(end - city.missionRewardFrameEnds.begin(), city.missionRewardFrames.size() - 1);
         overlay(city.missionRewardFrames[frame].descriptor, screen, city.cinematicBarsVertex, 6, VK_NULL_HANDLE, 1);
-        if (end == city.missionRewardFrameEnds.end() && city.cashGlyphs[0].descriptor)
-            drawCash(city.missionRewardCash, 8, 152.f);
+        if (end == city.missionRewardFrameEnds.end())
+            overlay(city.missionRewardCash.descriptor, screen, city.cinematicBarsVertex, 6, VK_NULL_HANDLE, 1);
     }
     VK_CALL(vkCmdEndRenderPass)(vk.command);
     finishFrame(vk, index, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
@@ -3272,7 +3273,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 if (!render.missionCompleteObjective.descriptor || render.missionRewardFrames.size() != 6 ||
                     render.missionObjectiveAnimations[0].textures.size() != 6 ||
                     render.missionObjectiveAnimations[1].textures.size() != 3 ||
-                    render.missionRewardCash.empty())
+                    !render.missionRewardCash.descriptor)
                     throw std::runtime_error("Mission reward smoke frame did not prepare the retail presentation.");
                 render.missionRewardMs = 0;
                 presentCity(render, info.imageExtent);

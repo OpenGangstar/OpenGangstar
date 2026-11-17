@@ -206,6 +206,31 @@ std::string formatRetailCash(int32_t amount, RetailLanguage language)
     return digits + " $";
 }
 
+Image rasterRetailMissionCash(FileSystemBase& assets, int32_t amount, RetailLanguage language)
+{
+    constexpr char path[] = "huds.bsprite";
+    const std::unique_ptr<IFileStream> file(assets.openResource(path));
+    if (!file) throw std::runtime_error("Missing retail HUD sprite.");
+    const auto sprite = readRetailSprite(*file);
+    const auto atlas = loadRetailSpriteAtlas(assets, path, sprite, true);
+    // The retail Reward widget uses BIGB cash frames and a fixed left anchor.
+    constexpr std::array<size_t, retailCashCharacters.size()> frames{
+        84, 75, 76, 77, 78, 79, 80, 81, 82, 83, 74, 85, 85};
+    Image result{480, 320, std::vector<uint32_t>(480 * 320)};
+    int32_t x = 8;
+    for (const char character : formatRetailCash(amount, language)) {
+        if (character == ' ') {
+            x += 8;
+            continue;
+        }
+        const auto frame = frames.at(retailCashCharacters.find(character));
+        paintRetailSpriteDraws(sprite, atlas, composeRetailSpriteFrame(sprite, frame, x, 152), result);
+        const auto& bounds = sprite.frames.at(frame).bounds;
+        x += bounds.right - bounds.left;
+    }
+    return result;
+}
+
 uint32_t retailGaugeFillLeft(uint32_t width, int32_t value, int32_t maximum)
 {
     return width - static_cast<uint32_t>(uint64_t(width) * std::clamp(value, 0, maximum) / maximum);

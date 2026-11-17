@@ -1633,6 +1633,18 @@ void poseRetailDoor(const std::filesystem::path& root)
     require(rewardFrames.size() == 6 && rewardFrames.front().duration == 1 &&
             rewardFrames.front().image.bgra != rewardFrames.back().image.bgra,
             "Opening mission reward lost its retail animation frames.");
+    const auto rewardCash = rasterRetailMissionCash(assets, 250, RetailLanguage::english);
+    size_t visibleCashPixels = 0;
+    for (size_t i = 0; i < rewardCash.bgra.size(); ++i) {
+        if (!(rewardCash.bgra[i] >> 24)) continue;
+        const auto x = i % rewardCash.width;
+        const auto y = i / rewardCash.width;
+        require(x >= 8 && x < 60 && y >= 152 && y < 172, "Retail reward cash left its authored bounds.");
+        ++visibleCashPixels;
+    }
+    require(visibleCashPixels > 0 &&
+            rewardCash.bgra != rasterRetailMissionCash(assets, 250, RetailLanguage::french).bgra,
+            "Retail reward cash did not render its localized glyph layout.");
     const auto objectiveIn = rasterRetailSpriteAnimation(assets, "huds.bsprite", "OBJECTIVE", 480, 320, true);
     const auto objectiveOut = rasterRetailSpriteAnimation(assets, "huds.bsprite", "OBJECTIVE_END", 480, 320, true);
     require(objectiveIn.size() == 6 && objectiveOut.size() == 3 &&
