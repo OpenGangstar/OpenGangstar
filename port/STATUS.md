@@ -509,9 +509,12 @@ mission playthroughs for discovery or verification.
   its timed handoff into the second encounter cinematic. The cutscene
   restages the retail opponents, then the second wave carries ally health
   forward and clears protection after all four targets are defeated.
-  Windows NPCs target the nearest opposing actor in both fights.
-  Retail target selection, Script 20's next cutscene, and the fourth van
-  arrival look cue remain pending.
+  The following cutscene stages El Toro's death and the four Locos'
+  reinforcements. The retreat runs the retail attack delay and sequential
+  100 m escape checks. Windows NPCs use nearest-enemy targeting in the
+  first two fights and fire from their scripted positions during the
+  retreat. Retail pursuit and target selection, the closing handoff to
+  Script 32, and the fourth van arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

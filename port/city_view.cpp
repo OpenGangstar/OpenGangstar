@@ -2719,8 +2719,13 @@ void CityPlayback::updateLocoFight(const CityOpening& opening, const CityTerrain
                 targetHealth = &health;
             };
             if (opponent.rangedTarget) {
-                const auto target = locoOpponents.find(*opponent.rangedTarget);
-                if (target != locoOpponents.end()) consider(target->second.pose.position, target->second.health);
+                if (*opponent.rangedTarget == "Player") {
+                    const auto& position = vehicle && vehicle->occupied ? vehicle->position : player->position;
+                    consider(position, playerHealth);
+                } else {
+                    const auto target = locoOpponents.find(*opponent.rangedTarget);
+                    if (target != locoOpponents.end()) consider(target->second.pose.position, target->second.health);
+                }
             } else {
                 if (opponent.side == Side::hostile) {
                     const auto& position = vehicle && vehicle->occupied ? vehicle->position : player->position;

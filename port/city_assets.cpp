@@ -2364,6 +2364,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script20InterludePlacements;
     std::vector<AnimationCommand> script20InterludeAnimations;
     std::vector<MotionCommand> script20InterludeMotions;
+    std::vector<NamedMove> script20RetreatMoves;
+    std::vector<DialogueCommand> script20RetreatDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script20RetreatPlacements;
+    std::vector<AnimationCommand> script20RetreatAnimations;
+    std::vector<MotionCommand> script20RetreatMotions;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -2481,6 +2486,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                              cue.textId, cue.speaker});
             } else if (opcode >= 60 && opcode <= 63) {
                 scene.audio.push_back(readAudioCommand(command, opcode, time));
+            } else if (opcode == 107 && animations) {
+                animations->push_back({"move_idle_to_dead", "move_dead_idle", readScriptObject(command), time});
             } else if (opcode == 85) {
                 auto payload = command.remainingBytes();
                 readScriptObject(command);
@@ -4412,6 +4419,31 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     command.finish();
                     route.script20SecondFightCommands.emplace_back(expected, std::move(payload));
                 }
+                auto retreatTransition = nextScript.record();
+                if (retreatTransition.integer() != 15) throw std::runtime_error("Missing Script 20 retreat cinematic.");
+                retreatTransition.finish();
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                readCinematic(readCinematic, nextScript, script20Count, 0, route.script20Retreat,
+                              script20RetreatMoves, script20RetreatDialogue, script20RetreatPlacements,
+                              &script20RetreatAnimations, &script20RetreatMotions, nullptr, 66, nullptr, nullptr, true);
+                route.script20Retreat.dialogue = resolveDialogue(script20RetreatDialogue);
+                if (!nextMissionObjectiveId) throw std::runtime_error("Missing Script 20 retreat objective.");
+                route.script20RetreatObjective = vanObjective(*nextMissionObjectiveId);
+                for (const auto expected : {57u, 29u, 29u, 29u, 29u, 101u, 23u, 101u, 23u, 101u, 23u, 101u, 23u}) {
+                    auto command = nextScript.record();
+                    if (command.integer() != expected) throw std::runtime_error("Invalid Script 20 retreat command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 57) command.integer();
+                    else if (expected == 29) {
+                        const auto attack = readActorAttack(command);
+                        if (attack.target != "Player" || !route.script20Retreat.npcWeapons.count(attack.attacker))
+                            throw std::runtime_error("Unexpected Script 20 retreat attacker.");
+                    } else if (expected == 101) readWaitEscape(command);
+                    else readScriptObject(command);
+                    command.finish();
+                    route.script20RetreatCommands.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4488,6 +4520,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script20Placements, next->script20Intro.placements);
                 resolvePlacements(script20ArrivalPlacements, next->script20Arrival.placements);
                 resolvePlacements(script20InterludePlacements, next->script20Interlude.placements);
+                resolvePlacements(script20RetreatPlacements, next->script20Retreat.placements);
                 resolvePlacements(script19SecondFightPlacements, next->script19SecondFightPlacements);
                 resolvePlacements(script19ThirdFightPlacements, next->script19ThirdFightPlacements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
@@ -4908,6 +4941,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script20Intro, script20Animations);
                 bindCinematic(next->script20Arrival, script20ArrivalAnimations);
                 bindCinematic(next->script20Interlude, script20InterludeAnimations);
+                bindCinematic(next->script20Retreat, script20RetreatAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -4946,6 +4980,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->script19Closing);
                 bindInitialIdle(next->script20Intro);
                 bindInitialIdle(next->script20Arrival);
+                bindInitialIdle(next->script20Retreat);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -4987,7 +5022,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                             if (prior != scene.motions.rend()) start = prior->travel.to;
                         }
                         if ((&scene == &next->elToroArrival || &scene == &next->vanHandshake ||
-                             &scene == &next->vanFourthArrival || &scene == &next->script20Interlude) &&
+                             &scene == &next->vanFourthArrival || &scene == &next->script20Interlude ||
+                             &scene == &next->script20Retreat) &&
                             !motion.followsPath) {
                             const auto prior = std::find_if(scene.motions.rbegin(), scene.motions.rend(),
                                 [&](const auto& cue) {
@@ -5059,6 +5095,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 }
                 bindInitialIdle(next->script20Interlude);
                 bindMotions(next->script20Interlude, script20InterludeMotions);
+                bindMotions(next->script20Retreat, script20RetreatMotions);
                 bindMotions(next->script19Closing, script19ClosingMotions);
                 for (const auto& approach : vanProtectionMotions) {
                     const auto& arrival = next->vanSecondArrival;
@@ -5225,6 +5262,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script19ClosingMoves)
                             next->script19Closing.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script20RetreatMoves)
+                            next->script20Retreat.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script20InterludeMoves)
                             next->script20Interlude.cameras.push_back(
