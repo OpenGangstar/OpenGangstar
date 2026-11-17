@@ -580,6 +580,9 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> vanReentryCommands;
         std::optional<CityCheckpoint> vanSecondDriveCheckpoint;
         std::vector<uint8_t> vanSecondDriveWait;
+        uint32_t vanSecondArrivalFadeMs = 0;
+        CityMissionCinematic vanSecondArrival;
+        std::string vanProtectObjective;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;

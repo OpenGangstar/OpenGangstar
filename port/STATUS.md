@@ -439,9 +439,12 @@ mission playthroughs for discovery or verification.
   enters the van through Win32 input and checks the wait and vehicle gate.
   Arrival exits the player and plays the retail meeting with Juan and the
   Yakuza contact. The script then waits for reentry and the authored
-  100 ms delay before El Toro's next line. The fixture also checks these
-  transitions. The second destination is decoded. Its live checkpoint
-  and subsequent sequence, passenger seating, and the parallel script 21
+  100 ms delay before El Toro's next line. That briefing activates the
+  second van checkpoint in the city and on the minimap. Arrival exits
+  the player and plays Juan's scene with the two Loco actors and their
+  authored movement. Automated fixtures check both van checkpoints and
+  the cinematic transitions. The protection objective is decoded.
+  Its live encounter, passenger seating, and the parallel script 21
   race remain open, along with retail payment presentation and audio,
   unaffordable repair feedback, scripted look cues, NPC weapon attacks,
   NPC and vehicle AI, and Loco's seated model.
