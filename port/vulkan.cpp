@@ -732,7 +732,7 @@ struct CityRender {
     std::optional<size_t> weaponShopApproachFirstSurface;
     std::optional<size_t> weaponShopEntranceFirstSurface;
     std::optional<size_t> returnToLcFirstSurface;
-    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface, deliveryFirstSurface, elToroFirstSurface, elToroDestinationFirstSurface, elToroDriveFirstSurface, vanDriveFirstSurface, vanSecondDriveFirstSurface, vanThirdDriveFirstSurface, vanFourthDriveFirstSurface, script19DriveFirstSurface, script19ReturnFirstSurface, script20DriveFirstSurface, script32FirstSurface, script33FirstSurface, script33DriveFirstSurface;
+    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface, deliveryFirstSurface, elToroFirstSurface, elToroDestinationFirstSurface, elToroDriveFirstSurface, vanDriveFirstSurface, vanSecondDriveFirstSurface, vanThirdDriveFirstSurface, vanFourthDriveFirstSurface, script19DriveFirstSurface, script19ReturnFirstSurface, script20DriveFirstSurface, script32FirstSurface, script33FirstSurface, script33DriveFirstSurface, script33RaceFirstSurface;
     std::array<std::optional<size_t>, 3> postLcWalkFirstSurfaces;
     std::vector<CitySkinRange> skins;
     std::vector<CityVertex> vertices;
@@ -742,10 +742,12 @@ struct CityRender {
     std::array<CityVehicleEffect, 3> vehicleEffects;
     std::vector<CityWheelRange> wheels;
     std::vector<CityVehicleMorphRange> vehicleMorphs;
-    std::optional<CityVehicleGeometry> nextVehicleGeometry, postBasketballVehicleGeometry, vanGeometry, lincolnGeometry;
+    std::optional<CityVehicleGeometry> nextVehicleGeometry, postBasketballVehicleGeometry, vanGeometry, lincolnGeometry, raceRivalGeometry;
+    std::optional<size_t> raceRivalActor;
+    std::vector<CityVertex> raceRivalVertices;
     std::optional<CityTerrain::VehicleFootprint> vanFootprint, lincolnFootprint;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 32> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 33> checkpointMeshes;
     uint32_t vehicleFirstVertex = 0;
     CityTerrain terrain;
     CityOpening opening{};
@@ -2063,7 +2065,7 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
     const bool worldTransparency = city.checkpointFirstSurface || city.vehicleObjectiveFirstSurface ||
         city.nextMissionFirstSurface || city.hummerRouteFirstSurface || city.weaponShopDriveFirstSurface ||
         city.weaponShopApproachFirstSurface || city.weaponShopEntranceFirstSurface || city.returnToLcFirstSurface ||
-        city.postLcDriveFirstSurface || city.cooperNextDriveFirstSurface || city.basketballFirstSurface || city.postBasketballFirstSurface || city.repairDriveFirstSurface || city.repairShopFirstSurface || city.deliveryFirstSurface || city.elToroFirstSurface || city.elToroDestinationFirstSurface || city.elToroDriveFirstSurface || city.vanDriveFirstSurface || city.vanSecondDriveFirstSurface || city.vanThirdDriveFirstSurface || city.vanFourthDriveFirstSurface || city.script19DriveFirstSurface || city.script19ReturnFirstSurface || city.script20DriveFirstSurface || city.script32FirstSurface || city.script33FirstSurface || city.script33DriveFirstSurface || city.postLcWalkFirstSurfaces[0] || city.postLcWalkFirstSurfaces[1] || city.postLcWalkFirstSurfaces[2] ||
+        city.postLcDriveFirstSurface || city.cooperNextDriveFirstSurface || city.basketballFirstSurface || city.postBasketballFirstSurface || city.repairDriveFirstSurface || city.repairShopFirstSurface || city.deliveryFirstSurface || city.elToroFirstSurface || city.elToroDestinationFirstSurface || city.elToroDriveFirstSurface || city.vanDriveFirstSurface || city.vanSecondDriveFirstSurface || city.vanThirdDriveFirstSurface || city.vanFourthDriveFirstSurface || city.script19DriveFirstSurface || city.script19ReturnFirstSurface || city.script20DriveFirstSurface || city.script32FirstSurface || city.script33FirstSurface || city.script33DriveFirstSurface || city.script33RaceFirstSurface || city.postLcWalkFirstSurfaces[0] || city.postLcWalkFirstSurfaces[1] || city.postLcWalkFirstSurfaces[2] ||
         !city.vehicleLights.empty() ||
         std::any_of(city.vehicleEffects.begin(),
         city.vehicleEffects.end(), [](const CityVehicleEffect& effect) { return !effect.texture.empty(); });
@@ -2655,6 +2657,13 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     std::optional<std::array<float, 2>> minimapMarker;
     std::vector<std::array<float, 2>> killTargetMarkers;
     size_t minimapMarkerStep = 0;
+    const auto* race = city.playback.script33Race ? &*city.playback.script33Race : nullptr;
+    const std::array<float, 3>* raceWaypoint = nullptr;
+    if (race && !race->finished && !failed) {
+        const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
+        if (race->playerWaypoint < route.script33RaceCourse.size())
+            raceWaypoint = &route.script33RaceCourse[race->playerWaypoint];
+    }
     const bool updateVehicle = vehicle && !city.vehicleVertices.empty();
     auto cooperPose = city.locoCooper;
     if (city.cooperActor && city.cooperGeometry && postFightMs) {
@@ -2730,17 +2739,22 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                    updateVanDrive && vanMarkerIndex == 22, updateVanDrive && vanMarkerIndex == 23,
                                    updateVanDrive && vanMarkerIndex == 24, updateVanDrive && vanMarkerIndex == 25, updateScript19Drive, updateScript19Return, updateScript20Drive,
                                    updateNextMissionMarker && footMarkerIndex == 29,
-                                   updateNextMissionMarker && footMarkerIndex == 30, updateScript33Drive};
+                                   updateNextMissionMarker && footMarkerIndex == 30, updateScript33Drive, raceWaypoint != nullptr};
     const bool particlesVisible = std::any_of(city.vehicleEffects.begin(), city.vehicleEffects.end(),
         [](const CityVehicleEffect& effect) { return !effect.simulation.particles().empty(); });
     if (updateSpawns || !city.skins.empty() || !city.billboards.empty() || updateVehicle || city.restoreVehicleGeometry || updateWalkMarker ||
         updateRouteMarker || updateVehicleMarker || updateNextMissionMarker || updateHummerMarker || updateShopMarker ||
-        updateLcMarker || updatePostLcDriveMarker || updateCooperNextMarker || updateBasketballMarker || updatePostBasketballMarker || updateRepairDriveMarker || updateRepairShopMarker || updateDeliveryMarker || updateElToroDestination || updateElToroDrive || updateVanDrive || updateMissionCarDrive || updateScript19Return || walkMarker || cooperPose || showMinimap || particlesVisible || lights) {
+        updateLcMarker || updatePostLcDriveMarker || updateCooperNextMarker || updateBasketballMarker || updatePostBasketballMarker || updateRepairDriveMarker || updateRepairShopMarker || updateDeliveryMarker || updateElToroDestination || updateElToroDrive || updateVanDrive || updateMissionCarDrive || updateScript19Return || walkMarker || cooperPose || race || showMinimap || particlesVisible || lights) {
         if (updateVehicle)
             poseCityVehicle(city.opening.actors[*city.opening.vehicleActor], *vehicle, city.vehicleVertices,
                             city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets);
         poseCityActors(city.opening, city.skins, city.playback, city.vertices.data(),
                        actorSceneMs, actorMissionMs, actorScene, &city.terrain);
+        if (raceWaypoint) {
+            const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
+            poseCityCheckpoint(*route.script33RaceMarker, city.checkpointMeshes[32],
+                               elapsedMs, city.vertices.data(), raceWaypoint);
+        }
         if (updateWalkMarker)
             poseCityCheckpoint(*city.opening.checkpoint, city.checkpointMeshes[0],
                                elapsedMs - city.opening.durationMs, city.vertices.data());
@@ -2889,6 +2903,16 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             std::memcpy(static_cast<char*>(mapped) + geometry.vehicleFirstVertex * sizeof(CityVertex),
                         vertices, city.cooperVertices.size() * sizeof(CityVertex));
         }
+        if (race && city.raceRivalGeometry && city.raceRivalActor) {
+            const auto& geometry = *city.raceRivalGeometry;
+            const auto& actor = city.opening.actors[*city.raceRivalActor];
+            auto* vertices = city.vertices.data() + geometry.vehicleFirstVertex;
+            const auto offsets = cityVehicleWheelOffsets(actor, race->rival, geometry.wheels, city.terrain);
+            poseCityVehicle(actor, race->rival, city.raceRivalVertices, geometry.wheels,
+                            geometry.vehicleMorphs, vertices, offsets);
+            std::memcpy(static_cast<char*>(mapped) + geometry.vehicleFirstVertex * sizeof(CityVertex),
+                        vertices, city.raceRivalVertices.size() * sizeof(CityVertex));
+        }
         for (size_t index = 0; index < city.checkpointMeshes.size(); ++index) {
             if (!updateMarkers[index]) continue;
             for (const auto& mesh : city.checkpointMeshes[index]) {
@@ -2934,7 +2958,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                 if (found != city.playback.locoOpponents.end() && found->second.health > 0 && !found->second.disabled)
                     guard = &found->second;
             }
-            if (city.locoCooperScript && cooperPose) {
+            if (raceWaypoint) {
+                target = Target::missionCarDrive;
+                targetPosition = raceWaypoint;
+            } else if (city.locoCooperScript && cooperPose) {
                 target = Target::fightActor;
                 targetPosition = &cooperPose->position;
             } else if (guard) {
@@ -3171,7 +3198,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         const auto& surface = city.surfaces[i];
         const bool cooperSurface = city.cooperActor && surface.payphoneActor == city.cooperActor &&
             city.opening.vehicleActor != city.cooperActor;
-        const bool visible = cooperSurface ? cooperPose.has_value() && !surface.vehicleInterior :
+        const bool rivalSurface = race && city.raceRivalActor && surface.payphoneActor == city.raceRivalActor;
+        const bool visible = rivalSurface ? !surface.vehicleInterior :
+            cooperSurface ? cooperPose.has_value() && !surface.vehicleInterior :
             citySurfaceVisible(surface, city.opening, city.playback, actorSceneMs, actorMissionMs, actorScene);
         if (!visible || (surface.bounds && (!cityBoundsVisible(*surface.bounds, frustum) ||
                                 (surface.lodLimit && !surface.lodLimit->visible(cameraEye))))) continue;
@@ -3179,7 +3208,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         std::optional<bool> marker;
         bool vehicleMarker = false;
         bool arrowMarker = false;
-        if (atOrAfter(city.script33DriveFirstSurface))
+        if (atOrAfter(city.script33RaceFirstSurface))
+            marker = raceWaypoint != nullptr;
+        else if (atOrAfter(city.script33DriveFirstSurface))
             marker = updateScript33Drive;
         else if (atOrAfter(city.script33FirstSurface))
             marker = footMarkerIndex == 30 && updateNextMissionMarker;
@@ -3954,7 +3985,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->postBasketballEscapeScript.reset();
                         cityRender->missionCarDriveScript.reset();
                         cityRender->missionCarDriveMarker.reset();
-                        playback.script33RaceGridActive = false;
+                        playback.script33Race.reset();
                         cityRender->script20RetreatScript.reset();
                         cityRender->script19FightObjectiveActive = false;
                         cityRender->script19FightFadeMs.reset();
@@ -4475,7 +4506,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         }
                         cityRender->script20RetreatScript.emplace(std::move(program)).unlock(0, 0, 0);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->script33RaceIntro) {
-                        playback.script33RaceGridActive = true;
+                        const auto& route = *handoff.nextCheckpoint;
+                        const auto rival = cityStagedVehiclePose(scene, route.script33Rival, cityRender->terrain, scene.durationMs);
+                        if (!rival) throw std::runtime_error("Missing Script 33 race opponent placement.");
+                        playback.script33Race.emplace(*rival);
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->script32Intro) {
                         const auto& route = *handoff.nextCheckpoint;
                         if (cityRender->achievements) cityRender->achievements->recordChapterEnd();
@@ -5599,6 +5633,17 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     }
                 }
             } else playback.updateMission(cityRender->opening, delta);
+            if (!postFight && playback.script33Race && !playback.script33Race->finished && !playback.missionFailure) {
+                auto& race = *playback.script33Race;
+                const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                const auto* car = playback.vehicle && !playback.vehicle->exploded ? &*playback.vehicle : nullptr;
+                if (race.update(route, cityRender->terrain, car, delta))
+                    playCue({0, 211, CityAudioAction::playOnce});
+                if (race.finished && race.rank != 1) {
+                    playback.missionFailure = -1;
+                    ++playback.missionFailureCount;
+                }
+            }
             if (!playback.nextMissionVehicleActive) updateVehicleEffects(*cityRender, delta);
             if (cityRender->audio && cityRender->opening.vehicleActor) {
                 const auto& actor = cityRender->opening.actors.at(*cityRender->opening.vehicleActor);
@@ -5749,6 +5794,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     render->script32FirstSurface = geometry.script32FirstSurface;
                     render->script33FirstSurface = geometry.script33FirstSurface;
                     render->script33DriveFirstSurface = geometry.script33DriveFirstSurface;
+                    render->script33RaceFirstSurface = geometry.script33RaceFirstSurface;
                     render->postLcWalkFirstSurfaces = geometry.postLcWalkFirstSurfaces;
                     const auto appendOverlay = [&](float left, float right, float top, float bottom) {
                         const auto vertex = static_cast<uint32_t>(geometry.vertices.size());
@@ -5885,6 +5931,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     render->vanGeometry = std::move(geometry.vanGeometry);
                     render->vanFootprint = geometry.vanFootprint;
                     render->lincolnGeometry = std::move(geometry.lincolnGeometry);
+                    render->raceRivalGeometry = std::move(geometry.raceRivalGeometry);
+                    render->raceRivalActor = geometry.raceRivalActor;
+                    if (render->raceRivalGeometry) {
+                        const auto& rival = *render->raceRivalGeometry;
+                        const auto first = geometry.vertices.begin() + rival.vehicleFirstVertex;
+                        render->raceRivalVertices.assign(first, first + rival.vehicleVertexCount);
+                    }
                     render->lincolnFootprint = geometry.lincolnFootprint;
                     render->postBasketballVehicleFootprint = geometry.postBasketballVehicleFootprint;
                     render->cooperActor = geometry.cooperActor;
@@ -7399,9 +7452,27 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             route.script33RaceCourse.size() < 2 || route.script33RivalPath.size() < 2)
                             throw std::runtime_error("Script 33 did not stage its race introduction and course.");
                         for (int step = 0; step < 60 && render.postFightCinematic; ++step) update(250, true);
-                        if (render.postFightCinematic || !playback.script33RaceGridActive || !car.occupied)
-                            throw std::runtime_error("Script 33 did not leave both vehicles staged for the race.");
-                        std::cout << "Verified Script 33's opening, Lincoln checkpoint, and race introduction.\n" << std::flush;
+                        if (render.postFightCinematic || !playback.script33Race || !car.occupied ||
+                            render.checkpointMeshes[32].empty() || render.raceRivalVertices.empty())
+                            throw std::runtime_error("Script 33 did not start the race with both cars and the retail marker.");
+                        auto& activeRace = *playback.script33Race;
+                        const auto rivalBefore = activeRace.rival.position;
+                        update(250);
+                        if (activeRace.rival.position == rivalBefore || activeRace.finished)
+                            throw std::runtime_error("Script 33's rival did not follow the race route.");
+                        auto loss = activeRace;
+                        for (int step = 0; step < 1000 && !loss.finished; ++step)
+                            loss.update(route, render.terrain, &car, 1000);
+                        if (!loss.finished || loss.rank == 1 || loss.rivalWaypoint != route.script33RivalPath.size())
+                            throw std::runtime_error("Script 33 awarded a win after the rival finished first.");
+                        for (const auto& waypoint : route.script33RaceCourse) {
+                            car.position = waypoint;
+                            update(0);
+                        }
+                        update(0);
+                        if (!activeRace.finished || activeRace.rank != 1 || playback.missionFailure)
+                            throw std::runtime_error("Script 33 did not recognize a first-place finish.");
+                        std::cout << "Verified Script 33's opening, race introduction, and race outcomes.\n" << std::flush;
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

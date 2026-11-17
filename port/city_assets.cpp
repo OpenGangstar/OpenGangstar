@@ -2907,7 +2907,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                       marker.position, marker.rotation, marker.scale, marker.radius, {}, {}};
             const auto modelName = std::filesystem::u8path(marker.model).filename();
             if (modelName == "checkpoint_arrow.bdae" || modelName == "checkpoint_mission.bdae" ||
-                modelName == "checkpoint_drive.bdae" || modelName == "checkpoint_walk.bdae")
+                modelName == "checkpoint_drive.bdae" || modelName == "checkpoint_walk.bdae" ||
+                modelName == "checkpoint_race.bdae")
                 checkpoint.animation = readClip(checkpoint.model, &checkpoint.model, "AUTO_SceneAnims_Range");
             return checkpoint;
         };
@@ -4573,6 +4574,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (route.script33RivalSpeedKmh <= 0 || course.type != 14 || rivalPath.type != 14 ||
                     course.waypoints.size() < 2 || rivalPath.waypoints.size() < 2)
                     throw std::runtime_error("Invalid Script 33 race course or opponent path.");
+                route.script33RaceMarker = makeCheckpoint("CheckpointRace_dummy");
                 route.script33RaceCourse = course.waypoints;
                 route.script33RivalPath = rivalPath.waypoints;
             }

@@ -231,12 +231,13 @@ struct CityDrawData : CityVehicleGeometry {
     std::optional<size_t> weaponShopApproachFirstSurface;
     std::optional<size_t> weaponShopEntranceFirstSurface;
     std::optional<size_t> returnToLcFirstSurface;
-    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface, deliveryFirstSurface, elToroFirstSurface, elToroDestinationFirstSurface, elToroDriveFirstSurface, vanDriveFirstSurface, vanSecondDriveFirstSurface, vanThirdDriveFirstSurface, vanFourthDriveFirstSurface, script19DriveFirstSurface, script19ReturnFirstSurface, script20DriveFirstSurface, script32FirstSurface, script33FirstSurface, script33DriveFirstSurface;
+    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface, deliveryFirstSurface, elToroFirstSurface, elToroDestinationFirstSurface, elToroDriveFirstSurface, vanDriveFirstSurface, vanSecondDriveFirstSurface, vanThirdDriveFirstSurface, vanFourthDriveFirstSurface, script19DriveFirstSurface, script19ReturnFirstSurface, script20DriveFirstSurface, script32FirstSurface, script33FirstSurface, script33DriveFirstSurface, script33RaceFirstSurface;
     std::array<std::optional<size_t>, 3> postLcWalkFirstSurfaces;
-    std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry, postBasketballVehicleGeometry, vanGeometry, lincolnGeometry;
+    std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry, postBasketballVehicleGeometry, vanGeometry, lincolnGeometry, raceRivalGeometry;
+    std::optional<size_t> raceRivalActor;
     std::optional<size_t> cooperActor;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint, cooperFootprint, vanFootprint, lincolnFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 32> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 33> checkpointMeshes;
     std::vector<CityVehicleLightMesh> vehicleLights;
 };
 
@@ -378,9 +379,20 @@ struct CityFightOpponent {
     bool disabled = false;
 };
 
+struct CityRace {
+    explicit CityRace(const CityVehiclePose& initial) : rival(initial) {}
+    bool update(const CityPostFightScene::MissionCheckpoint& route, const CityTerrain& terrain,
+                const CityVehiclePose* player, double deltaMs);
+
+    CityVehiclePose rival;
+    size_t playerWaypoint = 0, rivalWaypoint = 0;
+    int rank = 0;
+    bool finished = false;
+};
+
 struct CityPlayback {
     double elapsedMs = 0;
-    bool script33RaceGridActive = false;
+    std::optional<CityRace> script33Race;
     size_t nextDialogue = 0;
     std::optional<size_t> activeDialogue;
     std::vector<double> dialogueHoldMs;
@@ -516,7 +528,7 @@ void poseCityVehicleObjective(const CityOpening& opening, const CityVehiclePose*
                               const std::vector<CityCheckpointMesh>& meshes, double elapsedMs,
                               CityVertex* vertices);
 void poseCityCheckpoint(const CityCheckpoint& checkpoint, const std::vector<CityCheckpointMesh>& meshes,
-                        double elapsedMs, CityVertex* vertices);
+                        double elapsedMs, CityVertex* vertices, const std::array<float, 3>* position = nullptr);
 void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>& skins,
                     double elapsedMs, CityVertex* vertices);
 void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>& skins,

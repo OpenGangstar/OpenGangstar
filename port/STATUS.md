@@ -522,7 +522,10 @@ mission playthroughs for discovery or verification.
   Entering that marker plays Script 33's title and opening cutscene,
   then requires the Lincoln at CheckpointDrive_C3M01_START. Reaching it
   fades into the race introduction, stages the Lincoln and rival car,
-  and loads the retail course, rival path, and speed. The race itself
+  and starts the race on the retail course. The player follows the
+  ordered world and minimap checkpoints while the rival follows its
+  authored path. The Windows port uses constant-speed rival movement
+  and checks the finish order. The win cutscene, rival collision,
   and passenger ejection remain pending. The chapter-three scripted actor
   cues, retail pursuit and target selection, and the fourth van arrival
   look cue also remain pending.

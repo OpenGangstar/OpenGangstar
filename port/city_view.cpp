@@ -1225,13 +1225,16 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
         const bool postBasketballVehicle = nextMission && actor.name == nextMission->postBasketballVehicle;
         const bool van = actor.payphoneOnly && nextMission && actor.name == "aVan_00";
         const bool lincoln = actor.payphoneOnly && nextMission && actor.name == "aLincoln_00";
+        const bool raceRival = actor.payphoneOnly && nextMission && actor.name == nextMission->script33Rival;
         const bool cooper = actor.payphoneOnly && nextMission && !nextMission->locoCooperIntro.vehicleDrives.empty() &&
             actor.name == nextMission->locoCooperIntro.vehicleDrives.front().actor;
         CityVehicleGeometry* vehicle = opening.vehicleActor == i ? &draw :
             nextVehicle ? &draw.nextVehicleGeometry.emplace() : cooper ? &draw.cooperGeometry.emplace() :
             postBasketballVehicle ? &draw.postBasketballVehicleGeometry.emplace() :
-            van ? &draw.vanGeometry.emplace() : lincoln ? &draw.lincolnGeometry.emplace() : nullptr;
+            van ? &draw.vanGeometry.emplace() : lincoln ? &draw.lincolnGeometry.emplace() :
+            raceRival ? &draw.raceRivalGeometry.emplace() : nullptr;
         if (cooper) draw.cooperActor = i;
+        if (raceRival) draw.raceRivalActor = i;
         appendScene(draw, city, actor.model, actorTransform(actor), actor.startMs, &actor, i, vehicle);
         if (vehicle) {
             vehicle->vehicleFirstVertex = first;
@@ -1242,7 +1245,7 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             else if (cooper) draw.cooperFootprint = footprint;
             else if (van) draw.vanFootprint = footprint;
             else if (lincoln) draw.lincolnFootprint = footprint;
-            else draw.terrain.vehicleFootprint = footprint;
+            else if (!raceRival) draw.terrain.vehicleFootprint = footprint;
             for (auto& wheel : vehicle->wheels) wheel.firstVertex -= first;
             for (auto& morph : vehicle->vehicleMorphs) morph.firstVertex -= first;
         }
@@ -1319,6 +1322,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.script33FirstSurface = appendCheckpoint(*next.script33Checkpoint, 30);
         if (next.script33DriveCheckpoint)
             draw.script33DriveFirstSurface = appendCheckpoint(*next.script33DriveCheckpoint, 31);
+        if (next.script33RaceMarker)
+            draw.script33RaceFirstSurface = appendCheckpoint(*next.script33RaceMarker, 32);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);
@@ -1399,8 +1404,6 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
                 return cue->visible;
         }
         const auto& next = opening.payphone->postFight.nextCheckpoint;
-        if (!missionScene && next && playback.script33RaceGridActive && actor.name == next->script33Rival)
-            return true;
         if ((!missionScene || (next && (missionScene == &next->locoCooperIntro || missionScene == &next->elToroInterlude ||
                                       missionScene == &next->elToroDeparture || missionScene == &next->vanHandshake || missionScene == &next->vanPoliceReveal))) &&
             loco != playback.locoOpponents.end()) return !loco->second.disabled;
@@ -1458,10 +1461,10 @@ static void poseCityMarker(const CityScene& model, const CityAnimationClip& clip
 }
 
 void poseCityCheckpoint(const CityCheckpoint& checkpoint, const std::vector<CityCheckpointMesh>& meshes,
-                        double elapsedMs, CityVertex* vertices)
+                        double elapsedMs, CityVertex* vertices, const std::array<float, 3>* position)
 {
     if (!checkpoint.animation || meshes.empty()) return;
-    const auto world = placementTransform(checkpoint.position, checkpoint.rotationDegrees,
+    const auto world = placementTransform(position ? *position : checkpoint.position, checkpoint.rotationDegrees,
                                           checkpoint.scale, checkpoint.rotationDegrees[2]);
     poseCityMarker(checkpoint.model, *checkpoint.animation, world, meshes, elapsedMs, vertices);
 }
@@ -3057,6 +3060,58 @@ sampleCinematicTravel(const CityCinematicWalk& travel, double elapsedMs)
 std::array<float, 3> cityCinematicTravelPosition(const CityCinematicWalk& travel, double elapsedMs)
 {
     return sampleCinematicTravel(travel, elapsedMs).first;
+}
+
+bool CityRace::update(const CityPostFightScene::MissionCheckpoint& route, const CityTerrain& terrain,
+                      const CityVehiclePose* player, double deltaMs)
+{
+    if (finished) return false;
+    if (playerWaypoint == route.script33RaceCourse.size()) {
+        ++rank;
+        finished = true;
+        return false;
+    }
+    if (!player || !player->occupied || rank > 0) {
+        rank = 0;
+        finished = true;
+        return false;
+    }
+
+    const auto& checkpoint = route.script33RaceCourse[playerWaypoint];
+    const auto dx = player->position[0] - checkpoint[0], dy = player->position[1] - checkpoint[1];
+    const auto radius = route.script33RaceMarker->radius;
+    const bool reached = dx * dx + dy * dy < radius * radius;
+    if (reached) ++playerWaypoint;
+
+    // Convert the scripted km/h value to centimeters per second.
+    rival.speed = route.script33RivalSpeedKmh / 0.036f;
+    auto remaining = rival.speed * std::max(0., deltaMs) / 1000.;
+    const auto& path = route.script33RivalPath;
+    while (rivalWaypoint < path.size()) {
+        const auto& target = path[rivalWaypoint];
+        const auto direction = add(target, scale(rival.position, -1));
+        const auto distance = std::hypot(direction[0], direction[1]);
+        if (distance > 0) {
+            if (remaining <= 0) break;
+            const auto travel = static_cast<float>(std::min<double>(remaining, distance));
+            rival.position = add(rival.position, scale(direction, travel / distance));
+            rival.yaw = std::atan2(direction[0], -direction[1]) / radians;
+            rival.wheelTravel += travel;
+            remaining -= travel;
+            if (travel < distance) break;
+        }
+        rival.position = target;
+        ++rivalWaypoint;
+    }
+    if (const auto ground = terrain.groundContact(rival.position, rival.groundTriangle, 180, 180)) {
+        rival.position[2] = ground->height;
+        rival.groundTriangle = ground->triangle;
+    }
+    if (rivalWaypoint == path.size()) {
+        ++rank;
+        rival.speed = 0;
+    }
+    return reached;
 }
 
 void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>& skins,
