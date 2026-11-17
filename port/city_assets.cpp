@@ -2865,6 +2865,33 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (readScriptObject(unlockShop) != route.weaponShopEntrance ||
                     readCheckpointCommand(enterShop, 64).object != route.weaponShopEntrance)
                     throw std::runtime_error("Retail weapon shop entrance commands name different shops.");
+                auto hideShop = next.record();
+                if (hideShop.integer() != 48) throw std::runtime_error("Missing retail shop tutorial dismissal.");
+                hideShop.finish();
+                const auto readReturnObjective = [&] {
+                    auto command = next.record();
+                    if (command.integer() != 66) throw std::runtime_error("Missing retail LC return objective.");
+                    const auto id = readMissionObjective(command);
+                    if ((id >> 12 & 0xf) != 4 || (id & 0xfff) >= chapterText.size())
+                        throw std::runtime_error("Invalid retail LC return objective.");
+                    return chapterText[id & 0xfff];
+                };
+                route.returnToHummerObjective = readReturnObjective();
+                auto returnToHummer = next.record();
+                if (returnToHummer.integer() != 89)
+                    throw std::runtime_error("Missing retail return to Hummer gate.");
+                route.returnToHummerWait = returnToHummer.remainingBytes();
+                if (readScriptObject(returnToHummer) != route.targetVehicle)
+                    throw std::runtime_error("Retail return gate names a different vehicle.");
+                route.returnToLcObjective = readReturnObjective();
+                auto returnToLc = next.record();
+                if (returnToLc.integer() != 105)
+                    throw std::runtime_error("Missing retail drive to LC gate.");
+                route.returnToLcWait = returnToLc.remainingBytes();
+                const auto lcDestination = readCheckpointCommand(returnToLc, 105);
+                if (lcDestination.vehicle != route.targetVehicle)
+                    throw std::runtime_error("Retail LC checkpoint names a different vehicle.");
+                route.returnToLcCheckpoint = makeCheckpoint(lcDestination.object);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.

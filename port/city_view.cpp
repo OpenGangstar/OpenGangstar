@@ -1031,6 +1031,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.weaponShopApproachFirstSurface = appendCheckpoint(*next.weaponShopApproach, 6);
         if (next.weaponShopEntranceMarker)
             draw.weaponShopEntranceFirstSurface = appendCheckpoint(*next.weaponShopEntranceMarker, 7);
+        if (next.returnToLcCheckpoint)
+            draw.returnToLcFirstSurface = appendCheckpoint(*next.returnToLcCheckpoint, 8);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);

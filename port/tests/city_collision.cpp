@@ -1623,6 +1623,14 @@ void poseRetailDoor(const std::filesystem::path& root)
             decodeCityScriptTutorial({47, hummerRoute.weaponShopTutorialCommand}).title == 0x3072,
             "Weapon shop unlock did not resolve the retail entrance checkpoint and tutorial.");
     const auto& entrance = *hummerRoute.weaponShopEntranceMarker;
+    const CityScriptCommand returnToHummer{89, hummerRoute.returnToHummerWait};
+    const CityScriptCommand returnToLc{105, hummerRoute.returnToLcWait};
+    const auto returnGate = decodeCityScriptCheckpoint(returnToLc);
+    require(hummerRoute.returnToLcCheckpoint && returnGate.object == "CheckpointDrive_LC" &&
+            decodeCityWaitStolen(returnToHummer) == hummerRoute.targetVehicle &&
+            returnGate.vehicle == hummerRoute.targetVehicle && markerDraw.returnToLcFirstSurface &&
+            !markerDraw.checkpointMeshes[8].empty() && !hummerRoute.returnToHummerObjective.empty() &&
+            !hummerRoute.returnToLcObjective.empty(), "Retail return to LC lost its Hummer gate or destination.");
     CityPlayback shopVisitor;
     const auto& missionEnd = opening.payphone->postFight;
     require(opening.missionTitle && opening.missionTitle->cashReward == 250 &&

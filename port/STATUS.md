@@ -285,6 +285,10 @@ mission playthroughs for discovery or verification.
   HUD sprites and language-specific grouping during gameplay and in the
   Windows shop panel. The original cash visibility controls, shop layout,
   and weapon purchases remain open.
+  After the first shop visit, script 18 tracks the Hummer's live position,
+  waits for the player to reenter it, then marks the retail drive checkpoint
+  at LC. Windows shows both localized objectives and requests a scripted exit
+  at arrival. The exit fade, LC cinematic, and mission completion remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

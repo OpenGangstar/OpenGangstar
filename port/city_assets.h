@@ -439,6 +439,9 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> weaponShopEntranceWait;
         CityDialogue weaponShopTutorial{};
         std::vector<WeaponShopItem> weaponShopInventory;
+        std::string returnToHummerObjective, returnToLcObjective;
+        std::vector<uint8_t> returnToHummerWait, returnToLcWait;
+        std::optional<CityCheckpoint> returnToLcCheckpoint;
         std::optional<std::array<CityVehicleCharacterClips, 2>> vehicleCharacterClips;
         std::optional<CityAnimationClip> vehicleSeated;
     };

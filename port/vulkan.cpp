@@ -459,6 +459,7 @@ struct CityRender {
         destroyTexture(nextVehicleObjective);
         destroyTexture(hummerTutorial);
         destroyTexture(weaponShopObjective);
+        for (const auto& texture : returnToLcObjectives) destroyTexture(texture);
         destroyTexture(weaponShopTutorial);
         for (const auto& texture : weaponShopInventory) destroyTexture(texture);
         for (const auto& texture : weaponShopConfirmation) destroyTexture(texture);
@@ -533,6 +534,7 @@ struct CityRender {
     CityTexture nextVehicleObjective;
     CityTexture hummerTutorial;
     CityTexture weaponShopObjective;
+    std::array<CityTexture, 2> returnToLcObjectives;
     CityTexture weaponShopTutorial;
     std::array<CityTexture, 2> weaponShopInventory;
     std::array<CityTexture, 2> weaponShopConfirmation;
@@ -613,6 +615,7 @@ struct CityRender {
     std::optional<size_t> weaponShopDriveFirstSurface;
     std::optional<size_t> weaponShopApproachFirstSurface;
     std::optional<size_t> weaponShopEntranceFirstSurface;
+    std::optional<size_t> returnToLcFirstSurface;
     std::vector<CitySkinRange> skins;
     std::vector<CityVertex> vertices;
     std::vector<CityVertex> vehicleVertices;
@@ -623,7 +626,7 @@ struct CityRender {
     std::vector<CityVehicleMorphRange> vehicleMorphs;
     std::optional<CityVehicleGeometry> nextVehicleGeometry;
     std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 8> checkpointMeshes;
+    std::array<std::vector<CityCheckpointMesh>, 9> checkpointMeshes;
     uint32_t vehicleFirstVertex = 0;
     CityTerrain terrain;
     CityOpening opening{};
@@ -638,6 +641,7 @@ struct CityRender {
     std::optional<double> hummerRouteMarker;
     const CityMissionCinematic* pendingHummerCinematic = nullptr;
     bool weaponShopDrive = false;
+    bool returningToLc = false;
     bool weaponShopApproach = false;
     bool weaponShopUnlocked = false;
     bool weaponShopTutorialVisible = false;
@@ -1072,7 +1076,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount +
-                                             hasPayphoneObjective + (next ? 9 : 0) +
+                                             hasPayphoneObjective + (next ? 11 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1256,6 +1260,11 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.weaponShopObjective,
                    rasterCaption({0, 0, {}, route->postFight.nextCheckpoint->weaponShopObjective},
                                  true, false, 432, 68, font.family()));
+            const auto& next = *route->postFight.nextCheckpoint;
+            upload(city.returnToLcObjectives[0],
+                   rasterCaption({0, 0, {}, next.returnToHummerObjective}, true, false, 432, 68, font.family()));
+            upload(city.returnToLcObjectives[1],
+                   rasterCaption({0, 0, {}, next.returnToLcObjective}, true, false, 432, 68, font.family()));
             auto tutorial = route->postFight.nextCheckpoint->weaponShopTutorial;
             tutorial.text = "Walk to the yellow marker and press E or gamepad A to enter.";
             upload(city.weaponShopTutorial, rasterCaption(tutorial, true, false, 432, 68, font.family()));
@@ -1502,7 +1511,7 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
     }
     const bool worldTransparency = city.checkpointFirstSurface || city.vehicleObjectiveFirstSurface ||
         city.nextMissionFirstSurface || city.hummerRouteFirstSurface || city.weaponShopDriveFirstSurface ||
-        city.weaponShopApproachFirstSurface || city.weaponShopEntranceFirstSurface ||
+        city.weaponShopApproachFirstSurface || city.weaponShopEntranceFirstSurface || city.returnToLcFirstSurface ||
         !city.vehicleLights.empty() ||
         std::any_of(city.vehicleEffects.begin(),
         city.vehicleEffects.end(), [](const CityVehicleEffect& effect) { return !effect.texture.empty(); });
@@ -1561,6 +1570,15 @@ void activateNextMissionCheckpoint(CityRender& city)
 {
     const auto& next = *city.opening.payphone->postFight.nextCheckpoint;
     auto& script = city.nextMissionScript.emplace(CityScriptProgram{{{64, next.payload}}});
+    script.unlock(0, 0, 0);
+}
+
+void activateReturnToLc(CityRender& city)
+{
+    const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
+    city.returningToLc = true;
+    auto& script = city.hummerRouteScript.emplace(CityScriptProgram{{
+        {89, route.returnToHummerWait}, {105, route.returnToLcWait}}});
     script.unlock(0, 0, 0);
 }
 
@@ -1649,6 +1667,7 @@ void activateNextMissionVehicle(CityRender& city)
     city.hummerRouteMarker.reset();
     city.pendingHummerCinematic = nullptr;
     city.weaponShopDrive = false;
+    city.returningToLc = false;
     city.weaponShopApproach = false;
     city.weaponShopUnlocked = false;
     city.weaponShopTutorialVisible = false;
@@ -1702,17 +1721,19 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const bool updateNextMissionMarker = city.nextMissionMarker && !failed && !city.checkpointMeshes[footMarkerIndex].empty();
     const bool updateHummerMarker = city.hummerRouteMarker && !failed && !city.checkpointMeshes[4].empty();
     const bool updateShopMarker = city.hummerRouteMarker && city.weaponShopDrive && !failed &&
-        !city.checkpointMeshes[5].empty();
+        !city.returningToLc && !city.checkpointMeshes[5].empty();
+    const bool updateLcMarker = city.hummerRouteMarker && city.returningToLc && !failed &&
+        !city.checkpointMeshes[8].empty();
     const std::array updateMarkers{updateWalkMarker, updateRouteMarker, updateVehicleMarker,
                                    updateNextMissionMarker && !city.weaponShopApproach,
-                                   updateHummerMarker && !city.weaponShopDrive, updateShopMarker,
+                                   updateHummerMarker && !city.weaponShopDrive && !city.returningToLc, updateShopMarker,
                                    updateNextMissionMarker && footMarkerIndex == 6,
-                                   updateNextMissionMarker && footMarkerIndex == 7};
+                                   updateNextMissionMarker && footMarkerIndex == 7, updateLcMarker};
     const bool particlesVisible = std::any_of(city.vehicleEffects.begin(), city.vehicleEffects.end(),
         [](const CityVehicleEffect& effect) { return !effect.simulation.particles().empty(); });
     if (!city.skins.empty() || !city.billboards.empty() || updateVehicle || city.restoreVehicleGeometry || updateWalkMarker ||
         updateRouteMarker || updateVehicleMarker || updateNextMissionMarker || updateHummerMarker || updateShopMarker ||
-        showMinimap || particlesVisible || lights) {
+        updateLcMarker || showMinimap || particlesVisible || lights) {
         if (updateVehicle)
             poseCityVehicle(city.opening.actors[*city.opening.vehicleActor], *vehicle, city.vehicleVertices,
                             city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets);
@@ -1737,13 +1758,17 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                city.checkpointMeshes[footMarkerIndex],
                                city.payphoneGameplayMs.value_or(0) - *city.nextMissionMarker, city.vertices.data());
         }
-        if (updateHummerMarker && !city.weaponShopDrive)
+        if (updateHummerMarker && !city.weaponShopDrive && !city.returningToLc)
             poseCityCheckpoint(*city.opening.payphone->postFight.nextCheckpoint->vehicleCheckpoint,
                                city.checkpointMeshes[4], city.payphoneGameplayMs.value_or(0) - *city.hummerRouteMarker,
                                city.vertices.data());
         if (updateShopMarker)
             poseCityCheckpoint(*city.opening.payphone->postFight.nextCheckpoint->weaponShopDriveCheckpoint,
                                city.checkpointMeshes[5], city.payphoneGameplayMs.value_or(0) - *city.hummerRouteMarker,
+                               city.vertices.data());
+        if (updateLcMarker)
+            poseCityCheckpoint(*city.opening.payphone->postFight.nextCheckpoint->returnToLcCheckpoint,
+                               city.checkpointMeshes[8], city.payphoneGameplayMs.value_or(0) - *city.hummerRouteMarker,
                                city.vertices.data());
         // finishFrame waits for the graphics queue before this allocation is written again.
         void* mapped = nullptr;
@@ -1816,7 +1841,11 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             if (city.hummerRouteMarker) {
                 target = Target::hummerRoute;
                 const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
-                targetPosition = &(city.weaponShopDrive ? route.weaponShopDriveCheckpoint : route.vehicleCheckpoint)->position;
+                targetPosition = &(city.returningToLc ? route.returnToLcCheckpoint :
+                    city.weaponShopDrive ? route.weaponShopDriveCheckpoint : route.vehicleCheckpoint)->position;
+            } else if (city.returningToLc && city.hummerRouteScript && vehicle) {
+                target = Target::nextVehicle;
+                targetPosition = &vehicle->position;
             } else if (city.nextMissionMarker) {
                 target = Target::nextMission;
                 const auto& next = *city.opening.payphone->postFight.nextCheckpoint;
@@ -1947,15 +1976,17 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         std::optional<bool> marker;
         bool vehicleMarker = false;
         bool arrowMarker = false;
-        if (atOrAfter(city.weaponShopEntranceFirstSurface))
+        if (atOrAfter(city.returnToLcFirstSurface))
+            marker = city.returningToLc && city.hummerRouteMarker;
+        else if (atOrAfter(city.weaponShopEntranceFirstSurface))
             marker = city.weaponShopUnlocked && city.nextMissionMarker;
         else if (atOrAfter(city.weaponShopApproachFirstSurface)) {
             marker = city.weaponShopApproach && !city.weaponShopUnlocked && city.nextMissionMarker;
             arrowMarker = true;
         } else if (atOrAfter(city.weaponShopDriveFirstSurface))
-            marker = city.weaponShopDrive && city.hummerRouteMarker;
+            marker = city.weaponShopDrive && !city.returningToLc && city.hummerRouteMarker;
         else if (atOrAfter(city.hummerRouteFirstSurface))
-            marker = !city.weaponShopDrive && city.hummerRouteMarker;
+            marker = !city.weaponShopDrive && !city.returningToLc && city.hummerRouteMarker;
         else if (atOrAfter(city.nextMissionFirstSurface))
             marker = !city.weaponShopApproach && city.nextMissionMarker;
         else if (atOrAfter(city.vehicleObjectiveFirstSurface)) {
@@ -2154,6 +2185,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             overlay(city.hummerTutorial.descriptor, screen, city.captionVertex, 6);
         else if (city.weaponShopTutorialVisible && city.weaponShopTutorial.descriptor)
             overlay(city.weaponShopTutorial.descriptor, screen, city.captionVertex, 6);
+        else if (city.returningToLc && city.hummerRouteScript)
+            overlay(city.returnToLcObjectives[city.hummerRouteMarker ? 1 : 0].descriptor,
+                    screen, city.captionVertex, 6);
         else if (city.weaponShopDrive && city.hummerRouteScript && city.weaponShopObjective.descriptor)
             overlay(city.weaponShopObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.playback.nextMissionVehicleActive && !city.playback.nextMissionVehicleAcquired &&
@@ -2712,6 +2746,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         if (cityRender->weaponShopUnlocked) {
                             cityRender->weaponShopOpen = true;
                             touch->startMenuPointer();
+                            activateReturnToLc(*cityRender);
                         } else if (!cityRender->weaponShopApproach) {
                             if (next.fadeMs) cityRender->nextMissionFadeMs = 0;
                             else {
@@ -2755,8 +2790,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 const bool nowOccupied = playback.vehicle && playback.vehicle->occupied;
                 if (cityRender->hummerRouteScript) {
                     const auto& mission = *cityRender->opening.payphone->postFight.nextCheckpoint;
-                    const auto& checkpoint = *(cityRender->weaponShopDrive
-                        ? mission.weaponShopDriveCheckpoint : mission.vehicleCheckpoint);
+                    const auto& checkpoint = *(cityRender->returningToLc ? mission.returnToLcCheckpoint :
+                        cityRender->weaponShopDrive ? mission.weaponShopDriveCheckpoint : mission.vehicleCheckpoint);
                     const auto& vehicleName = cityRender->opening.actors.at(*cityRender->opening.vehicleActor).name;
                     RetailTravelHooks travel;
                     travel.occupiedVehicle = [&]() -> std::string_view { return nowOccupied ? vehicleName : std::string_view{}; };
@@ -2791,8 +2826,11 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->hummerRouteScript.reset();
                         playback.scriptedVehicleExit = true;
-                        cityRender->pendingHummerCinematic = cityRender->weaponShopDrive
-                            ? &mission.weaponShopCinematic : &mission.pierCinematic;
+                        if (cityRender->returningToLc)
+                            playback.missionConditions.clear();
+                        else
+                            cityRender->pendingHummerCinematic = cityRender->weaponShopDrive
+                                ? &mission.weaponShopCinematic : &mission.pierCinematic;
                     }
                 }
                 if (cityRender->radio) {
@@ -2946,6 +2984,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     render->weaponShopDriveFirstSurface = geometry.weaponShopDriveFirstSurface;
                     render->weaponShopApproachFirstSurface = geometry.weaponShopApproachFirstSurface;
                     render->weaponShopEntranceFirstSurface = geometry.weaponShopEntranceFirstSurface;
+                    render->returnToLcFirstSurface = geometry.returnToLcFirstSurface;
                     const auto appendOverlay = [&](float left, float right, float top, float bottom) {
                         const auto vertex = static_cast<uint32_t>(geometry.vertices.size());
                         const CityVertex a{{left, top, 0}, {0, 0}}, b{{right, top, 0}, {1, 0}};
@@ -3501,6 +3540,17 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 render.playback.playerArmor = 0;
                 render.playback.playerHealth = CityPlayback::playerMaxHealth;
                 std::cout << "Submitted the retail armor and blinking health gauges through Vulkan.\n" << std::flush;
+                if (!render.returnToLcFirstSurface || render.checkpointMeshes[8].empty() ||
+                    !render.returnToLcObjectives[0].descriptor || !render.returnToLcObjectives[1].descriptor)
+                    throw std::runtime_error("LC return smoke frame did not prepare the objectives and destination.");
+                activateReturnToLc(render);
+                presentCity(render, info.imageExtent);
+                render.hummerRouteMarker = render.payphoneGameplayMs;
+                presentCity(render, info.imageExtent);
+                render.hummerRouteScript.reset();
+                render.hummerRouteMarker.reset();
+                render.returningToLc = false;
+                std::cout << "Submitted the retail return-to-LC objectives and checkpoint through Vulkan.\n" << std::flush;
                 render.payphoneGameplayMs.reset();
                 std::cout << "Submitted the retail payphone gameplay handoff through Vulkan.\n" << std::flush;
                 const auto& placements = route.postFight.placements;
