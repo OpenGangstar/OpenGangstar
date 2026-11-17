@@ -2197,7 +2197,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> shopMoves;
     std::vector<NamedMove> lcClosingMoves;
     std::vector<NamedMove> postLcMoves;
-    std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves;
+    std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2219,7 +2219,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<AnimationCommand> pierAnimations;
     std::vector<AnimationCommand> lcClosingAnimations;
     std::vector<AnimationCommand> postLcAnimations;
-    std::vector<AnimationCommand> postLcAmbushAnimations, postLcConfrontationAnimations;
+    std::vector<AnimationCommand> postLcAmbushAnimations, postLcConfrontationAnimations, postLcPhoneAnimations;
     struct MotionCommand {
         uint32_t time;
         std::string actor;
@@ -2260,7 +2260,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> shopDialogue;
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
-    std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue;
+    std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2269,7 +2269,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> shopPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
-    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -3061,12 +3061,25 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail post-tailing objective.");
                 route.postLcConfrontationObjective = chapterText[*nextMissionObjectiveId & 0xfff];
-                for (size_t i = 0; i < route.postLcWalkCheckpoints.size(); ++i) {
+                const auto readWalkCheckpoint = [&](size_t i) {
                     auto wait = postLc.record();
                     if (wait.integer() != 64) throw std::runtime_error("Missing retail post-confrontation checkpoint.");
                     route.postLcWalkWaits[i] = wait.remainingBytes();
                     route.postLcWalkCheckpoints[i] = makeCheckpoint(readCheckpointCommand(wait, 64).object);
-                }
+                };
+                readWalkCheckpoint(0);
+                readWalkCheckpoint(1);
+                previousCinematicShot.clear();
+                readCinematic(readCinematic, postLc, postLcLength, 0, route.postLcPhone, postLcPhoneMoves,
+                              postLcPhoneDialogue, postLcPhonePlacements, &postLcPhoneAnimations, nullptr, nullptr, 81);
+                route.postLcPhone.dialogue = resolveDialogue(postLcPhoneDialogue);
+                auto phoneReveal = postLc.record();
+                if (phoneReveal.integer() != 41) throw std::runtime_error("Missing retail phone scene reveal.");
+                const auto reveal = readFadeCommand(phoneReveal, 41, route.postLcPhone.durationMs);
+                if (!route.postLcPhone.followCameraMs) route.postLcPhone.followCameraMs = reveal.startMs;
+                route.postLcPhone.fades.push_back(reveal);
+                route.postLcPhone.durationMs += reveal.durationMs;
+                readWalkCheckpoint(2);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3107,6 +3120,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(postLcPlacements, next->postLcIntro.placements);
                 resolvePlacements(postLcAmbushPlacements, next->postLcAmbush.placements);
                 resolvePlacements(postLcConfrontationPlacements, next->postLcConfrontation.placements);
+                resolvePlacements(postLcPhonePlacements, next->postLcPhone.placements);
             }
         }
     }
@@ -3367,6 +3381,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.postLcIntro);
                 loadCinematicActors(next.postLcAmbush);
                 loadCinematicActors(next.postLcConfrontation);
+                loadCinematicActors(next.postLcPhone);
             }
             const auto bindCinematic = [&](CityMissionCinematic& scene, const auto& commands) {
                 for (const auto& command : commands) {
@@ -3390,6 +3405,13 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->postLcIntro, postLcAnimations);
                 bindCinematic(next->postLcAmbush, postLcAmbushAnimations);
                 bindCinematic(next->postLcConfrontation, postLcConfrontationAnimations);
+                bindCinematic(next->postLcPhone, postLcPhoneAnimations);
+                for (const auto& cue : next->postLcPhone.placements) {
+                    if (!cue.visible || next->postLcPhone.actorAnimations.count(cue.actor)) continue;
+                    const auto actor = findCinematicActor(cue.actor);
+                    auto idle = readClip(library, &actor->model, "move_idle");
+                    next->postLcPhone.actorAnimations[cue.actor].push_back({0, idle, idle});
+                }
                 for (const auto& cue : next->postLcConfrontation.placements) {
                     if (!cue.visible) continue;
                     auto& track = next->postLcConfrontation.actorAnimations[cue.actor];
@@ -3538,6 +3560,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : postLcConfrontationMoves)
                             next->postLcConfrontation.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : postLcPhoneMoves)
+                            next->postLcPhone.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                     }
                 }

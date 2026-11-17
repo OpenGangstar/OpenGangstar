@@ -321,8 +321,11 @@ mission playthroughs for discovery or verification.
   and the confrontation handoff. Script 25 then activates the retail
   walking checkpoints C2M203 and C2M202 in order, animates their world
   markers, and tracks the active marker on the minimap. Automated
-  Continue smoke verifies the order and that both markers clear.
-  NPC damage and the phone cutscene after the second marker remain open.
+  Continue smoke verifies the order and that both markers clear. The
+  second checkpoint now starts the retail phone cutscene, including
+  fades, camera cuts, animation, dialogue, and priority audio cues.
+  It returns control at the player's location and activates C2M204.
+  NPC damage and the scene after C2M204 remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

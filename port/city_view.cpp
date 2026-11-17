@@ -2414,6 +2414,16 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
             const auto yaw = std::atan2(direction[0], -direction[1]) / radians;
             world = placementTransform(position, staging->rotationDegrees, actor.scale, yaw);
         }
+        const CityActorAnimation* missionAnimation = nullptr;
+        if (missionMs && missionScene && (missionPlacement || player)) {
+            const auto track = missionScene->actorAnimations.find(actor.name);
+            if (track != missionScene->actorAnimations.end()) {
+                const auto& animations = track->second;
+                const auto next = std::upper_bound(animations.begin(), animations.end(), *missionMs,
+                    [](double time, const CityActorAnimation& animation) { return time < animation.startMs; });
+                if (next != animations.begin()) missionAnimation = &*std::prev(next);
+            }
+        }
         if (opening.vehicleActor == range.actor) {
             if (!playback.vehicle) continue;
             const auto& vehicle = *playback.vehicle;
@@ -2434,14 +2444,8 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         } else if (motion && travelMs < double(motion->travel.startMs) + motion->travel.durationMs) {
             clip = &motion->clip;
             clipTime = std::fmod(travelMs - motion->travel.startMs, clip->durationMs);
-        } else if (missionPlacement) {
-            const auto track = missionScene->actorAnimations.find(actor.name);
-            if (track == missionScene->actorAnimations.end()) continue;
-            const auto& animations = track->second;
-            const auto next = std::upper_bound(animations.begin(), animations.end(), *missionMs,
-                [](double time, const CityActorAnimation& animation) { return time < animation.startMs; });
-            if (next == animations.begin()) continue;
-            const auto& animation = *std::prev(next);
+        } else if (missionAnimation) {
+            const auto& animation = *missionAnimation;
             const auto time = *missionMs - animation.startMs;
             clip = time < animation.first.durationMs ? &animation.first : &animation.loop;
             clipTime = time < animation.first.durationMs ? time :
@@ -2461,7 +2465,7 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         } else if (pursuer && pursuer->walking && actor.pursuitWalk) {
             clip = &*actor.pursuitWalk;
             clipTime = std::fmod(pursuer->clipTimeMs, clip->durationMs);
-        } else if (player && staging && staging->visible) {
+        } else if (player && !missionPlacement && staging && staging->visible) {
             const auto& animations = opening.payphone->playerAnimations;
             const auto next = std::upper_bound(animations.begin(), animations.end(), *payphoneMs,
                 [](double time, const CityActorAnimation& animation) { return time < animation.startMs; });
