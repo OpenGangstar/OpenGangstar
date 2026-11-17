@@ -525,8 +525,11 @@ mission playthroughs for discovery or verification.
   and starts the race on the retail course. The player follows the
   ordered world and minimap checkpoints while the rival follows its
   authored path. The Windows port uses constant-speed rival movement
-  and checks the finish order. The win cutscene, rival collision,
-  and passenger ejection remain pending. The chapter-three scripted actor
+  and checks the finish order. Winning plays the retail Latisha cutscene,
+  pays the race reward, and saves both Script 36 and 43 unlocks. Both
+  markers appear in the world, with the nearer one on the minimap.
+  Their gameplay, rival collision, and passenger ejection remain pending.
+  The chapter-three scripted actor
   cues, retail pursuit and target selection, and the fourth van arrival
   look cue also remain pending.
   Other open work includes passenger seating, the parallel script 21

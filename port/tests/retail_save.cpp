@@ -411,6 +411,16 @@ void verifySaveDirectory()
         postScript32->statUpdates.back().second != 10 || read() != encodeRetailSave(sampled))
         throw std::runtime_error("Script 33 unlock did not preserve chapter and mission progress.");
 
+    checkpoint.completedScripts = {{windowsPostScript33CheckpointScript, -1},
+                                   {windowsPostScript33ParallelScript, -1}};
+    writeWindowsOpeningCheckpoint(files, checkpoint);
+    const auto postScript33 = readWindowsOpeningCheckpoint(files);
+    if (!postScript33 || postScript33->cash != checkpoint.cash || postScript33->completedScripts.size() != 2 ||
+        postScript33->completedScripts[0].script != windowsPostScript33CheckpointScript ||
+        postScript33->completedScripts[1].script != windowsPostScript33ParallelScript ||
+        read() != encodeRetailSave(sampled))
+        throw std::runtime_error("Script 33 did not preserve both mission unlocks.");
+
     if (files.openSavedFile("../retail/Gangstar2.sav") || files.openSavefile("../retail/Gangstar2.sav"))
         throw std::runtime_error("A save filename escaped the save directory.");
     bool overlapRejected = false;

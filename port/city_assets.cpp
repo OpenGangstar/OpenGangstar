@@ -2384,6 +2384,10 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script33RacePlacements;
     std::vector<AnimationCommand> script33RaceAnimations;
     std::string raceCourseName;
+    std::vector<NamedMove> script33ClosingMoves;
+    std::vector<DialogueCommand> script33ClosingDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script33ClosingPlacements;
+    std::vector<AnimationCommand> script33ClosingAnimations;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -2425,6 +2429,10 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 } else if (opcode == 66) nextMissionObjectiveId = readMissionObjective(command);
                 else if (opcode == 76) weaponShopEntrance = readScriptObject(command);
                 else if (opcode == 102) raceCourseName = readScriptObject(command);
+                else if (opcode == 3) {
+                    scene.nextScript = command.integer();
+                    command.finish();
+                }
                 else command.finish();
                 return;
             }
@@ -4577,6 +4585,34 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.script33RaceMarker = makeCheckpoint("CheckpointRace_dummy");
                 route.script33RaceCourse = course.waypoints;
                 route.script33RivalPath = rivalPath.waypoints;
+                auto finishRace = script33.record(), exitPlayer = script33.record(), clearRace = script33.record(),
+                    exitRival = script33.record();
+                if (finishRace.integer() != 96 || finishRace.integer() != 0 ||
+                    exitPlayer.integer() != 99 || readScriptObject(exitPlayer) != "Player" ||
+                    clearRace.integer() != 68 || exitRival.integer() != 99 ||
+                    readScriptObject(exitRival) != route.script33Rival)
+                    throw std::runtime_error("Invalid Script 33 post-race sequence.");
+                finishRace.finish();
+                clearRace.finish();
+                previousCinematicShot.clear();
+                readCinematic(readCinematic, script33, script33Count, 0, route.script33Closing,
+                              script33ClosingMoves, script33ClosingDialogue, script33ClosingPlacements,
+                              &script33ClosingAnimations, nullptr, nullptr, 3);
+                for (const auto& [time, duration, id, portrait] : script33ClosingDialogue)
+                    route.script33Closing.dialogue.push_back({time, duration, {}, objective33(id), portrait});
+                if (!route.script33Closing.missionOverMs)
+                    throw std::runtime_error("Missing Script 33 MissionOver command.");
+                auto parallelUnlock = script33.record();
+                if (parallelUnlock.integer() != 3) throw std::runtime_error("Missing Script 33 parallel unlock.");
+                route.script33UnlockedScripts = {route.script33Closing.nextScript, parallelUnlock.integer()};
+                parallelUnlock.finish();
+                for (size_t index = 0; index < route.script33UnlockedScripts.size(); ++index) {
+                    auto unlocked = scripts.script(route.script33UnlockedScripts[index]);
+                    if (!unlocked.integer()) throw std::runtime_error("Empty Script 33 follow-up.");
+                    auto gate = unlocked.record();
+                    if (gate.integer() != 64) throw std::runtime_error("Missing Script 33 follow-up checkpoint.");
+                    route.script33UnlockedCheckpoints[index] = makeCheckpoint(readCheckpointCommand(gate, 64).object);
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4657,6 +4693,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script32Placements, next->script32Intro.placements);
                 resolvePlacements(script33Placements, next->script33Intro.placements);
                 resolvePlacements(script33RacePlacements, next->script33RaceIntro.placements);
+                resolvePlacements(script33ClosingPlacements, next->script33Closing.placements);
                 resolvePlacements(script19SecondFightPlacements, next->script19SecondFightPlacements);
                 resolvePlacements(script19ThirdFightPlacements, next->script19ThirdFightPlacements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
@@ -5087,6 +5124,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script32Intro, script32Animations);
                 bindCinematic(next->script33Intro, script33Animations);
                 bindCinematic(next->script33RaceIntro, script33RaceAnimations);
+                bindCinematic(next->script33Closing, script33ClosingAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -5128,6 +5166,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->script20Retreat);
                 bindInitialIdle(next->script32Intro);
                 bindInitialIdle(next->script33Intro);
+                bindInitialIdle(next->script33Closing);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -5411,6 +5450,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script19ClosingMoves)
                             next->script19Closing.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script33ClosingMoves)
+                            next->script33Closing.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script33RaceMoves)
                             next->script33RaceIntro.cameras.push_back(

@@ -449,14 +449,18 @@ std::optional<RetailSavedState> readWindowsOpeningCheckpoint(const ResourceFileS
     if (!file) return std::nullopt;
     const auto blocks = readRetailSave(*file);
     auto state = restoreRetailSavedState(blocks, 0);
+    const auto& unlocks = state.completedScripts;
+    const bool pairedUnlock = unlocks.size() == 2 &&
+        unlocks[0].script == windowsPostScript33CheckpointScript && unlocks[0].context == -1 &&
+        unlocks[1].script == windowsPostScript33ParallelScript && unlocks[1].context == -1;
     if (blocks.empty() || blocks.front().id != -1 ||
         std::get<int32_t>(blocks.front().value) != windowsOpeningCheckpointVersion ||
         state.context != 0 || !state.position || !state.cash || *state.cash < 0 ||
         !state.armor[0] || *state.armor[0] < 0 || *state.armor[0] > 200 ||
         !std::all_of(state.position->begin(), state.position->end(), [](float value) {
             return std::isfinite(value);
-        }) || state.completedScripts.size() != 1 ||
-        (state.completedScripts.front().script != windowsOpeningCheckpointScript &&
+        }) || (!pairedUnlock && (unlocks.size() != 1 ||
+        (unlocks.front().script != windowsOpeningCheckpointScript &&
          state.completedScripts.front().script != windowsPostLcCheckpointScript &&
          state.completedScripts.front().script != windowsPostLocoCheckpointScript &&
          state.completedScripts.front().script != windowsPostCooperCheckpointScript &&
@@ -468,7 +472,7 @@ std::optional<RetailSavedState> readWindowsOpeningCheckpoint(const ResourceFileS
          state.completedScripts.front().script != windowsPostScript19CheckpointScript &&
          state.completedScripts.front().script != windowsPostScript20CheckpointScript &&
          state.completedScripts.front().script != windowsPostScript32CheckpointScript) ||
-        state.completedScripts.front().context != -1)
+        unlocks.front().context != -1)))
         throw std::runtime_error("Unsupported Windows opening checkpoint.");
     return state;
 }

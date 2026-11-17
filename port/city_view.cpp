@@ -1324,6 +1324,9 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.script33DriveFirstSurface = appendCheckpoint(*next.script33DriveCheckpoint, 31);
         if (next.script33RaceMarker)
             draw.script33RaceFirstSurface = appendCheckpoint(*next.script33RaceMarker, 32);
+        for (size_t index = 0; index < next.script33UnlockedCheckpoints.size(); ++index)
+            if (next.script33UnlockedCheckpoints[index])
+                draw.script33UnlockedFirstSurfaces[index] = appendCheckpoint(*next.script33UnlockedCheckpoints[index], 33 + index);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);
