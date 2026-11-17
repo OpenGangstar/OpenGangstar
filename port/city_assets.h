@@ -397,6 +397,13 @@ struct CityMissionCinematic {
         CityAnimationClip clip;
     };
     std::vector<Motion> motions;
+    struct VehicleDrive {
+        uint32_t startMs;
+        std::string actor;
+        std::array<float, 3> destination;
+        float speedCmPerMs;
+    };
+    std::vector<VehicleDrive> vehicleDrives;
     uint32_t durationMs = 0;
     uint32_t nextScript = 0;
     std::optional<uint32_t> followCameraMs;

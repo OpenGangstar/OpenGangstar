@@ -2221,6 +2221,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         bool followsPath;
     };
     std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions, postLcAmbushMotions;
+    struct VehicleDriveCommand {
+        uint32_t time;
+        std::string actor, marker;
+        int32_t speedKmh = 0;
+    };
+    std::vector<VehicleDriveCommand> postLcAmbushDrives;
     const auto readCinematicAnimation = [](CityDataReader& command, uint32_t opcode, uint32_t time) {
         auto cue = readActorAnimation(command, opcode);
         // Retail scripts differ from anim_ingame.bdae in the casing of these names.
@@ -2283,7 +2289,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
                                    std::vector<MotionCommand>* motions,
-                                   CityPostFightScene* postFightTail, uint32_t stopOpcode) -> void {
+                                   CityPostFightScene* postFightTail, uint32_t stopOpcode,
+                                   std::vector<VehicleDriveCommand>* drives = nullptr) -> void {
         if (depth > 8) throw std::runtime_error("Invalid retail cinematic script nesting.");
         for (uint32_t i = 0; i < remaining; ++i) {
             auto command = stream.record();
@@ -2297,7 +2304,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 auto child = scripts.script(script);
                 const auto commands = child.integer();
                 read(read, child, commands, depth + 1, scene, moves, lines, placements, animations, motions,
-                     postFightTail, stopOpcode);
+                     postFightTail, stopOpcode, drives);
                 continue;
             }
             if (!depth && postFightTail && opcode == 3) {
@@ -2330,6 +2337,19 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
             } else if ((opcode == 25 || opcode == 26 || opcode == 34) && motions) {
                 motions->push_back({time, command.string(), command.string(), opcode != 25, opcode == 34});
                 command.finish();
+            } else if (opcode == 52 && drives) {
+                drives->push_back({time, command.string(), command.string()});
+                command.finish();
+            } else if (opcode == 53 && drives) {
+                const auto actor = command.string();
+                const auto speed = command.signedInteger();
+                command.finish();
+                const auto drive = std::find_if(drives->rbegin(), drives->rend(), [&](const auto& cue) {
+                    return cue.actor == actor && cue.time == time;
+                });
+                if (drive == drives->rend() || speed <= 0)
+                    throw std::runtime_error("Invalid retail cinematic vehicle speed for " + actor);
+                drive->speedKmh = speed;
             } else if (opcode == 6 || opcode == 7) {
                 auto cue = readCinematicAnimation(command, opcode, time);
                 if (animations) animations->push_back(std::move(cue));
@@ -2995,7 +3015,15 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 previousCinematicShot.clear();
                 route.postLcAmbush.fades.push_back({0, 0, false});
                 readCinematic(readCinematic, postLc, postLcLength, 0, route.postLcAmbush, postLcAmbushMoves,
-                              postLcAmbushDialogue, postLcAmbushPlacements, &postLcAmbushAnimations, &postLcAmbushMotions, nullptr, 66);
+                              postLcAmbushDialogue, postLcAmbushPlacements, &postLcAmbushAnimations, &postLcAmbushMotions, nullptr, 66, &postLcAmbushDrives);
+                for (const auto& drive : postLcAmbushDrives) {
+                    const auto marker = findObject(drive.marker);
+                    if (marker.type != 10 || drive.actor != route.targetVehicle || !drive.speedKmh)
+                        throw std::runtime_error("Invalid retail cinematic vehicle destination.");
+                    // Convert the retail km/h argument to centimetres per millisecond.
+                    route.postLcAmbush.vehicleDrives.push_back(
+                        {drive.time, drive.actor, marker.position, drive.speedKmh / 36.f});
+                }
                 route.postLcAmbush.dialogue = resolveDialogue(postLcAmbushDialogue);
                 if (!nextMissionObjectiveId || (*nextMissionObjectiveId >> 12 & 0xf) != 4 ||
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())

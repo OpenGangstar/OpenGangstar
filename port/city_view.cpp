@@ -2295,6 +2295,26 @@ const CityMissionCinematic::Motion* cityCinematicMotion(const CityMissionCinemat
     return cue == scene.motions.rend() ? nullptr : &*cue;
 }
 
+std::optional<CityVehiclePose> cityCinematicVehiclePose(const CityMissionCinematic& scene,
+    std::string_view actor, const CityVehiclePose& initial, const CityTerrain& terrain, double elapsedMs)
+{
+    const auto drive = std::find_if(scene.vehicleDrives.rbegin(), scene.vehicleDrives.rend(), [&](const auto& cue) {
+        return cue.actor == actor && cue.startMs <= elapsedMs;
+    });
+    if (drive == scene.vehicleDrives.rend()) return std::nullopt;
+    const auto direction = add(drive->destination, scale(initial.position, -1));
+    const auto distance = std::hypot(direction[0], direction[1]);
+    auto vehicle = initial;
+    if (distance <= 0) return vehicle;
+    const auto travelled = static_cast<float>(std::min<double>(distance, (elapsedMs - drive->startMs) * drive->speedCmPerMs));
+    vehicle.position = add(initial.position, scale(direction, travelled / distance));
+    if (const auto ground = terrain.groundContact(vehicle.position, initial.groundTriangle, 150, 150))
+        vehicle.position[2] = ground->height;
+    vehicle.yaw = std::atan2(direction[0], -direction[1]) / radians;
+    vehicle.wheelTravel += travelled;
+    return vehicle;
+}
+
 static std::pair<std::array<float, 3>, std::array<float, 3>>
 sampleCinematicTravel(const CityCinematicWalk& travel, double elapsedMs)
 {

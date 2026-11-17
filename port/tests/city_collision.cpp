@@ -1656,6 +1656,21 @@ void poseRetailDoor(const std::filesystem::path& root)
             ambush.dialogue.size() == 3 && !ambush.placements.empty() &&
             !hummerRoute.postLcAmbushObjective.empty(),
             "Script 25 lost its arrival fade, Loco cinematic or objective.");
+    require(ambush.vehicleDrives.size() == 1, "Script 25 lost its Hummer drive command.");
+    const auto& drive = ambush.vehicleDrives.front();
+    require(drive.startMs == 4876 && drive.actor == hummerRoute.targetVehicle &&
+            drive.destination == std::array<float, 3>{-29778, -24907, 134} &&
+            std::abs(drive.speedCmPerMs - 50.f / 36) < 0.001f,
+            "Script 25 Hummer drive timing, speed, or marker changed.");
+    const CityVehiclePose hummer{hummerRoute.postLcDriveCheckpoint->position, 0};
+    const CityTerrain noGround;
+    const auto moving = cityCinematicVehiclePose(ambush, drive.actor, hummer, noGround, drive.startMs + 1000.);
+    const auto arrived = cityCinematicVehiclePose(ambush, drive.actor, hummer, noGround, drive.startMs + 10000.);
+    require(!cityCinematicVehiclePose(ambush, drive.actor, hummer, noGround, drive.startMs - 1.) &&
+            moving && moving->position != hummer.position && moving->position != drive.destination &&
+            std::abs(moving->wheelTravel - 50000. / 36) < 0.01 &&
+            arrived && arrived->position == drive.destination,
+            "The cinematic Hummer must roll toward the authored destination without overshooting.");
     require(ambush.motions.size() == 2, "Script 25 lost authored Loco path commands.");
     for (const auto& motion : ambush.motions) {
         const auto& travel = motion.travel;

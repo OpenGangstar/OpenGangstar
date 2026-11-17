@@ -1864,6 +1864,11 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const auto* missionScene = city.activeMissionCinematic;
     const auto actorSceneMs = city.payphoneGameplayMs ? city.payphoneGameplayMs : payphoneMs;
     const auto* vehicle = city.playback.vehicle ? &*city.playback.vehicle : nullptr;
+    const auto cinematicVehicle = vehicle && missionScene && postFightMs && city.opening.vehicleActor
+        ? cityCinematicVehiclePose(*missionScene, city.opening.actors.at(*city.opening.vehicleActor).name,
+                                   *vehicle, city.terrain, *postFightMs)
+        : std::nullopt;
+    if (cinematicVehicle) vehicle = &*cinematicVehicle;
     const auto* player = city.playback.player ? &*city.playback.player : nullptr;
     std::array<float, 3> cameraEye;
     std::optional<CityCameraMatrix> distantCamera;

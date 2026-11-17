@@ -303,8 +303,10 @@ mission playthroughs for discovery or verification.
   cues. The handoff removes the Hummer and shows the localized objective.
   Both Loco actors follow their authored GMAP waypoints. The Windows
   cinematic samples the segments using clip-derived speed and projects the
-  actors onto the terrain. Scripted Hummer motion and the ensuing combat
-  remain open. Automated Continue smoke covers the drive checkpoint,
+  actors onto the terrain. The Hummer follows its retail drive and speed
+  cues toward Marker_C2M2car01 and disappears at the authored disable cue.
+  Windows samples a straight drive with terrain height and wheel roll.
+  Retail AI steering and the ensuing combat remain open. Automated Continue smoke covers the drive checkpoint,
   cinematic rendering, and objective handoff.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
