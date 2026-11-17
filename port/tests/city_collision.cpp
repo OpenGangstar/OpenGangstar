@@ -1633,6 +1633,14 @@ void poseRetailDoor(const std::filesystem::path& root)
     require(rewardFrames.size() == 6 && rewardFrames.front().duration == 1 &&
             rewardFrames.front().image.bgra != rewardFrames.back().image.bgra,
             "Opening mission reward lost its retail animation frames.");
+    const auto objectiveIn = rasterRetailSpriteAnimation(assets, "huds.bsprite", "OBJECTIVE", 480, 320, true);
+    const auto objectiveOut = rasterRetailSpriteAnimation(assets, "huds.bsprite", "OBJECTIVE_END", 480, 320, true);
+    require(objectiveIn.size() == 6 && objectiveOut.size() == 3 &&
+            objectiveIn.back().duration == 2 &&
+            objectiveIn.back().image.bgra == objectiveOut.front().image.bgra &&
+            objectiveIn.front().image.bgra == objectiveOut.back().image.bgra &&
+            objectiveIn.front().image.bgra != objectiveIn.back().image.bgra,
+            "Retail mission objective opening and closing artwork changed.");
     require(shopVisitor.creditOpeningMission(opening.missionTitle->cashReward) &&
             !shopVisitor.creditOpeningMission(opening.missionTitle->cashReward) && shopVisitor.playerCash == 250,
             "Opening mission reward was omitted or paid twice.");
