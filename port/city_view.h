@@ -298,6 +298,8 @@ struct CityPlayback {
     size_t payphonePunchIndex = 0;
     static constexpr int32_t playerMaxHealth = 100;
     int32_t playerHealth = playerMaxHealth;
+    int32_t playerCash = 0;
+    bool openingMissionPaid = false;
     int32_t payphoneOpponentHealth = 100;
     double payphoneDefeatMs = 0;
     bool payphoneDisablePending = false;
@@ -323,6 +325,7 @@ struct CityPlayback {
     void walk(const CityOpening& opening, const CityTerrain& terrain,
               std::array<float, 2> input, double deltaMs);
     bool canEnterShop(const CityCheckpoint& entrance) const;
+    bool creditOpeningMission(int32_t reward);
     CityDoorSounds drive(const CityOpening& opening, const CityTerrain& terrain,
                          std::array<float, 2> input, double deltaMs, bool interact);
     void orbitCamera(const CityOpening& opening, std::array<float, 2> drag, double deltaMs);

@@ -2309,6 +2309,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 auto& cinematicPlayback = *cityRender->postFightCinematic;
                 const auto before = cinematicPlayback.elapsedMs();
                 const bool finished = cinematicPlayback.advance(scene, delta, pressed, playCue);
+                if (&scene == &handoff && handoff.missionOverMs &&
+                    cinematicPlayback.elapsedMs() >= *handoff.missionOverMs && cityRender->opening.missionTitle)
+                    playback.creditOpeningMission(cityRender->opening.missionTitle->cashReward);
                 if (playback.vehicle && cityRender->opening.vehicleActor) {
                     const auto& actor = cityRender->opening.actors[*cityRender->opening.vehicleActor];
                     for (const auto& cue : scene.placements) {

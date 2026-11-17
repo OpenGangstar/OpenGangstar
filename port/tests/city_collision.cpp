@@ -1591,6 +1591,13 @@ void poseRetailDoor(const std::filesystem::path& root)
             "Weapon shop unlock did not resolve the retail entrance checkpoint and tutorial.");
     const auto& entrance = *hummerRoute.weaponShopEntranceMarker;
     CityPlayback shopVisitor;
+    const auto& missionEnd = opening.payphone->postFight;
+    require(opening.missionTitle && opening.missionTitle->cashReward == 250 &&
+            missionEnd.missionOverMs == missionEnd.durationMs,
+            "Opening mission lost its retail reward or completion cue.");
+    require(shopVisitor.creditOpeningMission(opening.missionTitle->cashReward) &&
+            !shopVisitor.creditOpeningMission(opening.missionTitle->cashReward) && shopVisitor.playerCash == 250,
+            "Opening mission reward was omitted or paid twice.");
     require(!shopVisitor.canEnterShop(entrance), "Shop opened before the player spawned.");
     shopVisitor.player = CityPlayerPose{entrance.position, 0};
     require(shopVisitor.canEnterShop(entrance), "Player on foot could not enter the shop.");

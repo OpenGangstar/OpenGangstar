@@ -1442,6 +1442,14 @@ bool CityPlayback::canEnterShop(const CityCheckpoint& entrance) const
     return std::sqrt(dot(offset, offset)) < entrance.radius;
 }
 
+bool CityPlayback::creditOpeningMission(int32_t reward)
+{
+    if (openingMissionPaid || reward < 0) return false;
+    playerCash += std::min(reward, INT32_MAX - playerCash);
+    openingMissionPaid = true;
+    return true;
+}
+
 CityDoorSounds CityPlayback::drive(const CityOpening& opening, const CityTerrain& terrain,
                                   std::array<float, 2> input, double deltaMs, bool interact)
 {

@@ -277,7 +277,9 @@ mission playthroughs for discovery or verification.
   layout and purchasing remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
-  formal mission completion and persistence, the remainder of script 18,
+  Script 17's MissionOver credits the opening mission's $250 from
+  Missions.gmap once. The balance is in memory. The completion presentation,
+  achievement updates, persistence, the remainder of script 18,
   and Juan's dynamic movement remain open.
   Opcodes 80 and 81 dispatch the retail weapon
   HUD restriction and release. Live dialogue and weapon HUD hosts remain open.

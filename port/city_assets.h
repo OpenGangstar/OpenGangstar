@@ -380,6 +380,7 @@ struct CityMissionTitle {
     std::string sprite;
     uint32_t animation;
     std::string text;
+    int32_t cashReward;
 };
 
 struct CityMissionCinematic {
@@ -407,6 +408,7 @@ struct CityPostFightScene : CityMissionCinematic {
         std::string label;
     };
     std::optional<uint32_t> unlockedScript;
+    std::optional<uint32_t> missionOverMs;
     struct MissionCheckpoint {
         CityCheckpoint marker;
         std::vector<uint8_t> payload;
@@ -632,7 +634,7 @@ CityScriptInventory auditCityScripts(FileSystemBase& assets);
 std::optional<std::array<float, 3>> findCityMissionTargetPosition(const CityAssets& city, const std::string& name);
 struct CityMissionDefinition {
     // The offsets follow the recovered Structs::Mission layout.
-    int32_t field0, field4, field8;
+    int32_t field0, cashReward, field8;
     std::string contact;
     int32_t field16, field20;
     std::string sprite;

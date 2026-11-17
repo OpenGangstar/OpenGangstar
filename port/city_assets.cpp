@@ -2328,6 +2328,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                              cue.textId, cue.speaker});
             } else if (opcode >= 60 && opcode <= 63) {
                 scene.audio.push_back(readAudioCommand(command, opcode, time));
+            } else if (!depth && postFightTail && opcode == 67) {
+                command.finish();
+                postFightTail->missionOverMs = time;
             }
             if (duration > UINT32_MAX - time)
                 throw std::runtime_error("Retail cinematic timeline overflow.");
@@ -2613,7 +2616,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
             titleIndex >= chapterText.size())
             throw std::runtime_error("Invalid retail mission title.");
         return CityMissionTitle{id, mission.sprite,
-            static_cast<uint32_t>(mission.field0), chapterText[titleIndex]};
+            static_cast<uint32_t>(mission.field0), chapterText[titleIndex], mission.cashReward};
     };
     if (openingMissionId) opening.missionTitle = missionTitle(*openingMissionId);
     const auto speakers = dialogue.empty() && payphoneDialogue.empty() && postFightDialogue.empty()
