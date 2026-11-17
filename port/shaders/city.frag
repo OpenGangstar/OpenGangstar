@@ -13,6 +13,7 @@ layout(push_constant) uniform Material {
 void main()
 {
     vec4 diffuse = texture(diffuseTexture, uv);
+    if (material.tintAndCutoff.a == -3.0 && uv.x < material.tintAndCutoff.x) discard;
     if (material.tintAndCutoff.a == -2.0) {
         color = vec4(diffuse.rgb * material.tintAndCutoff.rgb * material.brightness, diffuse.a) * tint;
         return;

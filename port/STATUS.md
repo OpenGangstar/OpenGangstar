@@ -278,8 +278,10 @@ mission playthroughs for discovery or verification.
   absorbs damage before health unless the hit bypasses armor. Windows clamps
   depleted armor to zero. Escape or gamepad B closes the panel.
   The entrance stays active for repeat visits. The Windows confirmation and
-  error prompts use English. The original shop layout, weapon purchases,
-  and on-screen cash and armor indicators remain open.
+  error prompts use English. On foot, positive armor draws the three retail
+  HUD layers and clips the fill from the left. Windows right-aligns the
+  gauge in its 480-pixel HUD coordinate space. The original shop layout,
+  weapon purchases, and the cash indicator remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

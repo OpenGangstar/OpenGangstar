@@ -145,6 +145,38 @@ Image loadRetailSpriteAtlas(FileSystemBase& assets, const std::string& spritePat
     throw std::runtime_error("Missing retail sprite atlas for " + spritePath);
 }
 
+RetailArmorGauge loadRetailArmorGauge(FileSystemBase& assets)
+{
+    constexpr char path[] = "huds.bsprite";
+    const std::unique_ptr<IFileStream> file(assets.openResource(path));
+    if (!file) throw std::runtime_error("Missing retail HUD sprite.");
+    const auto sprite = readRetailSprite(*file);
+    const auto atlas = loadRetailSpriteAtlas(assets, path, sprite, true);
+    RetailArmorGauge gauge;
+    constexpr std::array<const char*, 3> names{"BAR_ARMOR_BG", "BAR_ARMOR", "BAR_ARMOR_FT"};
+    for (size_t i = 0; i < names.size(); ++i) {
+        const auto frame = std::find_if(sprite.frames.begin(), sprite.frames.end(),
+            [&](const RetailSpriteFrame& entry) { return entry.name == names[i]; });
+        if (frame == sprite.frames.end()) throw std::runtime_error("Missing retail armor gauge frame.");
+        auto draws = composeRetailSpriteFrame(sprite, frame - sprite.frames.begin());
+        if (draws.size() != 1) throw std::runtime_error("Unexpected retail armor gauge frame layout.");
+        auto& draw = draws.front();
+        const auto& module = sprite.modules.at(draw.module);
+        auto& layer = gauge.layers[i];
+        layer.x = draw.x;
+        layer.y = draw.y;
+        layer.image = {module.width, module.height, std::vector<uint32_t>(size_t(module.width) * module.height)};
+        draw.x = draw.y = 0;
+        paintRetailSpriteDraws(sprite, atlas, draws, layer.image);
+    }
+    return gauge;
+}
+
+uint32_t retailArmorFillLeft(uint32_t width, int32_t armor)
+{
+    return width - static_cast<uint32_t>(uint64_t(width) * std::clamp(armor, 0, 200) / 200);
+}
+
 Image rasterRetailSpriteFrame(FileSystemBase& assets, const std::string& spritePath, const std::string& frameName,
                               uint32_t width, uint32_t height, int32_t x, int32_t y)
 {

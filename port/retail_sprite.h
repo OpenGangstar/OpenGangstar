@@ -35,6 +35,16 @@ struct RetailSpriteDraw {
     bool flipX, flipY;
 };
 
+struct RetailArmorGauge {
+    struct Layer {
+        Image image;
+        int32_t x, y;
+    };
+    std::array<Layer, 3> layers;
+};
+
+RetailArmorGauge loadRetailArmorGauge(FileSystemBase& assets);
+uint32_t retailArmorFillLeft(uint32_t width, int32_t armor);
 RetailSprite readRetailSprite(IFileStream& source);
 Image loadRetailSpriteAtlas(FileSystemBase& assets, const std::string& spritePath, const RetailSprite& sprite,
                            bool keepBitmapAlpha = false);

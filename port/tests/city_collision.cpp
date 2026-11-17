@@ -1060,6 +1060,13 @@ void poseRetailDoor(const std::filesystem::path& root)
     std::cout << roadFlagCount << " retail triangle flag bytes, " << movingPoints
               << " moving spawn points with road flags, " << roadSpeeds.size() << " speed codes.\n";
     const auto minimap = loadRetailMinimap(assets);
+    const auto armorGauge = loadRetailArmorGauge(assets);
+    require(armorGauge.layers[1].image.width == 171 && armorGauge.layers[1].y == 17 &&
+            armorGauge.layers[2].x == 543 &&
+            std::any_of(armorGauge.layers[1].image.bgra.begin(), armorGauge.layers[1].image.bgra.end(),
+                        [](uint32_t pixel) { return (pixel >> 24) != 0; }) &&
+            retailArmorFillLeft(171, 100) == 86 && retailArmorFillLeft(171, 200) == 0 &&
+            retailArmorFillLeft(171, 0) == 171, "Retail armor HUD frames or integer fill clipping changed.");
     const auto benchLod = readCityLodGroup(loadCityScene(assets, "bench_wood_00.bdae"));
     require(benchLod.levels.size() == 3 && benchLod.select(1000.f * 1000) != benchLod.select(6000.f * 6000) &&
             !benchLod.select(7100.f * 7100), "Retail bench LOD thresholds did not decode.");

@@ -463,6 +463,7 @@ struct CityRender {
         for (const auto& texture : weaponShopInventory) destroyTexture(texture);
         for (const auto& texture : weaponShopConfirmation) destroyTexture(texture);
         destroyTexture(weaponShopInsufficientCash);
+        for (const auto& texture : armorGauge) destroyTexture(texture);
         destroyTexture(failureTitle);
         destroyTexture(failurePrompt);
         destroyTexture(cinematicBars);
@@ -527,6 +528,9 @@ struct CityRender {
     std::array<CityTexture, 2> weaponShopInventory;
     std::array<CityTexture, 2> weaponShopConfirmation;
     CityTexture weaponShopInsufficientCash;
+    std::array<CityTexture, 3> armorGauge;
+    std::array<uint32_t, 3> armorGaugeVertices{};
+    uint32_t armorFillWidth = 0;
     uint32_t missionTitleLabelVertex = 0;
     std::optional<double> missionTitleMs;
     std::optional<double> missionRevealMs;
@@ -934,7 +938,8 @@ void updateVehicleEffects(CityRender& city, double deltaMs)
 }
 
 void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDrawData& draw,
-                         const RetailMinimapAssets* minimap, RetailLanguage language)
+                         const RetailMinimapAssets* minimap, const RetailArmorGauge* armorGauge,
+                         RetailLanguage language)
 {
     auto& vk = city.context;
     for (const auto& surface : draw.surfaces) city.textures.try_emplace(surface.texture);
@@ -1015,6 +1020,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount +
                                              hasPayphoneObjective + (next ? 9 : 0) +
+                                             (armorGauge ? armorGauge->layers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
                                              failure.size() + hasFailureTitle + hasFailurePrompt +
                                              titleTextures + city.portraits.size() +
@@ -1078,6 +1084,11 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             }
         }
         upload(texture, pixels, districtTextures.count(path) ? city.districtSampler : city.sampler);
+    }
+    if (armorGauge) {
+        for (size_t i = 0; i < armorGauge->layers.size(); ++i)
+            upload(city.armorGauge[i], armorGauge->layers[i].image);
+        city.armorFillWidth = armorGauge->layers[1].image.width;
     }
     const auto dialogues = city.opening.dialogue.size();
     const RetailCaptionFont font(assets, language);
@@ -1902,8 +1913,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     }
     const auto overlay = [&](VkDescriptorSet descriptor, const CityCameraMatrix& screen,
                              uint32_t firstVertex, uint32_t vertexCount, VkPipeline pipeline = VK_NULL_HANDLE,
-                             float shade = -1) {
-        const CityFragmentConstants fragment{{1, 1, 1, -1}, shade < 0 ? brightness : shade};
+                             float shade = -1, float clipLeft = 0) {
+        const CityFragmentConstants fragment{{clipLeft, 1, 1, clipLeft > 0 ? -3.f : -1.f},
+                                             shade < 0 ? brightness : shade};
         VK_CALL(vkCmdBindPipeline)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline ? pipeline : city.captionPipeline);
         VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout, 0, 1,
                                          &descriptor, 0, nullptr);
@@ -1925,7 +1937,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         const auto descriptor = city.textures.at("").descriptor;
         auto bar = screen;
         bar[0] = {0.16f, 0, 0, 0.76f};
-        bar[1] = {0, 0.018f, 0, -0.86f};
+        bar[1] = {0, 0.018f, 0, -0.94f};
         overlay(descriptor, bar, city.cinematicBarsVertex, 6, VK_NULL_HANDLE, 0.25f);
         if (city.playback.playerHealth > 0) {
             const auto fraction = static_cast<float>(city.playback.playerHealth) / CityPlayback::playerMaxHealth;
@@ -1933,6 +1945,14 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             bar[0][3] = 0.60f + bar[0][0];
             overlay(descriptor, bar, city.cinematicBarsVertex, 6, VK_NULL_HANDLE, 0.9f);
         }
+    }
+    if (city.payphoneGameplayMs && !city.payphoneRevealMs && !postFightMs && !failed && !city.weaponShopOpen &&
+        city.armorFillWidth && city.playback.playerArmor > 0 && !(vehicle && vehicle->occupied)) {
+        const float clip = static_cast<float>(retailArmorFillLeft(city.armorFillWidth, city.playback.playerArmor)) /
+                           city.armorFillWidth;
+        for (size_t i = 0; i < city.armorGauge.size(); ++i)
+            overlay(city.armorGauge[i].descriptor, screen, city.armorGaugeVertices[i], 6,
+                    VK_NULL_HANDLE, 1, i == 1 ? clip : 0);
     }
     if (showMinimap) {
         for (const size_t i : {1u, 0u})
@@ -2780,10 +2800,23 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             {{-0.051f, 0.043f, 0}, {}}, {{0, -0.065f, 0}, {}}, {{0.051f, 0.043f, 0}, {}}
                         });
                     }
+                    std::optional<RetailArmorGauge> armorGauge;
+                    if (opening.payphone) {
+                        armorGauge = loadRetailArmorGauge(*assets);
+                        for (size_t i = 0; i < armorGauge->layers.size(); ++i) {
+                            const auto& layer = armorGauge->layers[i];
+                            // The retail gauge is authored for the right edge of a 568px canvas.
+                            const auto x = layer.x - (568 - 480);
+                            render->armorGaugeVertices[i] = appendOverlay(x / 240.f - 1,
+                                (x + int32_t(layer.image.width)) / 240.f - 1, layer.y / 160.f - 1,
+                                (layer.y + int32_t(layer.image.height)) / 160.f - 1);
+                        }
+                    }
                     prepareVehicleEffects(*render, *assets, geometry);
                     render->vehicleLights = std::move(geometry.vehicleLights);
                     prepareCityTargets(*render, info.imageFormat, size);
-                    prepareCityTextures(*render, *assets, geometry, minimap ? &*minimap : nullptr, language);
+                    prepareCityTextures(*render, *assets, geometry, minimap ? &*minimap : nullptr,
+                                        armorGauge ? &*armorGauge : nullptr, language);
                     prepareCityPipeline(*render, size);
                     uploadCity(*render, geometry);
                     render->vehicleFirstVertex = geometry.vehicleFirstVertex;
@@ -3174,6 +3207,13 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 render.weaponShopPurchaseDenied = false;
                 render.weaponShopOpen = false;
                 std::cout << "Submitted the weapon shop inventory through Vulkan.\n" << std::flush;
+                if (!render.armorFillWidth || !render.armorGauge[1].descriptor)
+                    throw std::runtime_error("Armor gauge smoke frame did not prepare the retail fill.");
+                if (render.playback.vehicle) render.playback.vehicle->occupied = false;
+                render.playback.playerArmor = 100;
+                presentCity(render, info.imageExtent);
+                render.playback.playerArmor = 0;
+                std::cout << "Submitted the partially filled retail armor gauge through Vulkan.\n" << std::flush;
                 render.payphoneGameplayMs.reset();
                 std::cout << "Submitted the retail payphone gameplay handoff through Vulkan.\n" << std::flush;
             }
