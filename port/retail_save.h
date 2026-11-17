@@ -57,6 +57,7 @@ inline constexpr int32_t windowsPostLcCheckpointScript = 25;
 inline constexpr int32_t windowsPostLocoCheckpointScript = 26;
 inline constexpr int32_t windowsPostCooperCheckpointScript = 27;
 inline constexpr int32_t windowsPostBrawlCheckpointScript = 28;
+inline constexpr int32_t windowsPostBasketballCheckpointScript = 29;
 inline constexpr int32_t windowsOpeningCheckpointVersion = 0x30500;
 RetailAudioPreferences readRetailAudioPreferences(IFileStream& file);
 std::optional<RetailLanguage> readRetailLanguagePreference(IFileStream& file);

@@ -2206,7 +2206,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> lcClosingMoves;
     std::vector<NamedMove> postLcMoves;
     std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves, postLcFightIntroMoves, locoNextMoves, locoCooperMoves, cooperNextMoves, cooperArrivalMoves, cooperClosingMoves, brawlNextMoves, basketballMoves;
-    std::vector<NamedMove> basketballClosingMoves;
+    std::vector<NamedMove> basketballClosingMoves, postBasketballMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2229,6 +2229,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<AnimationCommand> lcClosingAnimations;
     std::vector<AnimationCommand> postLcAnimations;
     std::vector<AnimationCommand> postLcAmbushAnimations, postLcConfrontationAnimations, postLcPhoneAnimations, postLcFightIntroAnimations, locoNextAnimations, cooperNextAnimations, cooperArrivalAnimations, cooperClosingAnimations, brawlNextAnimations;
+    std::vector<AnimationCommand> postBasketballAnimations;
     struct MotionCommand {
         uint32_t time;
         std::string actor;
@@ -2270,7 +2271,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
     std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue, cooperNextDialogue, cooperArrivalDialogue, cooperClosingDialogue, brawlNextDialogue, basketballDialogue;
-    std::vector<DialogueCommand> basketballClosingDialogue;
+    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2280,7 +2281,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements, cooperNextPlacements, cooperArrivalPlacements, cooperClosingPlacements, brawlNextPlacements, basketballPlacements;
-    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -3382,6 +3383,36 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 basketballClosing.durationMs += revealFade.durationMs;
                 route.basketballUnlockedScript = basketballUnlock.integer();
                 basketballUnlock.finish();
+
+                auto postBasketball = scripts.script(*route.basketballUnlockedScript);
+                const auto postBasketballLength = postBasketball.integer();
+                auto postBasketballGate = postBasketball.record();
+                auto postBasketballFade = postBasketball.record();
+                auto postBasketballStart = postBasketball.record();
+                if (postBasketballLength < 3 || postBasketballGate.integer() != 64 ||
+                    postBasketballFade.integer() != 42 || postBasketballStart.integer() != 65)
+                    throw std::runtime_error("Invalid retail mission entrance after the basketball fight.");
+                route.postBasketballCheckpointWait = postBasketballGate.remainingBytes();
+                if (readCheckpointCommand(postBasketballGate, 64).object != route.marker.name)
+                    throw std::runtime_error("Retail mission entrance after the basketball fight changed location.");
+                route.postBasketballFadeMs = readFadeCommand(postBasketballFade, 42, 0).durationMs;
+                route.postBasketballTitle = missionTitle(postBasketballStart.integer());
+                postBasketballStart.finish();
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                route.postBasketballIntro.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, postBasketball, postBasketballLength - 3, 0, route.postBasketballIntro,
+                              postBasketballMoves, postBasketballDialogue, postBasketballPlacements,
+                              &postBasketballAnimations, nullptr, nullptr, 66);
+                route.postBasketballIntro.dialogue = resolveDialogue(postBasketballDialogue);
+                if (!nextMissionObjectiveId || (*nextMissionObjectiveId >> 12 & 0xf) != 4 ||
+                    (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
+                    throw std::runtime_error("Invalid retail script 29 objective.");
+                route.postBasketballObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                auto postBasketballDestination = postBasketball.record();
+                if (postBasketballDestination.integer() != 64)
+                    throw std::runtime_error("Missing retail script 29 destination.");
+                route.postBasketballDestination = makeCheckpoint(readCheckpointCommand(postBasketballDestination, 64).object);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3433,6 +3464,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(brawlNextPlacements, next->brawlNextIntro.placements);
                 resolvePlacements(basketballPlacements, next->basketballArrival.placements);
                 resolvePlacements(basketballClosingPlacements, next->basketballClosing.placements);
+                resolvePlacements(postBasketballPlacements, next->postBasketballIntro.placements);
             }
         }
     }
@@ -3703,6 +3735,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.cooperNextArrival);
                 loadCinematicActors(next.cooperNextClosing);
                 loadCinematicActors(next.brawlNextIntro);
+                loadCinematicActors(next.postBasketballIntro);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
                     const auto actor = findCinematicActor(name);
@@ -3761,6 +3794,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->cooperNextArrival, cooperArrivalAnimations);
                 bindCinematic(next->cooperNextClosing, cooperClosingAnimations);
                 bindCinematic(next->brawlNextIntro, brawlNextAnimations);
+                bindCinematic(next->postBasketballIntro, postBasketballAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
                         if (!cue.visible || cue.actor == next->targetVehicle) continue;
@@ -3779,6 +3813,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->cooperNextArrival);
                 bindInitialIdle(next->cooperNextClosing);
                 bindInitialIdle(next->brawlNextIntro);
+                bindInitialIdle(next->postBasketballIntro);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
                     if (!cue.visible || cue.actor == next->targetVehicle) continue;
@@ -3948,6 +3983,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : basketballMoves)
                             next->basketballArrival.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : postBasketballMoves)
+                            next->postBasketballIntro.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : basketballClosingMoves)
                             next->basketballClosing.cameras.push_back(
