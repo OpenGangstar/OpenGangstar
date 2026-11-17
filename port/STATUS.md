@@ -502,7 +502,10 @@ mission playthroughs for discovery or verification.
   Script 20 now opens at El Toro with the retail title, camera moves,
   gestures, dialogue, and audio. It stages the mission car, requires
   entry, and tracks Checkpoint_C2M1101 in the world and on the minimap.
-  The Script 20 arrival and fourth van arrival look cue remain pending.
+  The first drive checkpoint now fades into the retail arrival cinematic,
+  including the four approach paths, camera cuts, dialogue, and gun-draw
+  animations. The ensuing shootout and the fourth van arrival look cue remain
+  pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.
