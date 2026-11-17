@@ -2295,6 +2295,18 @@ const CityMissionCinematic::Motion* cityCinematicMotion(const CityMissionCinemat
     return cue == scene.motions.rend() ? nullptr : &*cue;
 }
 
+std::optional<std::array<float, 3>> cityTailingActorPosition(const CityMissionCinematic& scene,
+    std::string_view actor, const CityTerrain& terrain, double elapsedMs)
+{
+    const auto* placement = cinematicPlacement(scene.placements, actor, elapsedMs);
+    if (!placement || !placement->visible) return std::nullopt;
+    const auto* motion = cityCinematicMotion(scene, actor, elapsedMs);
+    auto position = motion ? cityCinematicTravelPosition(motion->travel, elapsedMs) : placement->position;
+    if (const auto ground = terrain.groundContact(position, std::nullopt, 1500, 1500))
+        position[2] = ground->height;
+    return position;
+}
+
 std::optional<CityVehiclePose> cityCinematicVehiclePose(const CityMissionCinematic& scene,
     std::string_view actor, const CityVehiclePose& initial, const CityTerrain& terrain, double elapsedMs)
 {
@@ -2357,6 +2369,8 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
                     const CityPlayback& playback, CityVertex* vertices, std::optional<double> payphoneMs,
                     std::optional<double> missionMs, const CityMissionCinematic* missionScene, const CityTerrain* terrain)
 {
+    const bool tailing = missionScene && opening.payphone && opening.payphone->postFight.nextCheckpoint &&
+        missionScene == &opening.payphone->postFight.nextCheckpoint->postLcTail;
     for (const auto& range : skins) {
         const auto& actor = opening.actors[range.actor];
         const auto elapsedMs = actor.payphoneOnly ? payphoneMs.value_or(-1) : playback.elapsedMs;
@@ -2371,9 +2385,12 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
             (actor.payphoneOnly || (player && *payphoneMs < opening.payphone->cinematicDurationMs))
             ? cityPayphonePlacement(*opening.payphone, actor.name, *payphoneMs) : nullptr;
         if (actor.payphoneOnly && opening.vehicleActor != range.actor && (!staging || !staging->visible)) continue;
-        if (staging && staging->visible)
-            world = placementTransform(staging->position, staging->rotationDegrees, actor.scale,
-                                       staging->rotationDegrees[2]);
+        if (staging && staging->visible) {
+            const auto position = tailing && missionPlacement && terrain
+                ? cityTailingActorPosition(*missionScene, actor.name, *terrain, *missionMs).value_or(staging->position)
+                : staging->position;
+            world = placementTransform(position, staging->rotationDegrees, actor.scale, staging->rotationDegrees[2]);
+        }
         const auto* pursuer = actor.payphoneOnly && playback.payphonePursuer && playback.payphoneAttack &&
             playback.payphoneAttack->attacker == actor.name ? &*playback.payphonePursuer : nullptr;
         if (pursuer) world = actorTransform(actor, pursuer);
@@ -2385,7 +2402,9 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         const auto travelMs = motion ? *missionMs : elapsedMs;
         if (travel && travel->durationMs) {
             auto [position, direction] = sampleCinematicTravel(*travel, travelMs);
-            if (terrain && !travel->waypoints.empty()) {
+            if (tailing && terrain && motion) {
+                position = cityTailingActorPosition(*missionScene, actor.name, *terrain, travelMs).value_or(position);
+            } else if (terrain && !travel->waypoints.empty()) {
                 if (const auto ground = terrain->groundContact(position, std::nullopt, 1500, 1500))
                     position[2] = ground->height;
             }

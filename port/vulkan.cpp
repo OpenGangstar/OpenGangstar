@@ -468,6 +468,7 @@ struct CityRender {
         destroyTexture(weaponShopInsufficientCash);
         for (const auto& gauge : statusGauges)
             for (const auto& texture : gauge.layers) destroyTexture(texture);
+        for (const auto& texture : spyLayers) destroyTexture(texture);
         for (const auto& texture : cashGlyphs) destroyTexture(texture);
         destroyTexture(failureTitle);
         for (const auto& texture : missionCompleteObjectives) destroyTexture(texture);
@@ -540,6 +541,8 @@ struct CityRender {
     CityTexture postLcAmbushObjective;
     bool postLcIntroFinished = false;
     bool postLcAmbushFinished = false;
+    std::optional<double> postLcTailMs;
+    std::optional<float> spyGauge;
     std::optional<double> postLcArrivalFadeMs;
     std::array<CityTexture, 2> returnToLcObjectives;
     CityTexture weaponShopTutorial;
@@ -552,6 +555,9 @@ struct CityRender {
         uint32_t fillWidth = 0;
     };
     std::array<StatusGauge, statusGaugeCount> statusGauges;
+    std::array<CityTexture, 4> spyLayers;
+    std::array<uint32_t, 4> spyVertices{};
+    uint32_t spyWidth = 0;
     RetailHealthBlink healthBlink;
     std::array<CityTexture, retailCashCharacters.size()> cashGlyphs;
     std::array<uint32_t, retailCashCharacters.size()> cashGlyphVertices{}, cashGlyphWidths{};
@@ -1112,7 +1118,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                                              shopLineCount + closingLineCount + postLcLineCount + ambushLineCount +
                                              hasPayphoneObjective + (next ? 13 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
-                                                          statusHud->cashGlyphs.size() : 0) +
+                                                          statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
                                              failure.size() + hasFailureTitle + hasFailurePrompt +
                                              rewardFrames.size() + cashLabels + completionLabels +
@@ -1187,6 +1193,9 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                 upload(gauge.layers[layer], source.layers[layer].image);
             gauge.fillWidth = source.layers[1].image.width;
         }
+        for (size_t i = 0; i < statusHud->spyLayers.size(); ++i)
+            upload(city.spyLayers[i], statusHud->spyLayers[i].image);
+        city.spyWidth = statusHud->spyLayers.front().image.width;
         city.cashLanguage = language;
         for (size_t i = 0; i < statusHud->cashGlyphs.size(); ++i) {
             upload(city.cashGlyphs[i], statusHud->cashGlyphs[i]);
@@ -1802,6 +1811,8 @@ void activatePostLcDrive(CityRender& city)
     city.hummerRouteMarker.reset();
     city.postLcIntroFinished = true;
     city.postLcAmbushFinished = false;
+    city.postLcTailMs.reset();
+    city.spyGauge.reset();
     city.postLcArrivalFadeMs.reset();
     city.pendingHummerCinematic = nullptr;
     auto& script = city.hummerRouteScript.emplace(CityScriptProgram{{{89, mission.postLcVehicleWait},
@@ -1863,6 +1874,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const auto postFightMs = city.postFightCinematic ? std::optional{city.postFightCinematic->elapsedMs()} : std::nullopt;
     const auto* missionScene = city.activeMissionCinematic;
     const auto actorSceneMs = city.payphoneGameplayMs ? city.payphoneGameplayMs : payphoneMs;
+    const auto* actorScene = city.postLcTailMs && !missionScene
+        ? &city.opening.payphone->postFight.nextCheckpoint->postLcTail : missionScene;
+    const auto actorMissionMs = postFightMs ? postFightMs : city.postLcTailMs;
     const auto* vehicle = city.playback.vehicle ? &*city.playback.vehicle : nullptr;
     const auto cinematicVehicle = vehicle && missionScene && postFightMs && city.opening.vehicleActor
         ? cityCinematicVehiclePose(*missionScene, city.opening.actors.at(*city.opening.vehicleActor).name,
@@ -1921,7 +1935,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             poseCityVehicle(city.opening.actors[*city.opening.vehicleActor], *vehicle, city.vehicleVertices,
                             city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets);
         poseCityActors(city.opening, city.skins, city.playback, city.vertices.data(),
-                       actorSceneMs, postFightMs, missionScene, &city.terrain);
+                       actorSceneMs, actorMissionMs, actorScene, &city.terrain);
         if (updateWalkMarker)
             poseCityCheckpoint(*city.opening.checkpoint, city.checkpointMeshes[0],
                                elapsedMs - city.opening.durationMs, city.vertices.data());
@@ -2162,7 +2176,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     for (size_t i = 0; i < regularSurfaceCount; ++i) {
         if (i >= city.lowDetailFirstSurface && i < city.lowDetailEndSurface) continue;
         const auto& surface = city.surfaces[i];
-        if (!citySurfaceVisible(surface, city.opening, city.playback, actorSceneMs, postFightMs, missionScene) ||
+        if (!citySurfaceVisible(surface, city.opening, city.playback, actorSceneMs, actorMissionMs, actorScene) ||
             (surface.bounds && (!cityBoundsVisible(*surface.bounds, frustum) ||
                                 (surface.lodLimit && !surface.lodLimit->visible(cameraEye))))) continue;
         const auto atOrAfter = [i](std::optional<size_t> first) { return first && i >= *first; };
@@ -2309,6 +2323,13 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         drawStatusGauge(lifeGauge, city.playback.playerHealth, CityPlayback::playerMaxHealth, city.healthBlink.hideFill);
         if (city.playback.playerArmor > 0 && !(vehicle && vehicle->occupied))
             drawStatusGauge(armorGauge, city.playback.playerArmor, CityPlayback::playerMaxArmor, false);
+        if (city.spyGauge && city.spyWidth) {
+            for (size_t i = 0; i < city.spyLayers.size() - 1; ++i)
+                overlay(city.spyLayers[i].descriptor, screen, city.spyVertices[i], 6);
+            auto cursor = screen;
+            cursor[0][3] = static_cast<int>(city.spyWidth * (1.f - *city.spyGauge)) / 240.f;
+            overlay(city.spyLayers.back().descriptor, cursor, city.spyVertices.back(), 6);
+        }
     }
     if (showMinimap) {
         for (const size_t i : {1u, 0u})
@@ -2570,7 +2591,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
         machine._switchState(new StartupFrame(drawImage));
     }
     machine.draw();
-    const auto update = [&](double milliseconds) {
+    const auto update = [&](double milliseconds, bool scriptedPress = false) {
         machine.update(milliseconds);
         if (cityRender) {
             if (!smokeTest) touch->pollGamepad(window);
@@ -2580,7 +2601,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             const auto delta = openingSmokeTest ? milliseconds :
                 std::chrono::duration<double, std::milli>(now - cityRender->lastTick).count();
             cityRender->lastTick = now;
-            const bool pressed = touch->takePress();
+            const bool pressed = touch->takePress() || scriptedPress;
             bool skip = touch->takeCutsceneSkip();
             const bool interact = touch->takeVehiclePress();
             if (cityRender->weaponShopOpen) {
@@ -2891,6 +2912,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         playback.vehicle.reset();
                         playback.postLcVehicleActive = false;
                         cityRender->postLcAmbushFinished = true;
+                        cityRender->postLcTailMs = 0;
+                        playback.missionConditions.clear();
+                        for (const auto& [opcode, payload] : handoff.nextCheckpoint->postLcTailConditions)
+                            playback.missionConditions.apply({opcode, payload});
                     }
                 }
             }
@@ -3096,7 +3121,28 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             }
             const bool missionAlreadyFailed = playback.missionFailure.has_value();
             const bool vehicleAlreadyExploded = playback.vehicle && playback.vehicle->exploded;
-            playback.updateMission(cityRender->opening, delta);
+            if (cityRender->postLcTailMs) {
+                const auto& tail = cityRender->opening.payphone->postFight.nextCheckpoint->postLcTail;
+                auto& time = *cityRender->postLcTailMs;
+                if (!playback.missionFailure && playback.player) {
+                    time = std::min(time + (postFight ? 0 : delta), double(tail.durationMs));
+                    if (time >= tail.durationMs) {
+                        playback.missionConditions.clear();
+                        cityRender->spyGauge.reset();
+                    } else {
+                        const auto lookup = [&](std::string_view actor) -> std::optional<RetailMissionTargetState> {
+                            const auto position = cityTailingActorPosition(tail, actor, cityRender->terrain, time);
+                            if (position) return RetailMissionTargetState{*position};
+                            return std::nullopt;
+                        };
+                        const auto result = playback.missionConditions.update(static_cast<int32_t>(delta), false,
+                                                                               playback.player->position, lookup);
+                        cityRender->spyGauge = result.spyGauge;
+                        playback.missionFailure = result.failureCause;
+                        if (playback.missionFailure) ++playback.missionFailureCount;
+                    }
+                }
+            } else playback.updateMission(cityRender->opening, delta);
             if (!playback.nextMissionVehicleActive) updateVehicleEffects(*cityRender, delta);
             if (cityRender->audio && cityRender->opening.vehicleActor) {
                 const auto& actor = cityRender->opening.actors.at(*cityRender->opening.vehicleActor);
@@ -3308,6 +3354,12 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                     (layer.y + int32_t(layer.image.height)) / 160.f - 1);
                             }
                         }
+                        for (size_t i = 0; i < statusHud->spyLayers.size(); ++i) {
+                            const auto& layer = statusHud->spyLayers[i];
+                            render->spyVertices[i] = appendOverlay(layer.x / 240.f - 1,
+                                (layer.x + int32_t(layer.image.width)) / 240.f - 1, layer.y / 160.f - 1,
+                                (layer.y + int32_t(layer.image.height)) / 160.f - 1);
+                        }
                         for (size_t i = 0; i < statusHud->cashGlyphs.size(); ++i) {
                             const auto& glyph = statusHud->cashGlyphs[i];
                             render->cashGlyphVertices[i] = appendOverlay(-1, glyph.width / 240.f - 1,
@@ -3511,16 +3563,22 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         update(mission.postLcArrivalFadeMs);
                         if (render.activeMissionCinematic != &mission.postLcAmbush || !render.postFightCinematic)
                             throw std::runtime_error("Script 25 fade did not start the Loco cinematic.");
-                        finished = false;
-                        for (int step = 0; step < 32 && !finished; ++step) {
-                            finished = render.postFightCinematic->advance(mission.postLcAmbush, 1000, true, {});
-                            presentCity(render, info.imageExtent);
-                        }
-                        if (!finished) throw std::runtime_error("Script 25 Loco cinematic did not finish.");
-                        update(0);
+                        for (int step = 0; step < 64 && render.postFightCinematic; ++step) update(1000, true);
                         if (!render.postLcAmbushFinished || !render.postLcAmbushObjective.descriptor ||
-                            playback.vehicle || playback.postLcVehicleActive)
-                            throw std::runtime_error("Script 25 Loco cinematic did not hand off to its objective.");
+                            playback.vehicle || playback.postLcVehicleActive || !render.postLcTailMs ||
+                            !render.spyGauge || !render.spyWidth || playback.missionFailure)
+                            throw std::runtime_error("Script 25 Loco cinematic did not hand off to its live tailing objective.");
+                        const auto beforeTail = cityTailingActorPosition(mission.postLcTail, "Loco_00", render.terrain, 0);
+                        update(mission.postLcTail.motions.front().travel.startMs);
+                        update(200);
+                        const auto duringTail = cityTailingActorPosition(mission.postLcTail, "Loco_00", render.terrain,
+                                                                        *render.postLcTailMs);
+                        if (!beforeTail || !duringTail || duringTail == beforeTail || !render.spyGauge)
+                            throw std::runtime_error("Script 25 Loco did not advance along its tailing route.");
+                        playback.player->position[0] += 10000;
+                        update(0);
+                        if (!playback.missionFailure || render.spyGauge)
+                            throw std::runtime_error("Script 25 did not fail when the player lost Loco.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

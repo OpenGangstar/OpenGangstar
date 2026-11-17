@@ -410,6 +410,8 @@ const CityCinematicPlacement* cityPayphonePlacement(const CityPayphoneRoute& rou
                                                   std::string_view actor, double elapsedMs);
 const CityMissionCinematic::Motion* cityCinematicMotion(const CityMissionCinematic& scene,
                                                        std::string_view actor, double elapsedMs);
+std::optional<std::array<float, 3>> cityTailingActorPosition(const CityMissionCinematic& scene,
+    std::string_view actor, const CityTerrain& terrain, double elapsedMs);
 std::optional<CityVehiclePose> cityCinematicVehiclePose(const CityMissionCinematic& scene,
     std::string_view actor, const CityVehiclePose& initial, const CityTerrain& terrain, double elapsedMs);
 std::array<float, 3> cityCinematicTravelPosition(const CityCinematicWalk& travel, double elapsedMs);

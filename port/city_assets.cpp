@@ -2227,7 +2227,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         bool running;
         bool followsPath;
     };
-    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions, postLcAmbushMotions;
+    std::vector<MotionCommand> pierMotions, shopMotions, lcClosingMotions, postLcMotions, postLcAmbushMotions, postLcTailMotions;
     struct VehicleDriveCommand {
         uint32_t time;
         std::string actor, marker;
@@ -3036,6 +3036,20 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail Loco objective.");
                 route.postLcAmbushObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expected : {100u, 69u, 69u}) {
+                    auto condition = postLc.record();
+                    if (condition.integer() != expected)
+                        throw std::runtime_error("Missing retail Loco tailing condition.");
+                    route.postLcTailConditions.emplace_back(expected, condition.remainingBytes());
+                    readMissionCondition(condition, expected);
+                }
+                std::vector<NamedMove> tailCameras;
+                std::vector<DialogueCommand> tailDialogue;
+                std::vector<std::pair<uint32_t, CityScriptActorPlacement>> tailPlacements;
+                readCinematic(readCinematic, postLc, postLcLength, 0, route.postLcTail, tailCameras,
+                              tailDialogue, tailPlacements, nullptr, &postLcTailMotions, nullptr, 68);
+                if (!tailCameras.empty() || !tailDialogue.empty() || !tailPlacements.empty())
+                    throw std::runtime_error("Unexpected retail Loco tailing presentation command.");
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3388,7 +3402,13 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                         if (stride <= 0) throw std::runtime_error("Invalid retail locomotion stride.");
                         auto waypoints = destination.waypoints;
                         const auto endpoint = motion.followsPath ? waypoints.back() : destination.position;
-                        auto previous = origin->position;
+                        auto start = origin->position;
+                        if (&scene == &next->postLcTail) {
+                            const auto prior = std::find_if(scene.motions.rbegin(), scene.motions.rend(),
+                                [&](const auto& cue) { return cue.travel.actor == motion.actor; });
+                            if (prior != scene.motions.rend()) start = prior->travel.to;
+                        }
+                        auto previous = start;
                         float distance = 0;
                         const auto accumulate = [&](const auto& point) {
                             distance += std::hypot(point[0] - previous[0], point[1] - previous[1]);
@@ -3398,7 +3418,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                             for (const auto& point : waypoints) accumulate(point);
                         } else accumulate(endpoint);
                         scene.motions.push_back({{motion.time, static_cast<uint32_t>(std::ceil(distance * clip.durationMs / stride)),
-                                                 motion.actor, origin->position, endpoint, std::move(waypoints)}, std::move(clip)});
+                                                 motion.actor, start, endpoint, std::move(waypoints)}, std::move(clip)});
                     }
                 };
                 bindMotions(next->pierCinematic, pierMotions);
@@ -3406,6 +3426,21 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->lcClosingCinematic, lcClosingMotions);
                 bindMotions(next->postLcIntro, postLcMotions);
                 bindMotions(next->postLcAmbush, postLcAmbushMotions);
+                for (const auto& [opcode, payload] : next->postLcTailConditions) {
+                    const auto condition = decodeCityMissionCondition({opcode, payload});
+                    if (!condition || std::any_of(next->postLcTail.placements.begin(), next->postLcTail.placements.end(),
+                            [&](const auto& cue) { return cue.actor == condition->target; })) continue;
+                    const auto origin = std::find_if(next->postLcAmbush.placements.rbegin(), next->postLcAmbush.placements.rend(),
+                        [&](const auto& cue) { return cue.actor == condition->target; });
+                    const auto actor = findCinematicActor(condition->target);
+                    if (origin == next->postLcAmbush.placements.rend() || !origin->visible || actor == opening.actors.end())
+                        throw std::runtime_error("Missing retail tailing actor " + condition->target);
+                    auto& placement = next->postLcTail.placements.emplace_back(*origin);
+                    placement.timeMs = 0;
+                    auto idle = readClip(library, &actor->model, "move_idle");
+                    next->postLcTail.actorAnimations[condition->target].push_back({0, idle, idle});
+                }
+                bindMotions(next->postLcTail, postLcTailMotions);
             }
         }
     }

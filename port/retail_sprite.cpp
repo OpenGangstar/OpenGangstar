@@ -155,21 +155,24 @@ RetailStatusHud loadRetailStatusHud(FileSystemBase& assets)
     RetailStatusHud hud;
     constexpr std::array<const char*, 6> names{
         "BAR_LIFE_BG", "BAR_LIFE", "BAR_LIFE_FT", "BAR_ARMOR_BG", "BAR_ARMOR", "BAR_ARMOR_FT"};
-    for (size_t i = 0; i < names.size(); ++i) {
+    const auto loadGaugeLayer = [&](std::string_view name, RetailHudGauge::Layer& layer) {
         const auto frame = std::find_if(sprite.frames.begin(), sprite.frames.end(),
-            [&](const RetailSpriteFrame& entry) { return entry.name == names[i]; });
+            [&](const RetailSpriteFrame& entry) { return entry.name == name; });
         if (frame == sprite.frames.end()) throw std::runtime_error("Missing retail HUD gauge frame.");
         auto draws = composeRetailSpriteFrame(sprite, frame - sprite.frames.begin());
         if (draws.size() != 1) throw std::runtime_error("Unexpected retail HUD gauge frame layout.");
         auto& draw = draws.front();
         const auto& module = sprite.modules.at(draw.module);
-        auto& layer = hud.gauges[i / 3].layers[i % 3];
         layer.x = draw.x;
         layer.y = draw.y;
         layer.image = {module.width, module.height, std::vector<uint32_t>(size_t(module.width) * module.height)};
         draw.x = draw.y = 0;
         paintRetailSpriteDraws(sprite, atlas, draws, layer.image);
-    }
+    };
+    for (size_t i = 0; i < names.size(); ++i)
+        loadGaugeLayer(names[i], hud.gauges[i / 3].layers[i % 3]);
+    constexpr std::array spyNames{"SPY_GAUGE_BG", "SPY_GAUGE", "SPY_GAUGE_ICON", "SPY_GAUGE_INDICATOR"};
+    for (size_t i = 0; i < spyNames.size(); ++i) loadGaugeLayer(spyNames[i], hud.spyLayers[i]);
     // The default CHudManager cash widget uses LITTLEY digits and separators.
     constexpr std::array<size_t, retailCashCharacters.size()> cashFrames{
         96, 87, 88, 89, 90, 91, 92, 93, 94, 95, 86, 97, 172};

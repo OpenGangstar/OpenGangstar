@@ -309,8 +309,12 @@ mission playthroughs for discovery or verification.
   Retail AI steering remains open. The next objective begins a tailing
   sequence. The shared script runner now decodes StayBetween, computes
   the normalized spy gauge from 3D distance, and fails outside the
-  authored 200–2000 cm range or on loss of the target. Live Loco path
-  following, spy HUD, and later mission stages remain open. Automated Continue smoke covers the drive checkpoint,
+  authored 200–2000 cm range or on loss of the target. Windows now moves
+  both Locos along the authored paths and draws the retail spy gauge.
+  Automated Continue smoke verifies the handoff, live movement, and
+  failure when the target falls out of range. Movement is sampled
+  from the script timeline and animation speeds. NPC damage, the closing
+  fade, and the next stage after MissionClearConditions remain open. Automated Continue smoke covers the drive checkpoint,
   cinematic rendering, and objective handoff.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
