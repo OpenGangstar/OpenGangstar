@@ -515,8 +515,12 @@ mission playthroughs for discovery or verification.
   first two fights and fire from their scripted positions during the
   retreat. Script 20 closes with the retail dialogue and unlocks Script 32
   without a payout. The Windows save restores the objective and the
-  CheckpointWalk_C3M0_01 marker. Script 32 execution, retail pursuit and
-  target selection, and the fourth van arrival look cue remain pending.
+  CheckpointWalk_C3M0_01 marker. Entering that marker runs Script 32's
+  opening fade, Latisha and Juan cutscene, and chapter-end counter.
+  The nested MissionOver command, Script 33 unlock, and Latisha's
+  scripted cue after her first walk remain pending. Retail pursuit,
+  target selection, and the fourth van arrival look cue also remain
+  pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

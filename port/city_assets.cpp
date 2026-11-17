@@ -2369,6 +2369,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script20RetreatPlacements;
     std::vector<AnimationCommand> script20RetreatAnimations;
     std::vector<MotionCommand> script20RetreatMotions;
+    std::vector<NamedMove> script32Moves;
+    std::vector<DialogueCommand> script32Dialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script32Placements;
+    std::vector<AnimationCommand> script32Animations;
+    std::vector<MotionCommand> script32Motions;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4458,7 +4463,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.script20UnlockedScript = closingUnlock.integer();
                 closingUnlock.finish();
                 auto unlockedScript = scripts.script(route.script20UnlockedScript);
-                if (unlockedScript.integer() < 2) throw std::runtime_error("Truncated Script 32 handoff.");
+                const auto script32Count = unlockedScript.integer();
+                if (script32Count < 4) throw std::runtime_error("Truncated Script 32 handoff.");
                 auto nextObjective = unlockedScript.record(), nextCheckpoint = unlockedScript.record();
                 if (nextObjective.integer() != 66 || nextCheckpoint.integer() != 64)
                     throw std::runtime_error("Invalid Script 32 handoff.");
@@ -4467,7 +4473,22 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if ((script32ObjectiveId >> 12 & 0xf) != 6 || (script32ObjectiveId & 0xfff) >= chapterThree.size())
                     throw std::runtime_error("Invalid retail Script 32 objective.");
                 route.script32Objective = chapterThree[script32ObjectiveId & 0xfff];
+                route.script32CheckpointWait = nextCheckpoint.remainingBytes();
                 route.script32Checkpoint = makeCheckpoint(readCheckpointCommand(nextCheckpoint, 64).object);
+                auto script32Fade = unlockedScript.record();
+                if (script32Fade.integer() != 42) throw std::runtime_error("Missing Script 32 entrance fade.");
+                route.script32EntranceFadeMs = readFadeCommand(script32Fade, 42, 0).durationMs;
+                previousCinematicShot.clear();
+                route.script32Intro.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, unlockedScript, script32Count - 3, 0, route.script32Intro,
+                              script32Moves, script32Dialogue, script32Placements,
+                              &script32Animations, &script32Motions, nullptr, 113);
+                for (const auto& [time, duration, id, portrait] : script32Dialogue) {
+                    const auto entry = id & 0xfff;
+                    if ((id >> 12 & 0xf) != 6 || entry >= chapterThree.size())
+                        throw std::runtime_error("Invalid retail Script 32 dialogue.");
+                    route.script32Intro.dialogue.push_back({time, duration, {}, chapterThree[entry], portrait});
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4545,6 +4566,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(script20ArrivalPlacements, next->script20Arrival.placements);
                 resolvePlacements(script20InterludePlacements, next->script20Interlude.placements);
                 resolvePlacements(script20RetreatPlacements, next->script20Retreat.placements);
+                resolvePlacements(script32Placements, next->script32Intro.placements);
                 resolvePlacements(script19SecondFightPlacements, next->script19SecondFightPlacements);
                 resolvePlacements(script19ThirdFightPlacements, next->script19ThirdFightPlacements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
@@ -4837,6 +4859,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.script19Closing);
                 loadCinematicActors(next.script20Intro);
                 loadCinematicActors(next.script20Arrival);
+                loadCinematicActors(next.script32Intro);
                 loadCinematicActors(next.vanPoliceReveal);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
@@ -4966,6 +4989,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->script20Arrival, script20ArrivalAnimations);
                 bindCinematic(next->script20Interlude, script20InterludeAnimations);
                 bindCinematic(next->script20Retreat, script20RetreatAnimations);
+                bindCinematic(next->script32Intro, script32Animations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -5005,6 +5029,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->script20Intro);
                 bindInitialIdle(next->script20Arrival);
                 bindInitialIdle(next->script20Retreat);
+                bindInitialIdle(next->script32Intro);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -5047,7 +5072,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                         }
                         if ((&scene == &next->elToroArrival || &scene == &next->vanHandshake ||
                              &scene == &next->vanFourthArrival || &scene == &next->script20Interlude ||
-                             &scene == &next->script20Retreat) &&
+                             &scene == &next->script20Retreat || &scene == &next->script32Intro) &&
                             !motion.followsPath) {
                             const auto prior = std::find_if(scene.motions.rbegin(), scene.motions.rend(),
                                 [&](const auto& cue) {
@@ -5120,6 +5145,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->script20Interlude);
                 bindMotions(next->script20Interlude, script20InterludeMotions);
                 bindMotions(next->script20Retreat, script20RetreatMotions);
+                bindMotions(next->script32Intro, script32Motions);
                 bindMotions(next->script19Closing, script19ClosingMotions);
                 for (const auto& approach : vanProtectionMotions) {
                     const auto& arrival = next->vanSecondArrival;
@@ -5138,11 +5164,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
         }
     }
 
+    std::map<std::string, CityCamera> shots;
     for (size_t i = 0; i < city.districts.size(); ++i) {
         const auto& district = city.districts[i];
         CityDataReader map(district.objectsPath, district.objects);
         const auto count = map.integer();
-        std::map<std::string, CityCamera> shots;
         for (uint32_t j = 0; j < count; ++j) {
             auto record = map.record();
             if (record.integer() != 7) continue;  // SceneCamera
@@ -5162,9 +5188,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
             if (shot.nearPlane <= 0 || shot.farPlane <= shot.nearPlane ||
                 shot.fovDegrees <= 0 || shot.fovDegrees >= 180)
                 throw std::runtime_error("Invalid retail opening camera projection.");
-            shots.emplace(name, shot);
+            const auto inserted = shots.emplace(name, shot).second;
+            if (inserted && !moves.empty() && name == moves.front().first) opening.district = i;
             if (shots.size() == names.size()) {
-                opening.district = i;
                 if (opening.followCameraMs) {
                     // GS3DStuff::load uses one named heightmap for the world.
                     opening.heightMap = loadScene(assets, "santa_monica_heightmap.bdae");
@@ -5287,6 +5313,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                         for (const auto& move : script19ClosingMoves)
                             next->script19Closing.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script32Moves)
+                            next->script32Intro.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script20RetreatMoves)
                             next->script20Retreat.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
@@ -5318,5 +5347,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
             }
         }
     }
-    throw std::runtime_error("Could not resolve the opening cameras in a retail city district.");
+    for (const auto& name : names)
+        if (!shots.count(name)) throw std::runtime_error("Missing retail scene camera " + name);
+    throw std::runtime_error("No retail scene cameras to resolve.");
 }
