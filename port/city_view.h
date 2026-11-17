@@ -258,11 +258,19 @@ struct CityPedestrianWalk {
                  const std::function<uint32_t()>& random);
 };
 
+struct CityTrafficObstacle {
+    std::array<float, 3> position;
+    float yaw;
+    CityTerrain::VehicleFootprint footprint;
+    std::optional<size_t> spawnSlot;
+};
+
 struct CityAmbientDrive {
     std::optional<size_t> destination, previous;
     std::optional<std::array<float, 3>> sharedEdge;
     void advance(const CityTerrain& terrain, CityPlayerPose& pose, const CityTerrain::VehicleFootprint& footprint,
-                 int32_t frameRate, uint32_t elapsedMs);
+                 int32_t frameRate, uint32_t elapsedMs, const std::vector<CityTrafficObstacle>& obstacles = {},
+                 std::optional<size_t> ownSlot = std::nullopt);
 };
 
 struct CityVehiclePose {

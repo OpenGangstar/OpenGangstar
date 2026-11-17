@@ -789,8 +789,11 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   Moving ambient cars select directed road and intersection edges,
   use the encoded road speed, and stop at static walls using their
   measured footprints. Parked vehicles stay in place. The full retail
-  destination search, steering and traffic response, collisions with
-  other actors, pursuit, and remaining despawn rules are pending. All 491 Santa Monica spawn
+  destination search and steering remain pending. Moving traffic holds
+  its waypoint when a swept footprint reaches a vehicle or pedestrian
+  on the same level, and resumes once clear. This currently models
+  blocking with circles. Retail obstacle avoidance, collision response,
+  pursuit, and remaining despawn rules are pending. All 491 Santa Monica spawn
   points resolve to authored heightmap triangles by buffer and index offset.
   The loader reads the eight neighbor arrays per buffer and the 14,576
   road flag bytes from `nav_mesh_arrays.bin`. All 154 moving spawn points

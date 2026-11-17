@@ -1733,19 +1733,48 @@ bool crossesWall(const CityTerrain& terrain, const Vec3& start, const Vec3& end,
     return false;
 }
 
+Vec3 carCircleCenter(const CityTerrain::VehicleFootprint& footprint, const Vec3& position,
+                     float degrees, float offset)
+{
+    const auto angle = degrees * radians;
+    const auto cosine = std::cos(angle), sine = std::sin(angle);
+    return add(position, {sine * offset + cosine * footprint.lateralCenter,
+                         -cosine * offset + sine * footprint.lateralCenter, 0});
+}
+
 bool crossesWallInCar(const CityTerrain& terrain, const CityTerrain::VehicleFootprint& footprint,
                       const Vec3& start, float startYaw, const Vec3& next, float yaw, Vec3& normalTravel)
 {
-    const auto center = [&](float degrees, float offset) -> Vec3 {
-        const auto angle = degrees * radians;
-        const auto cosine = std::cos(angle), sine = std::sin(angle);
-        return {sine * offset + cosine * footprint.lateralCenter,
-                -cosine * offset + sine * footprint.lateralCenter, 0};
-    };
     // Three overlapping circles approximate the body and bumpers.
     for (const auto offset : footprint.longitudinalCenters) {
-        if (crossesWall(terrain, add(start, center(startYaw, offset)),
-                         add(next, center(yaw, offset)), footprint.radius, &normalTravel)) return true;
+        if (crossesWall(terrain, carCircleCenter(footprint, start, startYaw, offset),
+                         carCircleCenter(footprint, next, yaw, offset), footprint.radius, &normalTravel)) return true;
+    }
+    return false;
+}
+
+bool crossesTraffic(const CityTerrain::VehicleFootprint& footprint, const Vec3& start,
+                    float startYaw, const Vec3& next, float yaw, const std::vector<CityTrafficObstacle>& obstacles,
+                    std::optional<size_t> ownSlot)
+{
+    for (const auto& obstacle : obstacles) {
+        if (ownSlot && obstacle.spawnSlot == ownSlot) continue;
+        if (std::abs(obstacle.position[2] - next[2]) >= 120.f &&
+            std::abs(obstacle.position[2] - start[2]) >= 120.f) continue;
+        const auto radius = footprint.radius + obstacle.footprint.radius;
+        for (const auto offset : footprint.longitudinalCenters) {
+            const auto first = carCircleCenter(footprint, start, startYaw, offset);
+            const auto last = carCircleCenter(footprint, next, yaw, offset);
+            for (const auto otherOffset : obstacle.footprint.longitudinalCenters) {
+                const auto center = carCircleCenter(obstacle.footprint, obstacle.position, obstacle.yaw, otherOffset);
+                const auto separation = add(first, scale(center, -1));
+                const auto travel = add(last, scale(first, -1));
+                const auto before = separation[0] * separation[0] + separation[1] * separation[1];
+                if (before < radius * radius &&
+                    separation[0] * travel[0] + separation[1] * travel[1] >= 0) continue;
+                if (distanceToSegmentSquared(center, first, last) < radius * radius) return true;
+            }
+        }
     }
     return false;
 }
@@ -1796,7 +1825,8 @@ void CityPedestrianWalk::advance(const CityTerrain& terrain, CityPlayerPose& pos
 
 void CityAmbientDrive::advance(const CityTerrain& terrain, CityPlayerPose& pose,
                                const CityTerrain::VehicleFootprint& footprint, int32_t frameRate,
-                               uint32_t elapsedMs)
+                               uint32_t elapsedMs, const std::vector<CityTrafficObstacle>& obstacles,
+                               std::optional<size_t> ownSlot)
 {
     if (!pose.groundTriangle) return;
     if (!destination) {
@@ -1824,7 +1854,8 @@ void CityAmbientDrive::advance(const CityTerrain& terrain, CityPlayerPose& pose,
     next[2] = ground->height;
     const auto yaw = std::atan2(dx, -dy) / radians;
     Vec3 normalTravel;
-    if (crossesWallInCar(terrain, footprint, pose.position, pose.yaw, next, yaw, normalTravel)) return;
+    if (crossesWallInCar(terrain, footprint, pose.position, pose.yaw, next, yaw, normalTravel) ||
+        crossesTraffic(footprint, pose.position, pose.yaw, next, yaw, obstacles, ownSlot)) return;
     pose.position = next;
     pose.groundTriangle = ground->triangle;
     pose.yaw = yaw;

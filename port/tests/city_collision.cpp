@@ -3297,6 +3297,17 @@ static void checkAmbientVehicleDrive()
     terrain.walls = {CityTriangle{{{125, 0, 0}, {125, 300, 0}, {125, 150, 200}}}};
     drive.advance(terrain, pose, footprint, 10, 250);
     require(pose.position[0] == 100 && drive.destination, "Ambient vehicle drove through a static wall.");
+
+    terrain.walls.clear();
+    std::vector<CityTrafficObstacle> obstacles{
+        {{100, 100, 0}, 135, footprint, 1},
+        {{125, 125, 0}, 135, footprint, 2}
+    };
+    drive.advance(terrain, pose, footprint, 10, 500, obstacles, 1);
+    require(pose.position[0] == 100 && drive.destination, "Ambient car crossed a live obstacle between ticks.");
+    obstacles[1].position[2] = 150;
+    drive.advance(terrain, pose, footprint, 10, 500, obstacles, 1);
+    require(pose.position[0] > 100, "Ambient car did not resume when the obstacle cleared its road level.");
 }
 
 static void checkNavigationWaypoint()

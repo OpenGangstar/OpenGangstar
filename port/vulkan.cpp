@@ -2369,11 +2369,19 @@ void updateCitySpawns(CityRender& city, const CityCameraPose& camera, const City
     for (const auto& [name, actor] : city.playback.locoOpponents)
         if (!actor.disabled) context.nearbyObjects.push_back({actor.pose.position, 5, 1});
 
-    const auto random = [&] { return static_cast<uint32_t>(city.spawnRandom()); };
+    constexpr CityTerrain::VehicleFootprint pedestrianBody{0, 28, {0, 0, 0}};
+    std::vector<CityTrafficObstacle> obstacles;
+    if (!driving) obstacles.push_back({player.position, player.yaw, pedestrianBody});
+    if (vehicle) obstacles.push_back({vehicle->position, vehicle->yaw, city.terrain.vehicleFootprint});
+    if (city.locoCooper)
+        obstacles.push_back({city.locoCooper->position, city.locoCooper->yaw,
+                             city.cooperFootprint.value_or(city.terrain.vehicleFootprint)});
+    for (const auto& [name, actor] : city.playback.locoOpponents)
+        if (!actor.disabled) obstacles.push_back({actor.pose.position, actor.pose.yaw, pedestrianBody});
+    const auto ambientStart = obstacles.size();
     for (size_t slot = 0; slot < city.spawnPoses.size(); ++slot) {
         auto& pose = city.spawnPoses[slot];
         if (!pose) continue;
-        const CitySpawnGroup group{pose->groupType, {}};
         const CitySpawnGroup despawnClass{pose->objectType, {}};
         const auto outer = despawnClass.spawnCenters(camera.eye, camera.target, position[2], speed)[1];
         const auto& current = pose->motion.position;
@@ -2385,13 +2393,24 @@ void updateCitySpawns(CityRender& city, const CityCameraPose& camera, const City
             pose.reset();
             continue;
         }
-        if (pose->objectType == 5)
-            pose->walk.advance(city.terrain, pose->motion, city.opening.walkSpeed, elapsedMs, random);
-        else if (pose->groupType == 3)
-            pose->drive.advance(city.terrain, pose->motion, city.spawnMeshes[slot].footprint,
-                                city.retailFrameRate, elapsedMs);
+        const auto& body = pose->objectType == 5 ? pedestrianBody : city.spawnMeshes[slot].footprint;
+        obstacles.push_back({current, pose->motion.yaw, body, slot});
+    }
+    const auto random = [&] { return static_cast<uint32_t>(city.spawnRandom()); };
+    for (size_t obstacle = ambientStart; obstacle < obstacles.size(); ++obstacle) {
+        auto& body = obstacles[obstacle];
+        const auto slot = *body.spawnSlot;
+        auto& pose = *city.spawnPoses[slot];
+        const CitySpawnGroup group{pose.groupType, {}};
+        if (pose.objectType == 5)
+            pose.walk.advance(city.terrain, pose.motion, city.opening.walkSpeed, elapsedMs, random);
+        else if (pose.groupType == 3)
+            pose.drive.advance(city.terrain, pose.motion, body.footprint,
+                               city.retailFrameRate, elapsedMs, obstacles, slot);
+        body.position = pose.motion.position;
+        body.yaw = pose.motion.yaw;
         ++context.activeCounts[group.populationIndex()];
-        context.nearbyObjects.push_back({current, pose->objectType, 1});
+        context.nearbyObjects.push_back({body.position, pose.objectType, 1});
     }
     scheduler.advance(elapsedMs, query, camera, position[2], speed, std::move(context), city.wanted.level(),
         false, random,
