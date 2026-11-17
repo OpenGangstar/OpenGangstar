@@ -370,6 +370,9 @@ struct CityFightOpponent {
     bool attacking = true;
     bool taggedForKill = false;
     std::optional<std::string> rangedTarget;
+    enum class Side { neutral, friendly, hostile };
+    Side side = Side::neutral;
+    bool aiming = false;
     double shotCooldownMs = 0;
     bool disablePending = false;
     bool disabled = false;

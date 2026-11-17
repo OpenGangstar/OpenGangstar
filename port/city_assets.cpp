@@ -2476,6 +2476,15 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                              cue.textId, cue.speaker});
             } else if (opcode >= 60 && opcode <= 63) {
                 scene.audio.push_back(readAudioCommand(command, opcode, time));
+            } else if (opcode == 85) {
+                auto payload = command.remainingBytes();
+                readScriptObject(command);
+                scene.killTags.push_back(std::move(payload));
+            } else if (opcode == 82) {
+                auto actor = command.string();
+                const auto weaponType = command.signedInteger();
+                command.finish();
+                scene.npcWeapons.insert_or_assign(std::move(actor), weaponType);
             } else if (!depth && postFightTail && opcode == 67) {
                 command.finish();
                 postFightTail->missionOverMs = time;
@@ -4336,10 +4345,39 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.script20ArrivalFadeMs = readFadeCommand(script20ArrivalFade, 42, 0).durationMs;
                 previousCinematicShot.clear();
                 route.script20Arrival.fades.push_back({0, 0, false});
+                nextMissionObjectiveId.reset();
                 readCinematic(readCinematic, nextScript, script20Count, 0, route.script20Arrival,
                               script20ArrivalMoves, script20ArrivalDialogue, script20ArrivalPlacements,
                               &script20ArrivalAnimations, &script20ArrivalMotions, nullptr, 66);
                 route.script20Arrival.dialogue = resolveDialogue(script20ArrivalDialogue);
+                if (!nextMissionObjectiveId) throw std::runtime_error("Missing Script 20 fight objective.");
+                route.script20FightObjective = vanObjective(*nextMissionObjectiveId);
+                auto& fight = route.script20FightCommands;
+                const auto& tags = route.script20Arrival.killTags;
+                if (tags.size() != 4) throw std::runtime_error("Invalid Script 20 kill target count.");
+                for (const auto& payload : tags) {
+                    const auto target = decodeCityKillTarget({85, payload});
+                    if (route.script20Arrival.npcWeapons.count(target) == 0)
+                        throw std::runtime_error("Missing Script 20 opponent weapon.");
+                    fight.emplace_back(85, payload);
+                }
+                for (const auto& name : {"Juan_00", "LC_00", "ElToro_00"}) {
+                    auto protect = nextScript.record();
+                    if (protect.integer() != 69) throw std::runtime_error("Missing Script 20 ally protection.");
+                    auto payload = protect.remainingBytes();
+                    const auto condition = readMissionCondition(protect, 69);
+                    if (!condition || condition->target != name)
+                        throw std::runtime_error("Unexpected Script 20 ally protection.");
+                    fight.emplace_back(69, std::move(payload));
+                }
+                for (const auto expected : {46u, 91u, 57u}) {
+                    auto command = nextScript.record();
+                    if (command.integer() != expected) throw std::runtime_error("Invalid Script 20 fight handoff.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 57) command.integer();
+                    command.finish();
+                    fight.emplace_back(expected, std::move(payload));
+                }
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4759,6 +4797,16 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                         throw std::runtime_error("Missing retail script 31 attacker weapon.");
                     actor->scriptedRangedWeapon = weapon->second;
                     actor->scriptedAim = readClip(library, &actor->model, "combat_gun_1handed_idle");
+                }
+                for (const auto& [name, type] : next.script20Arrival.npcWeapons) {
+                    prepareFightActor(name);
+                    const auto actor = findCinematicActor(name);
+                    const auto pistol = city.weaponMetatypes.find(8);
+                    if (type != 1 || pistol == city.weaponMetatypes.end() || pistol->second.weaponType != type ||
+                        pistol->second.damage <= 0 || pistol->second.range <= 0 || pistol->second.shootFrequency <= 0)
+                        throw std::runtime_error("Missing retail Script 20 pistol definition.");
+                    actor->scriptedRangedWeapon = pistol->second;
+                    if (!actor->scriptedAim) actor->scriptedAim = readClip(library, &actor->model, "combat_gun_1handed_idle");
                 }
                 const auto cooper = findObject("aCooper_00").vehicle;
                 if (!cooper) throw std::runtime_error("Missing retail Cooper vehicle definition.");

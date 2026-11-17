@@ -413,6 +413,8 @@ struct CityMissionCinematic {
     std::vector<CityDialogue> dialogue;
     std::vector<CityAudioCue> audio;
     std::vector<CityCinematicPlacement> placements;
+    std::map<std::string, int32_t, std::less<>> npcWeapons;
+    std::vector<std::vector<uint8_t>> killTags;
     std::map<std::string, std::vector<CityActorAnimation>> actorAnimations;
     struct Motion {
         CityCinematicWalk travel;
@@ -651,7 +653,8 @@ struct CityPostFightScene : CityMissionCinematic {
         std::optional<CityMissionTitle> script20Title;
         CityMissionCinematic script20Intro, script20Arrival;
         uint32_t script20ArrivalFadeMs = 0;
-        std::string script20DriveObjective;
+        std::string script20DriveObjective, script20FightObjective;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script20FightCommands;
         std::optional<CityCheckpoint> script20DriveCheckpoint;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> script20DriveCommands;
         std::string script19VehicleObjective, script19DriveObjective;

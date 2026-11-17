@@ -2701,19 +2701,45 @@ void CityPlayback::updateLocoFight(const CityOpening& opening, const CityTerrain
             opponent.defeatMs += std::max(0., deltaMs);
             continue;
         }
-        if (opponent.rangedTarget && actor.scriptedRangedWeapon) {
-            const auto target = locoOpponents.find(*opponent.rangedTarget);
+        using Side = CityFightOpponent::Side;
+        if ((opponent.rangedTarget || opponent.side != Side::neutral) && actor.scriptedRangedWeapon) {
             opponent.pose.walking = false;
             opponent.pose.clipTimeMs += std::max(0., deltaMs);
-            if (target == locoOpponents.end() || target->second.health == 0) continue;
-            const auto offset = add(target->second.pose.position, scale(opponent.pose.position, -1));
+            const auto& weapon = *actor.scriptedRangedWeapon;
+            const Vec3* targetPosition = nullptr;
+            int32_t* targetHealth = nullptr;
+            auto nearest = std::numeric_limits<float>::max();
+            const auto consider = [&](const Vec3& position, int32_t& health) {
+                if (health <= 0) return;
+                const auto offset = add(position, scale(opponent.pose.position, -1));
+                const auto distance = dot(offset, offset);
+                if (distance >= nearest) return;
+                nearest = distance;
+                targetPosition = &position;
+                targetHealth = &health;
+            };
+            if (opponent.rangedTarget) {
+                const auto target = locoOpponents.find(*opponent.rangedTarget);
+                if (target != locoOpponents.end()) consider(target->second.pose.position, target->second.health);
+            } else {
+                if (opponent.side == Side::hostile) {
+                    const auto& position = vehicle && vehicle->occupied ? vehicle->position : player->position;
+                    consider(position, playerHealth);
+                }
+                for (auto& [name, candidate] : locoOpponents)
+                    if (!candidate.disabled && candidate.side != Side::neutral && candidate.side != opponent.side)
+                        consider(candidate.pose.position, candidate.health);
+            }
+            opponent.aiming = targetPosition != nullptr;
+            if (!targetPosition) continue;
+            opponent.shotCooldownMs = std::max(0., opponent.shotCooldownMs - deltaMs);
+            const auto offset = add(*targetPosition, scale(opponent.pose.position, -1));
             if (offset[0] != 0 || offset[1] != 0)
                 opponent.pose.yaw = std::atan2(offset[0], -offset[1]) / radians;
-            const auto& weapon = *actor.scriptedRangedWeapon;
-            opponent.shotCooldownMs = std::max(0., opponent.shotCooldownMs - deltaMs);
-            if (opponent.shotCooldownMs == 0 && dot(offset, offset) <= float(weapon.range) * weapon.range &&
-                !crossesWall(terrain, opponent.pose.position, target->second.pose.position, 28)) {
-                target->second.health -= std::min(target->second.health, weapon.damage);
+            if (opponent.shotCooldownMs == 0 && nearest <= float(weapon.range) * weapon.range &&
+                !crossesWall(terrain, opponent.pose.position, *targetPosition, 28)) {
+                if (targetHealth == &playerHealth) damagePlayer(weapon.damage);
+                else *targetHealth -= std::min(*targetHealth, weapon.damage);
                 opponent.shotCooldownMs = std::max(1, 1000 / weapon.shootFrequency);
             }
             continue;
@@ -2775,7 +2801,7 @@ void CityPlayback::punchLocoOpponent(const CityOpening& opening, const CityTerra
     auto nearest = locoOpponents.end();
     auto distanceSquared = std::numeric_limits<float>::max();
     for (auto it = locoOpponents.begin(); it != locoOpponents.end(); ++it) {
-        if (it->second.disabled || it->second.health == 0) continue;
+        if (it->second.disabled || it->second.health == 0 || it->second.side == CityFightOpponent::Side::friendly) continue;
         const auto offset = add(it->second.pose.position, scale(player->position, -1));
         const auto candidate = dot(offset, offset);
         if (candidate < distanceSquared) {
@@ -3114,7 +3140,7 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
             clip = loco->defeatMs < defeat.first.durationMs ? &defeat.first : &defeat.loop;
             clipTime = loco->defeatMs < defeat.first.durationMs ? loco->defeatMs :
                 std::fmod(loco->defeatMs - defeat.first.durationMs, defeat.loop.durationMs);
-        } else if (loco && loco->rangedTarget && actor.scriptedAim) {
+        } else if (loco && (loco->rangedTarget || loco->aiming) && actor.scriptedAim) {
             clip = &*actor.scriptedAim;
             clipTime = std::fmod(loco->pose.clipTimeMs, clip->durationMs);
         } else if (loco && loco->punchMs && actor.handPunches) {

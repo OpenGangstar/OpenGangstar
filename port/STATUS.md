@@ -504,8 +504,11 @@ mission playthroughs for discovery or verification.
   entry, and tracks Checkpoint_C2M1101 in the world and on the minimap.
   The first drive checkpoint now fades into the retail arrival cinematic,
   including the four approach paths, camera cuts, dialogue, and gun-draw
-  animations. The ensuing shootout and the fourth van arrival look cue remain
-  pending.
+  animations. The first shootout loads the NPC pistol from the retail data,
+  protects Juan, LC, and El Toro, and waits for all four tagged Locos before
+  its timed handoff. Windows NPCs target the nearest opposing actor during
+  this fight. Retail target selection and the next cinematic remain pending,
+  along with the fourth van arrival look cue.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.
