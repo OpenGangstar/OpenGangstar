@@ -505,6 +505,10 @@ struct CityPostFightScene : CityMissionCinematic {
         std::optional<CityCheckpoint> basketballCheckpoint;
         std::vector<uint8_t> basketballWait;
         CityMissionCinematic basketballArrival;
+        CityMissionCinematic basketballClosing;
+        uint32_t basketballTutorialHideMs = 0;
+        uint32_t basketballMissionOverMs = 0;
+        std::optional<uint32_t> basketballUnlockedScript;
         std::string basketballFightObjective;
         CityDialogue basketballTutorial;
         std::vector<std::string> basketballFightTargets;

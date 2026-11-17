@@ -597,13 +597,13 @@ struct CityRender {
     uint32_t missionTitleLabelVertex = 0;
     std::optional<double> missionTitleMs;
     std::optional<double> missionRevealMs;
-    std::array<CityTexture, 5> missionCompleteObjectives;
+    std::array<CityTexture, 6> missionCompleteObjectives;
     std::array<HudAnimation, 2> missionObjectiveAnimations;
     uint32_t missionCompleteObjectiveVertex = 0;
     std::vector<CityTexture> missionRewardFrames;
     std::vector<uint32_t> missionRewardFrameEnds;
     std::optional<double> missionRewardMs;
-    std::array<CityTexture, 5> missionRewardCash;
+    std::array<CityTexture, 6> missionRewardCash;
     size_t missionRewardIndex = 0;
     static constexpr double missionCompleteMessageMs = 3000;
     double hudAnimationMs(const std::vector<uint32_t>& frameEnds) const
@@ -1101,7 +1101,10 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* basketballLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->basketballArrival.dialogue : nullptr;
     const auto basketballLineCount = basketballLines ? basketballLines->size() : 0;
-    for (const auto* lines : {cooperClosingLines, brawlNextLines, basketballLines})
+    const auto* basketballClosingLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->basketballClosing.dialogue : nullptr;
+    const auto basketballClosingLineCount = basketballClosingLines ? basketballClosingLines->size() : 0;
+    for (const auto* lines : {cooperClosingLines, brawlNextLines, basketballLines, basketballClosingLines})
         if (lines)
             for (const auto& dialogue : *lines)
                 if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
@@ -1204,7 +1207,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount +
                                              hasPayphoneObjective + (next ? 22 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
@@ -1371,7 +1374,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1467,7 +1470,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto basketballBase = city.captions.size() - basketballLineCount;
+        const auto basketballClosingBase = city.captions.size() - basketballClosingLineCount;
+        const auto basketballBase = basketballClosingBase - basketballLineCount;
         const auto brawlNextBase = basketballBase - brawlNextLineCount;
         const auto cooperClosingBase = brawlNextBase - cooperClosingLineCount;
         const auto cooperArrivalBase = cooperClosingBase - cooperArrivalLineCount;
@@ -1519,6 +1523,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                 }
             };
             uploadSceneCaptions(nextMission->basketballArrival, basketballBase);
+            uploadSceneCaptions(nextMission->basketballClosing, basketballClosingBase);
             uploadSceneCaptions(nextMission->brawlNextIntro, brawlNextBase);
             uploadSceneCaptions(nextMission->cooperNextClosing, cooperClosingBase);
             city.missionCaptionBases.emplace(&nextMission->cooperNextArrival, cooperArrivalBase);
@@ -3267,6 +3272,14 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 if (&scene == &handoff && handoff.missionOverMs &&
                     cinematicPlayback.elapsedMs() >= *handoff.missionOverMs && cityRender->opening.missionTitle)
                     completeOpeningMission(*cityRender, 0, *cityRender->opening.missionTitle);
+                if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->basketballClosing) {
+                    const auto& route = *handoff.nextCheckpoint;
+                    if (cinematicPlayback.elapsedMs() >= route.basketballTutorialHideMs)
+                        cityRender->basketballTutorialVisible = false;
+                    if (cinematicPlayback.elapsedMs() >= route.basketballMissionOverMs &&
+                        !cinematicPlayback.activeDialogue())
+                        completeOpeningMission(*cityRender, 5, *route.brawlNextTitle);
+                }
                 if (playback.vehicle && cityRender->opening.vehicleActor) {
                     const auto& actor = cityRender->opening.actors[*cityRender->opening.vehicleActor];
                     for (const auto& cue : scene.placements) {
@@ -3539,13 +3552,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                                    [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &fight);
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->taggedFightScript.reset();
-                        if (cityRender->missionTitleIndex == 5) {
-                            cityRender->basketballTutorialVisible = false;
-                        } else {
-                            playback.scriptedVehicleExit = playback.vehicle && playback.vehicle->occupied;
-                            cityRender->pendingHummerCinematic =
-                                &cityRender->opening.payphone->postFight.nextCheckpoint->cooperNextClosing;
-                        }
+                        const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
+                        playback.scriptedVehicleExit = playback.vehicle && playback.vehicle->occupied;
+                        cityRender->pendingHummerCinematic = cityRender->missionTitleIndex == 5
+                            ? &route.basketballClosing : &route.cooperNextClosing;
                     }
                 }
                 if (cityRender->locoCooperScript && playback.player && cityRender->locoCooper) {
@@ -4586,8 +4596,23 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             playback.punchLocoOpponent(render.opening, render.terrain, 50, false, false);
                         if (lastGuard.health != 0) throw std::runtime_error("Script 28 last guard survived lethal damage.");
                         update(0);
-                        if (render.taggedFightScript || render.basketballTutorialVisible || lastGuard.taggedForKill)
-                            throw std::runtime_error("Script 28 did not clear the tutorial and tags after the court fight.");
+                        if (render.taggedFightScript || lastGuard.taggedForKill ||
+                            render.pendingHummerCinematic != &route.basketballClosing)
+                            throw std::runtime_error("Script 28 did not clear the tags and queue its closing scene.");
+                        const auto cashBeforeClosing = playback.playerCash;
+                        update(0);
+                        if (render.activeMissionCinematic != &route.basketballClosing ||
+                            !render.basketballTutorialVisible || playback.playerCash != cashBeforeClosing ||
+                            route.basketballClosing.cameras.size() != 2 ||
+                            route.basketballClosing.dialogue.size() != 3 || route.basketballUnlockedScript != 29)
+                            throw std::runtime_error("Script 28 did not start the authored basketball closing scene.");
+                        for (int step = 0; step < 120 && render.postFightCinematic; ++step) update(250, true);
+                        update(0);
+                        if (render.postFightCinematic || render.basketballTutorialVisible ||
+                            !playback.openingMissionsPaid[5] || playback.playerCash != cashBeforeClosing + 500 ||
+                            !render.missionRewardCash[5].descriptor || !render.missionCompleteObjectives[5].descriptor ||
+                            render.missionRewardIndex != 5 || (render.achievements && render.achievements->stat(49) != 6))
+                            throw std::runtime_error("Script 28 did not clear the tutorial and award its retail payout once.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

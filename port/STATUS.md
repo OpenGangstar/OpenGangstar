@@ -381,9 +381,13 @@ mission playthroughs for discovery or verification.
   1,000 ms and displays the court fight objective. The three guards stay
   active with retail health. Script 28 runs the timed tutorial and
   minimap tags, then waits for every guard to fall. Combat uses native
-  lock-on melee and retaliation after damage. The tutorial currently
-  clears on defeat. The retail fade and closing scene, NPC and vehicle
-  AI, and Loco's seated model remain open.
+  lock-on melee and retaliation after damage. After defeat, the retail
+  fade hides the tutorial and the closing scene plays its camera moves,
+  dialogue, and music cues. MissionOver awards $500 once and updates
+  mission stats. The automated script 28 fixture checks the closing scene,
+  tutorial cleanup, payout, and mission count through Vulkan. The script 29
+  unlock is decoded. Activating and saving that handoff, NPC and vehicle AI,
+  and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
