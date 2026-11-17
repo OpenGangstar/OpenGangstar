@@ -521,6 +521,11 @@ struct CityPostFightScene : CityMissionCinematic {
         CityMissionCinematic postBasketballAmbush;
         std::vector<std::string> postBasketballAmbushTargets;
         std::string postBasketballAmbushObjective;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballEscapeCommands;
+        std::string postBasketballEscapeMarker;
+        std::array<float, 3> postBasketballEscapePosition{};
+        uint32_t postBasketballBriefingFadeMs = 0;
+        CityMissionCinematic postBasketballBriefing;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
         std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
         std::optional<CityAnimationClip> postBasketballVehicleSeated;

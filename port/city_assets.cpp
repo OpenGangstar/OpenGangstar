@@ -2271,7 +2271,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
     std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue, cooperNextDialogue, cooperArrivalDialogue, cooperClosingDialogue, brawlNextDialogue, basketballDialogue;
-    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue, postBasketballAmbushDialogue;
+    std::vector<DialogueCommand> basketballClosingDialogue, postBasketballDialogue, postBasketballAmbushDialogue, postBasketballBriefingDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -3460,6 +3460,49 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
                     throw std::runtime_error("Invalid retail script 29 ambush objective.");
                 route.postBasketballAmbushObjective = chapterText[*nextMissionObjectiveId & 0xfff];
+                for (const auto expected : {29u, 57u, 29u, 29u, 101u, 23u, 101u, 23u, 101u, 23u,
+                                            101u, 23u, 101u, 23u, 101u}) {
+                    auto escape = postBasketball.record();
+                    if (escape.integer() != expected)
+                        throw std::runtime_error("Invalid retail script 29 escape command.");
+                    auto payload = escape.remainingBytes();
+                    if (expected == 29) {
+                        if (readActorAttack(escape).target != "Player")
+                            throw std::runtime_error("Invalid retail script 29 attack target.");
+                    } else if (expected == 101) {
+                        const auto wait = decodeCityWaitEscape({expected, payload});
+                        if (std::find(route.postBasketballAmbushTargets.begin(), route.postBasketballAmbushTargets.end(),
+                                      wait.target) == route.postBasketballAmbushTargets.end()) {
+                            if (!route.postBasketballEscapeMarker.empty())
+                                throw std::runtime_error("Unexpected second retail script 29 escape marker.");
+                            route.postBasketballEscapeMarker = wait.target;
+                            route.postBasketballEscapePosition = findObject(wait.target).position;
+                        }
+                    } else if (expected == 23) {
+                        readScriptObject(escape);
+                    } else {
+                        escape.integer();
+                        escape.finish();
+                    }
+                    route.postBasketballEscapeCommands.emplace_back(expected, std::move(payload));
+                }
+                auto briefingStart = postBasketball.record();
+                auto briefingFade = postBasketball.record();
+                auto briefingExit = postBasketball.record();
+                if (briefingStart.integer() != 15 || briefingFade.integer() != 42 ||
+                    briefingExit.integer() != 99 || readScriptObject(briefingExit) != "Player")
+                    throw std::runtime_error("Invalid retail script 29 post-escape briefing.");
+                briefingStart.finish();
+                route.postBasketballBriefingFadeMs = readFadeCommand(briefingFade, 42, 0).durationMs;
+                std::vector<NamedMove> briefingMoves;
+                std::vector<std::pair<uint32_t, CityScriptActorPlacement>> briefingPlacements;
+                route.postBasketballBriefing.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, postBasketball, postBasketballLength, 0, route.postBasketballBriefing,
+                              briefingMoves, postBasketballBriefingDialogue, briefingPlacements,
+                              nullptr, nullptr, nullptr, 16);
+                if (!briefingMoves.empty() || !briefingPlacements.empty())
+                    throw std::runtime_error("Unexpected camera or actor placement in script 29 briefing.");
+                route.postBasketballBriefing.dialogue = resolveDialogue(postBasketballBriefingDialogue);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.

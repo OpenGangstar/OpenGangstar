@@ -395,10 +395,13 @@ mission playthroughs for discovery or verification.
   placement, running and weapon poses, dialogue, and fades. The follow
   camera returns to the occupied car. Five enemies are staged at their
   cinematic endpoints and tagged on the minimap with the combat objective.
-  The fixture verifies the occupied car and five live targets after the
-  cutscene. The scripted look cue and attack timing, ranged combat,
-  repair tutorial, delivery, NPC and vehicle AI, and Loco's seated model
-  remain open.
+  The escape sequence waits for the authored distance from each enemy
+  and the final fixed marker. It then fades to black, exits the player
+  from the car, and plays the two-line repair briefing. Automated checks
+  cover the distance gate, scripted exit, and briefing. The attack
+  commands are decoded but do not yet fire NPC weapons. The scripted
+  look cue, ranged combat, repair tutorial, delivery, NPC and vehicle AI,
+  and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
