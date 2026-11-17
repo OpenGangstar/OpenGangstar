@@ -2338,6 +2338,11 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> script19Dialogue;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script19Placements;
     std::vector<AnimationCommand> script19Animations;
+    std::vector<NamedMove> script19ArrivalMoves;
+    std::vector<DialogueCommand> script19ArrivalDialogue;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script19ArrivalPlacements;
+    std::vector<AnimationCommand> script19ArrivalAnimations;
+    std::vector<MotionCommand> script19ArrivalMotions;
     const auto readCinematic = [&](const auto& read, CityDataReader& stream, uint32_t remaining, unsigned depth,
                                    CityMissionCinematic& scene, auto& moves, auto& lines,
                                    auto& placements, std::vector<AnimationCommand>* animations,
@@ -4130,6 +4135,24 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     }
                     route.script19DriveCommands.emplace_back(expected, std::move(payload));
                 }
+                auto script19Fade = unlockedVanScript.record(), script19Wait = unlockedVanScript.record();
+                auto script19Exit = unlockedVanScript.record();
+                if (script19Fade.integer() != 42 || script19Wait.integer() != 57 ||
+                    script19Exit.integer() != 99 || readScriptObject(script19Exit) != "Player")
+                    throw std::runtime_error("Invalid Script 19 arrival entrance.");
+                route.script19ArrivalFadeMs = readFadeCommand(script19Fade, 42, 0).durationMs;
+                route.script19ArrivalWaitMs = script19Wait.integer();
+                script19Wait.finish();
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                route.script19Arrival.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, unlockedVanScript, unlockedCount, 0, route.script19Arrival,
+                              script19ArrivalMoves, script19ArrivalDialogue, script19ArrivalPlacements,
+                              &script19ArrivalAnimations, &script19ArrivalMotions, nullptr, 66);
+                route.script19Arrival.dialogue = resolveDialogue(script19ArrivalDialogue);
+                if (!nextMissionObjectiveId)
+                    throw std::runtime_error("Missing Script 19 arrival objective.");
+                route.script19FightObjective = vanObjective(*nextMissionObjectiveId);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -4201,6 +4224,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(vanThirdArrivalPlacements, next->vanThirdArrival.placements);
                 resolvePlacements(vanFourthArrivalPlacements, next->vanFourthArrival.placements);
                 resolvePlacements(script19Placements, next->script19Intro.placements);
+                resolvePlacements(script19ArrivalPlacements, next->script19Arrival.placements);
                 resolvePlacements(vanPolicePlacements, next->vanPoliceReveal.placements);
             }
         }
@@ -4487,6 +4511,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.vanThirdArrival);
                 loadCinematicActors(next.vanFourthArrival);
                 loadCinematicActors(next.script19Intro);
+                loadCinematicActors(next.script19Arrival);
                 loadCinematicActors(next.vanPoliceReveal);
                 loadCinematicActors(next.basketballArrival);
                 const auto prepareFightActor = [&](std::string_view name) {
@@ -4594,6 +4619,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->vanHandshake, vanHandshakeAnimations);
                 bindCinematic(next->vanFourthArrival, vanFourthArrivalAnimations);
                 bindCinematic(next->script19Intro, script19Animations);
+                bindCinematic(next->script19Arrival, script19ArrivalAnimations);
                 bindCinematic(next->vanPoliceReveal, vanPoliceAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
@@ -4628,6 +4654,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->vanThirdArrival);
                 bindInitialIdle(next->vanFourthArrival);
                 bindInitialIdle(next->script19Intro);
+                bindInitialIdle(next->script19Arrival);
                 bindInitialIdle(next->vanPoliceReveal);
                 bindInitialIdle(next->basketballArrival);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
@@ -4725,6 +4752,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindMotions(next->vanSecondArrival, vanSecondArrivalMotions);
                 bindMotions(next->vanHandshake, vanHandshakeMotions);
                 bindMotions(next->vanFourthArrival, vanFourthArrivalMotions);
+                bindMotions(next->script19Arrival, script19ArrivalMotions);
                 for (const auto& approach : vanProtectionMotions) {
                     const auto& arrival = next->vanSecondArrival;
                     const auto origin = std::find_if(arrival.placements.rbegin(), arrival.placements.rend(),
@@ -4884,6 +4912,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : vanThirdArrivalMoves)
                             next->vanThirdArrival.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : script19ArrivalMoves)
+                            next->script19Arrival.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : script19Moves)
                             next->script19Intro.cameras.push_back(
