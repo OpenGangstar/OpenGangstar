@@ -388,9 +388,12 @@ mission playthroughs for discovery or verification.
   tutorial cleanup, payout, and mission count through Vulkan. The closing
   reveal unlocks and saves script 29 at the LC checkpoint. A script 29 save
   fixture verifies Continue, the retail title, and the opening camera,
-  actor animation, music, and dialogue sequence. The first objective and
-  destination are decoded. The vehicle encounter, repair tutorial, delivery,
-  NPC and vehicle AI, and Loco's seated model remain open.
+  actor animation, music, and dialogue sequence. Script 29 shows the
+  localized car objective and its approach marker in the city and on the
+  minimap. Reaching it stages the protected car and four guards at their
+  authored positions. The vehicle wait tracks and accepts that car. The
+  scripted ambush after entry, repair tutorial, delivery, NPC and vehicle AI,
+  and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

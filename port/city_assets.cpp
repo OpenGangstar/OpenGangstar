@@ -2281,7 +2281,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements, cooperNextPlacements, cooperArrivalPlacements, cooperClosingPlacements, brawlNextPlacements, basketballPlacements;
-    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> basketballClosingPlacements, postBasketballPlacements, postBasketballApproach;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -3412,7 +3412,28 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 auto postBasketballDestination = postBasketball.record();
                 if (postBasketballDestination.integer() != 64)
                     throw std::runtime_error("Missing retail script 29 destination.");
+                route.postBasketballDestinationWait = postBasketballDestination.remainingBytes();
                 route.postBasketballDestination = makeCheckpoint(readCheckpointCommand(postBasketballDestination, 64).object);
+                for (const auto expected : {21u, 70u, 21u, 21u, 21u, 21u, 89u}) {
+                    auto stage = postBasketball.record();
+                    if (stage.integer() != expected)
+                        throw std::runtime_error("Invalid retail script 29 vehicle staging.");
+                    if (expected == 21) {
+                        postBasketballApproach.emplace_back(0, readActorPlacement(stage, expected));
+                    } else {
+                        auto payload = stage.remainingBytes();
+                        if (expected == 89) {
+                            route.postBasketballVehicle = readScriptObject(stage);
+                        } else {
+                            const auto condition = readMissionCondition(stage, expected);
+                            if (!condition || condition->target != postBasketballApproach.front().second.actor)
+                                throw std::runtime_error("Invalid retail script 29 vehicle protection.");
+                        }
+                        route.postBasketballVehicleCommands.emplace_back(expected, std::move(payload));
+                    }
+                }
+                if (postBasketballApproach.front().second.actor != route.postBasketballVehicle)
+                    throw std::runtime_error("Invalid retail script 29 required vehicle.");
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3465,6 +3486,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(basketballPlacements, next->basketballArrival.placements);
                 resolvePlacements(basketballClosingPlacements, next->basketballClosing.placements);
                 resolvePlacements(postBasketballPlacements, next->postBasketballIntro.placements);
+                resolvePlacements(postBasketballApproach, next->postBasketballApproach);
             }
         }
     }
@@ -3760,6 +3782,16 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 }
                 for (const auto& target : next.cooperFightTargets) prepareFightActor(target);
                 for (const auto& target : next.basketballFightTargets) prepareFightActor(target);
+                for (const auto& cue : next.postBasketballApproach) {
+                    loadCinematicActor(cue);
+                    if (cue.actor != next.postBasketballVehicle) prepareFightActor(cue.actor);
+                }
+                const auto postBasketballVehicle = findObject(next.postBasketballVehicle).vehicle;
+                const auto approachPlayer = findCinematicActor("Player");
+                if (!postBasketballVehicle || approachPlayer == opening.actors.end())
+                    throw std::runtime_error("Missing retail script 29 vehicle or player model.");
+                bindVehiclePlayer(*postBasketballVehicle, approachPlayer->model,
+                                  next.postBasketballVehicleSeated, next.postBasketballVehicleClips);
                 if (next.locoGuardPlacement) {
                     loadCinematicActor(*next.locoGuardPlacement);
                     prepareFightActor(next.locoGuardPlacement->actor);

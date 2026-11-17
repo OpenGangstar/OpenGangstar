@@ -515,6 +515,12 @@ struct CityPostFightScene : CityMissionCinematic {
         CityMissionCinematic postBasketballIntro;
         std::string postBasketballObjective;
         std::optional<CityCheckpoint> postBasketballDestination;
+        std::vector<uint8_t> postBasketballDestinationWait;
+        std::string postBasketballVehicle;
+        std::vector<CityCinematicPlacement> postBasketballApproach;
+        std::vector<std::pair<uint32_t, std::vector<uint8_t>>> postBasketballVehicleCommands;
+        std::optional<std::array<CityVehicleCharacterClips, 2>> postBasketballVehicleClips;
+        std::optional<CityAnimationClip> postBasketballVehicleSeated;
         std::string basketballFightObjective;
         CityDialogue basketballTutorial;
         std::vector<std::string> basketballFightTargets;

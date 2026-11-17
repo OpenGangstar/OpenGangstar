@@ -1000,10 +1000,12 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
         const auto* nextMission = opening.payphone && opening.payphone->postFight.nextCheckpoint
             ? &*opening.payphone->postFight.nextCheckpoint : nullptr;
         const bool nextVehicle = actor.payphoneOnly && nextMission && actor.name == nextMission->targetVehicle;
+        const bool postBasketballVehicle = nextMission && actor.name == nextMission->postBasketballVehicle;
         const bool cooper = actor.payphoneOnly && nextMission && !nextMission->locoCooperIntro.vehicleDrives.empty() &&
             actor.name == nextMission->locoCooperIntro.vehicleDrives.front().actor;
         CityVehicleGeometry* vehicle = opening.vehicleActor == i ? &draw :
-            nextVehicle ? &draw.nextVehicleGeometry.emplace() : cooper ? &draw.cooperGeometry.emplace() : nullptr;
+            nextVehicle ? &draw.nextVehicleGeometry.emplace() : cooper ? &draw.cooperGeometry.emplace() :
+            postBasketballVehicle ? &draw.postBasketballVehicleGeometry.emplace() : nullptr;
         if (cooper) draw.cooperActor = i;
         appendScene(draw, city, actor.model, actorTransform(actor), actor.startMs, &actor, i, vehicle);
         if (vehicle) {
@@ -1012,6 +1014,7 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             if (!cooper) {
                 const auto footprint = measureVehicleFootprint(actor, draw.vertices, first);
                 if (nextVehicle) draw.nextVehicleFootprint = footprint;
+                else if (postBasketballVehicle) draw.postBasketballVehicleFootprint = footprint;
                 else draw.terrain.vehicleFootprint = footprint;
             }
             for (auto& wheel : vehicle->wheels) wheel.firstVertex -= first;
@@ -1056,6 +1059,8 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
             draw.cooperNextDriveFirstSurface = appendCheckpoint(*next.cooperNextDriveCheckpoint, 13);
         if (next.basketballCheckpoint)
             draw.basketballFirstSurface = appendCheckpoint(*next.basketballCheckpoint, 14);
+        if (next.postBasketballDestination)
+            draw.postBasketballFirstSurface = appendCheckpoint(*next.postBasketballDestination, 15);
     }
     if (opening.vehicleActor) {
         const auto& actor = opening.actors.at(*opening.vehicleActor);
@@ -1138,8 +1143,12 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
         const auto& next = opening.payphone->postFight.nextCheckpoint;
         if ((!missionScene || (next && missionScene == &next->locoCooperIntro)) &&
             loco != playback.locoOpponents.end()) return !loco->second.disabled;
+        if (playback.nextMissionVehicleActive && next && actor.name == next->postBasketballVehicle)
+            return opening.vehicleActor == surface.payphoneActor && playback.vehicle.has_value();
         if (playback.nextMissionVehicleActive && next && actor.name == next->targetVehicle)
-            return !playback.openingMissionsPaid[1] || playback.postLcVehicleActive;
+            return (!opening.vehicleActor ||
+                    opening.actors[*opening.vehicleActor].name != next->postBasketballVehicle) &&
+                (!playback.openingMissionsPaid[1] || playback.postLcVehicleActive);
         const auto* placement = cityPayphonePlacement(*opening.payphone,
             actor.name, *payphoneMs);
         return placement && placement->visible;
