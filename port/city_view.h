@@ -231,12 +231,12 @@ struct CityDrawData : CityVehicleGeometry {
     std::optional<size_t> weaponShopApproachFirstSurface;
     std::optional<size_t> weaponShopEntranceFirstSurface;
     std::optional<size_t> returnToLcFirstSurface;
-    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface, deliveryFirstSurface, elToroFirstSurface, elToroDestinationFirstSurface, elToroDriveFirstSurface, vanDriveFirstSurface, vanSecondDriveFirstSurface, vanThirdDriveFirstSurface, vanFourthDriveFirstSurface, script19DriveFirstSurface, script19ReturnFirstSurface, script20DriveFirstSurface, script32FirstSurface, script33FirstSurface;
+    std::optional<size_t> postLcDriveFirstSurface, cooperNextDriveFirstSurface, basketballFirstSurface, postBasketballFirstSurface, repairDriveFirstSurface, repairShopFirstSurface, deliveryFirstSurface, elToroFirstSurface, elToroDestinationFirstSurface, elToroDriveFirstSurface, vanDriveFirstSurface, vanSecondDriveFirstSurface, vanThirdDriveFirstSurface, vanFourthDriveFirstSurface, script19DriveFirstSurface, script19ReturnFirstSurface, script20DriveFirstSurface, script32FirstSurface, script33FirstSurface, script33DriveFirstSurface;
     std::array<std::optional<size_t>, 3> postLcWalkFirstSurfaces;
-    std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry, postBasketballVehicleGeometry, vanGeometry;
+    std::optional<CityVehicleGeometry> nextVehicleGeometry, cooperGeometry, postBasketballVehicleGeometry, vanGeometry, lincolnGeometry;
     std::optional<size_t> cooperActor;
-    std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint, cooperFootprint, vanFootprint;
-    std::array<std::vector<CityCheckpointMesh>, 31> checkpointMeshes;
+    std::optional<CityTerrain::VehicleFootprint> nextVehicleFootprint, postBasketballVehicleFootprint, cooperFootprint, vanFootprint, lincolnFootprint;
+    std::array<std::vector<CityCheckpointMesh>, 32> checkpointMeshes;
     std::vector<CityVehicleLightMesh> vehicleLights;
 };
 

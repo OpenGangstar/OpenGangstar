@@ -519,9 +519,11 @@ mission playthroughs for discovery or verification.
   opening fade, Latisha and Juan cutscene, and chapter-end counter.
   The nested MissionOver command pays Script 20's reward, and the Windows
   save restores the Script 33 mission marker at CheckpointMission_C3M1.
-  Script 33 execution, Latisha's scripted cue after her first walk,
-  retail pursuit and target selection, and the fourth van arrival look
-  cue remain pending.
+  Entering that marker plays Script 33's title and opening cutscene,
+  then requires the Lincoln at CheckpointDrive_C3M01_START. The race
+  introduction and race are pending. The chapter-three scripted actor
+  cues, retail pursuit and target selection, and the fourth van arrival
+  look cue also remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.
