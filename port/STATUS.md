@@ -486,8 +486,11 @@ mission playthroughs for discovery or verification.
   the HUD and minimap. The first arrival fades for 300 ms, waits
   200 ms, and exits the player before playing the retail cameras,
   dialogue, gestures, and two walks. The scene stages both opponents
-  at their final positions and shows the next objective. The following
-  fight commands and fourth van arrival look cue remain pending.
+  at their final positions and shows the fight objective. The first
+  fight tags the second opponent after 400 ms and waits for both
+  defeats. After the authored 800 ms wait, the port fades into the
+  dialogue interlude and removes both actors. The second fight and
+  the fourth van arrival look cue remain pending.
   Other open work includes passenger seating, the parallel script 21
   race, retail payment presentation and audio, unaffordable repair
   feedback, and scripted look cues.

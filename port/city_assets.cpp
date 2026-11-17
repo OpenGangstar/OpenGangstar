@@ -4153,6 +4153,41 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 if (!nextMissionObjectiveId)
                     throw std::runtime_error("Missing Script 19 arrival objective.");
                 route.script19FightObjective = vanObjective(*nextMissionObjectiveId);
+                for (const auto expected : {85u, 57u, 85u, 91u, 57u}) {
+                    auto command = unlockedVanScript.record();
+                    if (command.integer() != expected)
+                        throw std::runtime_error("Invalid Script 19 first fight command.");
+                    auto payload = command.remainingBytes();
+                    if (expected == 85) {
+                        const auto target = readScriptObject(command);
+                        const auto name = route.script19FightCommands.empty() ? "Loco_00" : "Loco_01";
+                        if (target != name) throw std::runtime_error("Unexpected Script 19 first fight target.");
+                    } else {
+                        if (expected == 57 && command.signedInteger() < 0)
+                            throw std::runtime_error("Invalid Script 19 fight delay.");
+                        command.finish();
+                    }
+                    route.script19FightCommands.emplace_back(expected, std::move(payload));
+                }
+                auto script19InterludeFade = unlockedVanScript.record();
+                auto script19InterludeExit = unlockedVanScript.record();
+                if (script19InterludeFade.integer() != 42 || script19InterludeExit.integer() != 99 ||
+                    readScriptObject(script19InterludeExit) != "Player")
+                    throw std::runtime_error("Invalid Script 19 interlude entrance.");
+                route.script19InterludeFadeMs = readFadeCommand(script19InterludeFade, 42, 0).durationMs;
+                std::vector<NamedMove> script19InterludeMoves;
+                std::vector<DialogueCommand> script19InterludeDialogue;
+                std::vector<std::pair<uint32_t, CityScriptActorPlacement>> script19InterludePlacements;
+                route.script19Interlude.fades.push_back({0, 0, false});
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                readCinematic(readCinematic, unlockedVanScript, unlockedCount, 0, route.script19Interlude,
+                              script19InterludeMoves, script19InterludeDialogue, script19InterludePlacements,
+                              nullptr, nullptr, nullptr, 66, nullptr, nullptr, true);
+                if (!script19InterludeMoves.empty() || !script19InterludePlacements.empty() ||
+                    !nextMissionObjectiveId || vanObjective(*nextMissionObjectiveId) != route.script19FightObjective)
+                    throw std::runtime_error("Invalid Script 19 interlude handoff.");
+                route.script19Interlude.dialogue = resolveDialogue(script19InterludeDialogue);
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
