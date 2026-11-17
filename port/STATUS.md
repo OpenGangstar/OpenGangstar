@@ -426,12 +426,16 @@ mission playthroughs for discovery or verification.
   delay. The second fight hands off to the retail Cooper departure
   scene and seats the player in the protected Cooper. The drive objective
   marks the destination in the city and on the minimap. The destination
-  requires the Cooper and triggers the player's exit. The automated
-  fixture checks both fights, the cutscenes, and the vehicle gate. The
-  delivery finale, passenger seating, and parallel script 21 race remain
-  open, along with retail payment presentation and audio, unaffordable
-  repair feedback, scripted look cues, NPC weapon attacks, NPC and
-  vehicle AI, and Loco's seated model.
+  requires the Cooper and triggers the player's exit, then fades to
+  the delivery finale. The finale clears car protection, plays the
+  retail scenes and dialogue, removes the Cooper, and awards the
+  mission payout once. Completion saves the script 31 handoff at El Toro.
+  Continue restores the new entrance, title, and van introduction.
+  Automated fixtures verify the Cooper gate, payout, and restored entrance.
+  Van acquisition and the rest of script 31, passenger seating, and the
+  parallel script 21 race remain open, along with retail payment presentation
+  and audio, unaffordable repair feedback, scripted look cues, NPC weapon
+  attacks, NPC and vehicle AI, and Loco's seated model.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from
