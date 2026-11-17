@@ -1112,7 +1112,8 @@ bool citySurfaceVisible(const CitySurface& surface, const CityOpening& opening, 
                 return cue->visible;
         }
         const auto& next = opening.payphone->postFight.nextCheckpoint;
-        if (playback.nextMissionVehicleActive && next && actor.name == next->targetVehicle) return true;
+        if (playback.nextMissionVehicleActive && next && actor.name == next->targetVehicle)
+            return !playback.openingMissionsPaid[1];
         const auto* placement = cityPayphonePlacement(*opening.payphone,
             actor.name, *payphoneMs);
         return placement && placement->visible;
@@ -1444,11 +1445,11 @@ bool CityPlayback::canEnterShop(const CityCheckpoint& entrance) const
     return std::sqrt(dot(offset, offset)) < entrance.radius;
 }
 
-bool CityPlayback::creditOpeningMission(int32_t reward)
+bool CityPlayback::creditOpeningMission(size_t mission, int32_t reward)
 {
-    if (openingMissionPaid || reward < 0) return false;
+    if (mission >= openingMissionsPaid.size() || openingMissionsPaid[mission] || reward < 0) return false;
     playerCash += std::min(reward, INT32_MAX - playerCash);
-    openingMissionPaid = true;
+    openingMissionsPaid[mission] = true;
     return true;
 }
 
@@ -1477,7 +1478,8 @@ void CityPlayback::damagePlayer(int32_t amount, bool bypassArmor)
 CityDoorSounds CityPlayback::drive(const CityOpening& opening, const CityTerrain& terrain,
                                   std::array<float, 2> input, double deltaMs, bool interact)
 {
-    if (!opening.vehicleActor || !opening.checkpoint || !player) return {};
+    if (!opening.vehicleActor || !opening.checkpoint || !player ||
+        (nextMissionVehicleActive && openingMissionsPaid[1])) return {};
     const auto& actor = opening.actors[*opening.vehicleActor];
     if (!vehicle) {
         auto location = actor.position;

@@ -2315,6 +2315,9 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 scene.followCameraMs = time;
             } else if (opcode == 21 || opcode == 22 || opcode == 24) {
                 placements.emplace_back(time, readActorPlacement(command, opcode));
+            } else if (opcode == 23 && stopOpcode == 67) {
+                placements.emplace_back(time, CityScriptActorPlacement{
+                    CityScriptActorAction::disable, readScriptObject(command), {}});
             } else if ((opcode == 25 || opcode == 26) && motions) {
                 motions->push_back({time, command.string(), command.string(), opcode == 26});
                 command.finish();

@@ -304,7 +304,7 @@ struct CityPlayback {
     int32_t playerHealth = playerMaxHealth;
     int32_t playerArmor = 0;
     int32_t playerCash = 0;
-    bool openingMissionPaid = false;
+    std::array<bool, 2> openingMissionsPaid{};
     int32_t payphoneOpponentHealth = 100;
     double payphoneDefeatMs = 0;
     bool payphoneDisablePending = false;
@@ -330,7 +330,7 @@ struct CityPlayback {
     void walk(const CityOpening& opening, const CityTerrain& terrain,
               std::array<float, 2> input, double deltaMs);
     bool canEnterShop(const CityCheckpoint& entrance) const;
-    bool creditOpeningMission(int32_t reward);
+    bool creditOpeningMission(size_t mission, int32_t reward);
     bool buyShopService(CityShopService service, uint32_t price);
     void damagePlayer(int32_t amount, bool bypassArmor = false);
     CityDoorSounds drive(const CityOpening& opening, const CityTerrain& terrain,

@@ -289,8 +289,11 @@ mission playthroughs for discovery or verification.
   waits for the player to reenter it, then marks the retail drive checkpoint
   at LC. Arrival fades out and waits for the scripted exit before starting
   LC's closing cameras, dialogue, audio, gestures, and actor movements.
-  Walking cues use straight-line motion. Final cleanup, mission completion,
-  and activation of script 25 remain open.
+  Walking cues use straight-line motion. The Hummer is hidden at its retail
+  disable cue and removed from live playback when the scene ends. MissionOver
+  awards the retail $100 once, updates progress, and presents the localized
+  completion objective, reward animation, and audio. Script 25 activation
+  and persistence after this handoff remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

@@ -1669,9 +1669,18 @@ void poseRetailDoor(const std::filesystem::path& root)
             objectiveIn.front().image.bgra == objectiveOut.back().image.bgra &&
             objectiveIn.front().image.bgra != objectiveIn.back().image.bgra,
             "Retail mission objective opening and closing artwork changed.");
-    require(shopVisitor.creditOpeningMission(opening.missionTitle->cashReward) &&
-            !shopVisitor.creditOpeningMission(opening.missionTitle->cashReward) && shopVisitor.playerCash == 250,
+    require(shopVisitor.creditOpeningMission(0, opening.missionTitle->cashReward) &&
+            !shopVisitor.creditOpeningMission(0, opening.missionTitle->cashReward) && shopVisitor.playerCash == 250,
             "Opening mission reward was omitted or paid twice.");
+    require(hummerRoute.title.id == 1 && hummerRoute.title.cashReward == 100 &&
+            hummerRoute.title.completionText == "FETCH LITTLE T.", "LC completion reward data changed.");
+    require(shopVisitor.creditOpeningMission(1, hummerRoute.title.cashReward) &&
+            !shopVisitor.creditOpeningMission(1, hummerRoute.title.cashReward) && shopVisitor.playerCash == 350,
+            "LC completion lost its once-only reward.");
+    require(std::any_of(lcClosing.placements.begin(), lcClosing.placements.end(), [&](const auto& placement) {
+                return placement.actor == hummerRoute.targetVehicle && !placement.visible;
+            }), "LC completion lost its Hummer cleanup.");
+    shopVisitor.playerCash = 250;
     require(!shopVisitor.canEnterShop(entrance), "Shop opened before the player spawned.");
     shopVisitor.player = CityPlayerPose{entrance.position, 0};
     require(shopVisitor.canEnterShop(entrance), "Player on foot could not enter the shop.");
