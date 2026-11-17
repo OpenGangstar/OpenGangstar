@@ -272,9 +272,12 @@ mission playthroughs for discovery or verification.
   retail yellow entrance marker and shows an adapted Shops tutorial.
   At the entrance, press E or gamepad A on foot to clear the tutorial and
   open a Windows inventory panel. It pauses gameplay and shows all eight
-  retail items with their prices and localized labels. Press E, A, or Escape
-  to resume. The entrance stays active for repeat visits. The original shop
-  layout and purchasing remain open.
+  retail items with their prices and localized labels. Enter or gamepad A
+  opens the health purchase confirmation. Confirming spends $100 to restore
+  full health if funds are available. Escape or gamepad B closes the panel.
+  The entrance stays active for repeat visits. The Windows confirmation and
+  error prompts use English. The original shop layout, armor and weapon
+  purchases, and an on-screen cash balance remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

@@ -461,6 +461,8 @@ struct CityRender {
         destroyTexture(weaponShopObjective);
         destroyTexture(weaponShopTutorial);
         destroyTexture(weaponShopInventory);
+        destroyTexture(weaponShopHealthConfirmation);
+        destroyTexture(weaponShopInsufficientCash);
         destroyTexture(failureTitle);
         destroyTexture(failurePrompt);
         destroyTexture(cinematicBars);
@@ -523,6 +525,8 @@ struct CityRender {
     CityTexture weaponShopObjective;
     CityTexture weaponShopTutorial;
     CityTexture weaponShopInventory;
+    CityTexture weaponShopHealthConfirmation;
+    CityTexture weaponShopInsufficientCash;
     uint32_t missionTitleLabelVertex = 0;
     std::optional<double> missionTitleMs;
     std::optional<double> missionRevealMs;
@@ -592,6 +596,9 @@ struct CityRender {
     bool weaponShopUnlocked = false;
     bool weaponShopTutorialVisible = false;
     bool weaponShopOpen = false;
+    bool weaponShopConfirmHealth = false;
+    bool weaponShopPurchaseDenied = false;
+    uint32_t weaponShopHealthPrice = 0;
     std::optional<double> nextMissionMarker;
     std::optional<double> payphoneGameplayMs;
     std::optional<double> payphoneRevealMs;
@@ -1006,7 +1013,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount +
-                                             hasPayphoneObjective + (next ? 5 : 0) +
+                                             hasPayphoneObjective + (next ? 7 : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
                                              failure.size() + hasFailureTitle + hasFailurePrompt +
                                              titleTextures + city.portraits.size() +
@@ -1152,11 +1159,23 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.weaponShopTutorial, rasterCaption(tutorial, true, false, 432, 68, font.family()));
             const auto menuLabels = readLocalizedStrings(assets, "menu", language);
             auto inventory = menuLabels.at(88) + "\n\n";
-            for (const auto& item : route->postFight.nextCheckpoint->weaponShopInventory)
+            const auto& items = route->postFight.nextCheckpoint->weaponShopInventory;
+            const auto health = std::find_if(items.begin(), items.end(), [](const auto& item) {
+                return item.category == 73 && item.index == 2;
+            });
+            if (health == items.end()) throw std::runtime_error("Missing retail health purchase.");
+            city.weaponShopHealthPrice = health->price;
+            for (const auto& item : items)
                 inventory += item.label + "   $" + std::to_string(item.price) + "\n";
-            inventory += "\nE / A";
+            inventory += "\nEnter / A: Buy health    Esc / B: Close";
             upload(city.weaponShopInventory, rasterCaption({0, 0, {}, inventory},
                                                            true, false, 320, 256, font.family()));
+            const auto confirmation = health->label + "   $" + std::to_string(health->price) +
+                "\n\nEnter / A: Confirm    Esc / B: Cancel";
+            upload(city.weaponShopHealthConfirmation, rasterCaption({0, 0, {}, confirmation},
+                                                                    true, false, 320, 256, font.family()));
+            upload(city.weaponShopInsufficientCash, rasterCaption(
+                {0, 0, {}, "Insufficient cash\n\nEnter / A or Esc / B: Back"}, true, false, 320, 256, font.family()));
         }
         for (size_t i = 0; i < payphoneCount; ++i) {
             const auto& line = (*payphoneLines)[i];
@@ -1983,8 +2002,11 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                        {0, 0, 1, 0}, {0, 0, 0, 1}}};
         overlay(city.textures.at("").descriptor, arrow, city.routeArrowVertex, 3);
     }
-    if (city.weaponShopOpen)
-        overlay(city.weaponShopInventory.descriptor, screen, city.weaponShopInventoryVertex, 6);
+    if (city.weaponShopOpen) {
+        const auto& panel = city.weaponShopPurchaseDenied ? city.weaponShopInsufficientCash :
+            city.weaponShopConfirmHealth ? city.weaponShopHealthConfirmation : city.weaponShopInventory;
+        overlay(panel.descriptor, screen, city.weaponShopInventoryVertex, 6);
+    }
     VK_CALL(vkCmdEndRenderPass)(vk.command);
     finishFrame(vk, index, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
     return drewVehicleMarker;
@@ -2123,7 +2145,22 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             bool skip = touch->takeCutsceneSkip();
             const bool interact = touch->takeVehiclePress();
             if (cityRender->weaponShopOpen) {
-                cityRender->weaponShopOpen = !(interact || skip);
+                const auto navigation = touch->takeMenuNavigation();
+                touch->clearMenuPointerEvents();
+                if (cityRender->weaponShopPurchaseDenied) {
+                    if (navigation.accept || navigation.back)
+                        cityRender->weaponShopPurchaseDenied = false;
+                } else if (cityRender->weaponShopConfirmHealth) {
+                    if (navigation.back || navigation.accept) cityRender->weaponShopConfirmHealth = false;
+                    if (navigation.accept && !navigation.back)
+                        cityRender->weaponShopPurchaseDenied =
+                            !playback.buyShopHealth(cityRender->weaponShopHealthPrice);
+                } else if (navigation.back || interact || skip) {
+                    cityRender->weaponShopOpen = false;
+                    touch->stopMenuPointer();
+                } else if (navigation.accept) {
+                    cityRender->weaponShopConfirmHealth = true;
+                }
                 touch->takeTargetLockPress();
                 touch->takePunchPress();
                 touch->takeRadioStep();
@@ -2378,8 +2415,10 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     ? &*cityRender->opening.payphone->postFight.nextCheckpoint->weaponShopEntranceMarker
                     : nullptr;
                 const bool enterShop = interact && shopEntrance && playback.canEnterShop(*shopEntrance);
-                if (enterShop && !cityRender->nextMissionScript)
+                if (enterShop && !cityRender->nextMissionScript) {
                     cityRender->weaponShopOpen = true;
+                    touch->startMenuPointer();
+                }
                 const auto previousJump = playback.longestJumpMeters;
                 const auto previousRamps = playback.visitedJumpRamps;
                 const auto previousSpeed = playback.highestVehicleSpeedKmh;
@@ -2427,6 +2466,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->nextMissionScript.reset();
                         if (cityRender->weaponShopUnlocked) {
                             cityRender->weaponShopOpen = true;
+                            touch->startMenuPointer();
                         } else if (!cityRender->weaponShopApproach) {
                             if (next.fadeMs) cityRender->nextMissionFadeMs = 0;
                             else {
@@ -3103,11 +3143,18 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 render.weaponShopTutorialVisible = true;
                 presentCity(render, info.imageExtent);
                 std::cout << "Submitted the retail weapon shop entrance and tutorial through Vulkan.\n" << std::flush;
-                if (!render.weaponShopInventory.descriptor)
-                    throw std::runtime_error("Weapon shop inventory smoke frame did not prepare the price list.");
+                if (!render.weaponShopInventory.descriptor || !render.weaponShopHealthConfirmation.descriptor ||
+                    !render.weaponShopInsufficientCash.descriptor)
+                    throw std::runtime_error("Weapon shop smoke frame did not prepare all shop panels.");
                 render.weaponShopTutorialVisible = false;
                 render.weaponShopOpen = true;
                 presentCity(render, info.imageExtent);
+                render.weaponShopConfirmHealth = true;
+                presentCity(render, info.imageExtent);
+                render.weaponShopConfirmHealth = false;
+                render.weaponShopPurchaseDenied = true;
+                presentCity(render, info.imageExtent);
+                render.weaponShopPurchaseDenied = false;
                 render.weaponShopOpen = false;
                 std::cout << "Submitted the weapon shop inventory through Vulkan.\n" << std::flush;
                 render.payphoneGameplayMs.reset();

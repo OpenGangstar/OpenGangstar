@@ -326,6 +326,7 @@ struct CityPlayback {
               std::array<float, 2> input, double deltaMs);
     bool canEnterShop(const CityCheckpoint& entrance) const;
     bool creditOpeningMission(int32_t reward);
+    bool buyShopHealth(uint32_t price);
     CityDoorSounds drive(const CityOpening& opening, const CityTerrain& terrain,
                          std::array<float, 2> input, double deltaMs, bool interact);
     void orbitCamera(const CityOpening& opening, std::array<float, 2> drag, double deltaMs);

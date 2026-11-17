@@ -1614,6 +1614,14 @@ void poseRetailDoor(const std::filesystem::path& root)
         require(shopInventory[i].price == shopPrices[i] && !shopInventory[i].label.empty(),
                 "Weapon shop item lost its retail price or localized label.");
     }
+    shopVisitor.playerHealth = 35;
+    const auto healthPrice = shopInventory.front().price;
+    require(shopVisitor.buyShopHealth(healthPrice) && shopVisitor.playerHealth == CityPlayback::playerMaxHealth &&
+            shopVisitor.playerCash == 150, "Retail health purchase did not restore health and charge $100.");
+    shopVisitor.playerCash = 99;
+    shopVisitor.playerHealth = 35;
+    require(!shopVisitor.buyShopHealth(healthPrice) && shopVisitor.playerCash == 99 &&
+            shopVisitor.playerHealth == 35, "An unaffordable purchase changed player state.");
     require(shopScene.cameras.size() == 2 && shopScene.cameras.front().startMs == 1000 &&
             shopScene.dialogue.size() == 1 && shopScene.dialogue.front().startMs == 2500 &&
             shopScene.followCameraMs == 3000 && shopScene.durationMs == 3250 &&

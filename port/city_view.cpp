@@ -1450,6 +1450,14 @@ bool CityPlayback::creditOpeningMission(int32_t reward)
     return true;
 }
 
+bool CityPlayback::buyShopHealth(uint32_t price)
+{
+    if (playerHealth <= 0 || playerCash < 0 || price > static_cast<uint32_t>(playerCash)) return false;
+    playerHealth = playerMaxHealth;
+    playerCash -= static_cast<int32_t>(price);
+    return true;
+}
+
 CityDoorSounds CityPlayback::drive(const CityOpening& opening, const CityTerrain& terrain,
                                   std::array<float, 2> input, double deltaMs, bool interact)
 {
