@@ -1589,6 +1589,13 @@ void poseRetailDoor(const std::filesystem::path& root)
             decodeCityShopLock({77, hummerRoute.weaponShopUnlock}) == enterShop.object &&
             decodeCityScriptTutorial({47, hummerRoute.weaponShopTutorialCommand}).title == 0x3072,
             "Weapon shop unlock did not resolve the retail entrance checkpoint and tutorial.");
+    const auto& shopInventory = hummerRoute.weaponShopInventory;
+    require(shopInventory.size() == 8, "Weapon shop inventory lost retail rows.");
+    const std::array<uint32_t, 8> shopPrices{100, 200, 250, 750, 1000, 1500, 2500, 5000};
+    for (size_t i = 0; i < shopInventory.size(); ++i) {
+        require(shopInventory[i].price == shopPrices[i] && !shopInventory[i].label.empty(),
+                "Weapon shop item lost its retail price or localized label.");
+    }
     require(shopScene.cameras.size() == 2 && shopScene.cameras.front().startMs == 1000 &&
             shopScene.dialogue.size() == 1 && shopScene.dialogue.front().startMs == 2500 &&
             shopScene.followCameraMs == 3000 && shopScene.durationMs == 3250 &&

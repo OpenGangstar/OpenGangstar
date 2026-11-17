@@ -2837,6 +2837,17 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 route.weaponShopTutorialCommand = shopTutorial.remainingBytes();
                 const auto shopHelp = readScriptTutorial(shopTutorial);
                 route.weaponShopTutorial = {0, 0, label(shopHelp.title), label(shopHelp.text)};
+                // MenuManager::s_WeaponShopData in the supported retail library.
+                route.weaponShopInventory = {
+                    {100, 73, 2, 0x3045, "health", 0, label(0x3045)},
+                    {200, 73, 1, 0x3046, "vest", 1, label(0x3046)},
+                    {250, 163, 1, 0x303f, "beretta", 0, label(0x303f)},
+                    {750, 163, 5, 0x3040, "uzi", 0, label(0x3040)},
+                    {1000, 163, 4, 0x3041, "shotgun", 0, label(0x3041)},
+                    {1500, 163, 3, 0x3042, "ak47", 1, label(0x3042)},
+                    {2500, 163, 8, 0x3043, "sniper", 1, label(0x3043)},
+                    {5000, 163, 7, 0x3044, "rpg", 1, label(0x3044)},
+                };
                 auto unlockShop = next.record();
                 auto blink = next.record();
                 auto enterShop = next.record();

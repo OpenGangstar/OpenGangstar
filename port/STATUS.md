@@ -270,8 +270,9 @@ mission playthroughs for discovery or verification.
   enables the retail approach arrow and minimap marker until its
   WaitCheckpoint is satisfied. The live UnlockShop command enables the
   retail yellow entrance marker and shows an adapted Shops tutorial.
-  Reaching the entrance clears the tutorial. The store menu and purchasing
-  are still open.
+  Reaching the entrance clears the tutorial. The port reproduces all eight
+  rows of the retail weapon shop inventory, including prices and localized
+  labels. Menu interaction and purchasing remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   formal mission completion and persistence, the remainder of script 18,

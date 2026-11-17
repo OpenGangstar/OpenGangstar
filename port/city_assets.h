@@ -400,6 +400,12 @@ struct CityMissionCinematic {
 };
 
 struct CityPostFightScene : CityMissionCinematic {
+    struct WeaponShopItem {
+        uint32_t price, category, index, labelId;
+        std::string_view key;
+        uint32_t flags;
+        std::string label;
+    };
     std::optional<uint32_t> unlockedScript;
     struct MissionCheckpoint {
         CityCheckpoint marker;
@@ -429,6 +435,7 @@ struct CityPostFightScene : CityMissionCinematic {
         std::vector<uint8_t> weaponShopTutorialCommand;
         std::vector<uint8_t> weaponShopEntranceWait;
         CityDialogue weaponShopTutorial{};
+        std::vector<WeaponShopItem> weaponShopInventory;
         std::optional<std::array<CityVehicleCharacterClips, 2>> vehicleCharacterClips;
         std::optional<CityAnimationClip> vehicleSeated;
     };
