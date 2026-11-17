@@ -2205,7 +2205,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<NamedMove> shopMoves;
     std::vector<NamedMove> lcClosingMoves;
     std::vector<NamedMove> postLcMoves;
-    std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves, postLcFightIntroMoves, locoNextMoves, locoCooperMoves, cooperNextMoves, cooperArrivalMoves;
+    std::vector<NamedMove> postLcAmbushMoves, postLcConfrontationMoves, postLcPhoneMoves, postLcFightIntroMoves, locoNextMoves, locoCooperMoves, cooperNextMoves, cooperArrivalMoves, cooperClosingMoves, brawlNextMoves;
     std::vector<CityFade> payphoneFades;
     struct ActorPlacement {
         std::string marker;
@@ -2227,7 +2227,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<AnimationCommand> pierAnimations;
     std::vector<AnimationCommand> lcClosingAnimations;
     std::vector<AnimationCommand> postLcAnimations;
-    std::vector<AnimationCommand> postLcAmbushAnimations, postLcConfrontationAnimations, postLcPhoneAnimations, postLcFightIntroAnimations, locoNextAnimations, cooperNextAnimations, cooperArrivalAnimations;
+    std::vector<AnimationCommand> postLcAmbushAnimations, postLcConfrontationAnimations, postLcPhoneAnimations, postLcFightIntroAnimations, locoNextAnimations, cooperNextAnimations, cooperArrivalAnimations, cooperClosingAnimations, brawlNextAnimations;
     struct MotionCommand {
         uint32_t time;
         std::string actor;
@@ -2268,7 +2268,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<DialogueCommand> shopDialogue;
     std::vector<DialogueCommand> lcClosingDialogue;
     std::vector<DialogueCommand> postLcDialogue;
-    std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue, cooperNextDialogue, cooperArrivalDialogue;
+    std::vector<DialogueCommand> postLcAmbushDialogue, postLcConfrontationDialogue, postLcPhoneDialogue, postLcFightIntroDialogue, locoNextDialogue, locoCooperDialogue, cooperNextDialogue, cooperArrivalDialogue, cooperClosingDialogue, brawlNextDialogue;
     std::vector<CityAudioCue> payphoneAudio;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> payphonePlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postFightPlacements;
@@ -2277,7 +2277,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> shopPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> lcClosingPlacements;
     std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcPlacements;
-    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements, cooperNextPlacements, cooperArrivalPlacements;
+    std::vector<std::pair<uint32_t, CityScriptActorPlacement>> postLcAmbushPlacements, postLcConfrontationPlacements, postLcPhonePlacements, postLcFightIntroPlacements, locoNextPlacements, locoCooperPlacements, cooperNextPlacements, cooperArrivalPlacements, cooperClosingPlacements, brawlNextPlacements;
     struct TutorialCommand {
         uint32_t startMs;
         uint32_t title;
@@ -3284,6 +3284,43 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                     if (expected != 85 && expected != 23) command.finish();
                     route.cooperFightCommands.emplace_back(expected, std::move(payload));
                 }
+                previousCinematicShot.clear();
+                readCinematic(readCinematic, cooperNext, cooperNextLength, 0, route.cooperNextClosing,
+                              cooperClosingMoves, cooperClosingDialogue, cooperClosingPlacements, &cooperClosingAnimations,
+                              nullptr, nullptr, 67);
+                route.cooperNextClosing.dialogue = resolveDialogue(cooperClosingDialogue);
+                auto unlockBrawlNext = cooperNext.record();
+                if (unlockBrawlNext.integer() != 3) throw std::runtime_error("Missing retail C2M501 mission handoff.");
+                route.brawlUnlockedScript = unlockBrawlNext.integer();
+                unlockBrawlNext.finish();
+                auto closingAudio = cooperNext.record();
+                if (closingAudio.integer() != 63) throw std::runtime_error("Missing retail C2M501 closing audio cue.");
+                route.cooperNextClosing.audio.push_back(readAudioCommand(closingAudio, 63, route.cooperNextClosing.durationMs));
+
+                auto brawlNext = scripts.script(*route.brawlUnlockedScript);
+                const auto brawlNextLength = brawlNext.integer();
+                auto brawlGate = brawlNext.record();
+                auto brawlFade = brawlNext.record();
+                auto brawlStart = brawlNext.record();
+                if (brawlNextLength < 3 || brawlGate.integer() != 64 || brawlFade.integer() != 42 ||
+                    brawlStart.integer() != 65)
+                    throw std::runtime_error("Invalid retail mission entrance after C2M501.");
+                route.brawlNextCheckpointWait = brawlGate.remainingBytes();
+                if (readCheckpointCommand(brawlGate, 64).object != route.marker.name)
+                    throw std::runtime_error("Retail mission entrance after C2M501 changed location.");
+                route.brawlNextFadeMs = readFadeCommand(brawlFade, 42, 0).durationMs;
+                route.brawlNextTitle = missionTitle(brawlStart.integer());
+                brawlStart.finish();
+                previousCinematicShot.clear();
+                nextMissionObjectiveId.reset();
+                route.brawlNextIntro.fades.push_back({0, 0, false});
+                readCinematic(readCinematic, brawlNext, brawlNextLength - 3, 0, route.brawlNextIntro, brawlNextMoves,
+                              brawlNextDialogue, brawlNextPlacements, &brawlNextAnimations, nullptr, nullptr, 66);
+                route.brawlNextIntro.dialogue = resolveDialogue(brawlNextDialogue);
+                if (!nextMissionObjectiveId || (*nextMissionObjectiveId >> 12 & 0xf) != 4 ||
+                    (*nextMissionObjectiveId & 0xfff) >= chapterText.size())
+                    throw std::runtime_error("Invalid retail script 28 objective.");
+                route.brawlNextObjective = chapterText[*nextMissionObjectiveId & 0xfff];
             }
             opening.payphone->postFight = std::move(postFight);
             // WeaponManager::createWeapon maps unarmed weapon type 0 to metatype 50.
@@ -3331,6 +3368,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 resolvePlacements(locoCooperPlacements, next->locoCooperIntro.placements);
                 resolvePlacements(cooperNextPlacements, next->cooperNextIntro.placements);
                 resolvePlacements(cooperArrivalPlacements, next->cooperNextArrival.placements);
+                resolvePlacements(cooperClosingPlacements, next->cooperNextClosing.placements);
+                resolvePlacements(brawlNextPlacements, next->brawlNextIntro.placements);
             }
         }
     }
@@ -3599,6 +3638,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 loadCinematicActors(next.locoCooperIntro);
                 loadCinematicActors(next.cooperNextIntro);
                 loadCinematicActors(next.cooperNextArrival);
+                loadCinematicActors(next.cooperNextClosing);
+                loadCinematicActors(next.brawlNextIntro);
                 const auto prepareFightActor = [&](std::string_view name) {
                     const auto actor = findCinematicActor(name);
                     if (actor == opening.actors.end()) throw std::runtime_error("Missing retail fight actor.");
@@ -3653,6 +3694,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindCinematic(next->locoNextIntro, locoNextAnimations);
                 bindCinematic(next->cooperNextIntro, cooperNextAnimations);
                 bindCinematic(next->cooperNextArrival, cooperArrivalAnimations);
+                bindCinematic(next->cooperNextClosing, cooperClosingAnimations);
+                bindCinematic(next->brawlNextIntro, brawlNextAnimations);
                 const auto bindInitialIdle = [&](CityMissionCinematic& scene) {
                     for (const auto& cue : scene.placements) {
                         if (!cue.visible || cue.actor == next->targetVehicle) continue;
@@ -3669,6 +3712,8 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                 bindInitialIdle(next->locoNextIntro);
                 bindInitialIdle(next->cooperNextIntro);
                 bindInitialIdle(next->cooperNextArrival);
+                bindInitialIdle(next->cooperNextClosing);
+                bindInitialIdle(next->brawlNextIntro);
                 for (const auto& cue : next->weaponShopCinematic.placements) {
                     if (!cue.visible || cue.actor == next->targetVehicle) continue;
                     const auto actor = findCinematicActor(cue.actor);
@@ -3828,6 +3873,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                         for (const auto& move : cooperArrivalMoves)
                             next->cooperNextArrival.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : cooperClosingMoves)
+                            next->cooperNextClosing.cameras.push_back(
+                                {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
+                        for (const auto& move : brawlNextMoves)
+                            next->brawlNextIntro.cameras.push_back(
                                 {shots.at(move.first), shots.at(move.second), move.startMs, move.durationMs});
                     }
                 }

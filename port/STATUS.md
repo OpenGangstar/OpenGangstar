@@ -369,8 +369,13 @@ mission playthroughs for discovery or verification.
   uses lock-on melee and retaliation after damage. The script clears
   the tags only after all three opponents are defeated, queues offscreen
   removal, and honors the 3-second wait. Automated checks cover the
-  multi-target gate and delay. The closing cutscene, retail NPC and
-  vehicle AI, and Loco's seated model remain open.
+  multi-target gate and delay. The closing cutscene then plays the
+  authored LC dialogue, camera, gestures, and fades. MissionOver awards
+  $400 once and saves the script 28 handoff. Continue restores the LC
+  checkpoint, which now starts script 28's retail title, opening scene,
+  and first localized objective. Automated smoke covers the live payout
+  and a separate script 28 save fixture. The basketball checkpoint,
+  retail NPC and vehicle AI, and Loco's seated model remain open.
   Sparse high-seat animation channels hold their nearest
   in-range key at clip boundaries.
   Script 17's MissionOver credits the opening mission's $250 from

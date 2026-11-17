@@ -364,6 +364,15 @@ void verifySaveDirectory()
         postCooper->completedScripts.front().script != windowsPostCooperCheckpointScript ||
         postCooper->statUpdates.front().second != 4 || read() != encodeRetailSave(sampled))
         throw std::runtime_error("The Cooper checkpoint did not preserve the payout and next mission.");
+    checkpoint.cash = 1250;
+    checkpoint.completedScripts = {{windowsPostBrawlCheckpointScript, -1}};
+    checkpoint.statUpdates = {{49, 5}};
+    writeWindowsOpeningCheckpoint(files, checkpoint);
+    const auto postBrawl = readWindowsOpeningCheckpoint(files);
+    if (!postBrawl || postBrawl->cash != 1250 ||
+        postBrawl->completedScripts.front().script != windowsPostBrawlCheckpointScript ||
+        postBrawl->statUpdates.front().second != 5 || read() != encodeRetailSave(sampled))
+        throw std::runtime_error("The C2M501 checkpoint did not preserve the payout and next mission.");
 
     if (files.openSavedFile("../retail/Gangstar2.sav") || files.openSavefile("../retail/Gangstar2.sav"))
         throw std::runtime_error("A save filename escaped the save directory.");

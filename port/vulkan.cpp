@@ -468,6 +468,7 @@ struct CityRender {
         destroyTexture(locoCooperObjective);
         destroyTexture(cooperNextDriveObjective);
         destroyTexture(cooperNextFightObjective);
+        destroyTexture(brawlNextObjective);
         destroyTexture(weaponShopTutorial);
         for (const auto& texture : weaponShopInventory) destroyTexture(texture);
         for (const auto& texture : weaponShopConfirmation) destroyTexture(texture);
@@ -536,7 +537,7 @@ struct CityRender {
     struct MissionTitleRender : HudAnimation {
         CityTexture label;
     };
-    std::array<MissionTitleRender, 5> missionTitles;
+    std::array<MissionTitleRender, 6> missionTitles;
     size_t missionTitleIndex = 0;
     std::optional<double> nextMissionFadeMs;
     CityTexture payphoneObjective;
@@ -551,6 +552,8 @@ struct CityRender {
     std::optional<RetailScriptExecution> postLcFightScript;
     CityTexture locoNextObjective, locoCooperObjective, cooperNextDriveObjective, cooperNextFightObjective;
     std::optional<RetailScriptExecution> cooperBrawlScript;
+    CityTexture brawlNextObjective;
+    bool brawlNextIntroFinished = false;
     bool locoCooperPending = false;
     std::optional<CityVehiclePose> locoCooper;
     std::optional<RetailScriptExecution> locoCooperScript;
@@ -589,13 +592,13 @@ struct CityRender {
     uint32_t missionTitleLabelVertex = 0;
     std::optional<double> missionTitleMs;
     std::optional<double> missionRevealMs;
-    std::array<CityTexture, 4> missionCompleteObjectives;
+    std::array<CityTexture, 5> missionCompleteObjectives;
     std::array<HudAnimation, 2> missionObjectiveAnimations;
     uint32_t missionCompleteObjectiveVertex = 0;
     std::vector<CityTexture> missionRewardFrames;
     std::vector<uint32_t> missionRewardFrameEnds;
     std::optional<double> missionRewardMs;
-    std::array<CityTexture, 4> missionRewardCash;
+    std::array<CityTexture, 5> missionRewardCash;
     size_t missionRewardIndex = 0;
     static constexpr double missionCompleteMessageMs = 3000;
     double hudAnimationMs(const std::vector<uint32_t>& frameEnds) const
@@ -1084,6 +1087,16 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* cooperArrivalLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->cooperNextArrival.dialogue : nullptr;
     const auto cooperArrivalLineCount = cooperArrivalLines ? cooperArrivalLines->size() : 0;
+    const auto* cooperClosingLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->cooperNextClosing.dialogue : nullptr;
+    const auto cooperClosingLineCount = cooperClosingLines ? cooperClosingLines->size() : 0;
+    const auto* brawlNextLines = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
+        ? &city.opening.payphone->postFight.nextCheckpoint->brawlNextIntro.dialogue : nullptr;
+    const auto brawlNextLineCount = brawlNextLines ? brawlNextLines->size() : 0;
+    for (const auto* lines : {cooperClosingLines, brawlNextLines})
+        if (lines)
+            for (const auto& dialogue : *lines)
+                if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
     if (cooperArrivalLines)
         for (const auto& dialogue : *cooperArrivalLines)
             if (dialogue.portrait >= 0) city.portraits.try_emplace(dialogue.portrait);
@@ -1137,12 +1150,13 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     const auto* next = city.opening.payphone && city.opening.payphone->postFight.nextCheckpoint
         ? &city.opening.payphone->postFight.nextCheckpoint->title : nullptr;
     const auto* nextMission = next ? &*city.opening.payphone->postFight.nextCheckpoint : nullptr;
-    const std::array<const CityMissionTitle*, 5> titles{
+    const std::array<const CityMissionTitle*, 6> titles{
         city.opening.missionTitle ? &*city.opening.missionTitle : nullptr, next,
         nextMission && nextMission->postLcTitle ? &*nextMission->postLcTitle : nullptr,
         nextMission && nextMission->locoNextTitle ? &*nextMission->locoNextTitle : nullptr,
-        nextMission && nextMission->cooperNextTitle ? &*nextMission->cooperNextTitle : nullptr};
-    std::array<std::vector<RetailSpriteRasterStep>, 5> titleFrames;
+        nextMission && nextMission->cooperNextTitle ? &*nextMission->cooperNextTitle : nullptr,
+        nextMission && nextMission->brawlNextTitle ? &*nextMission->brawlNextTitle : nullptr};
+    std::array<std::vector<RetailSpriteRasterStep>, 6> titleFrames;
     size_t titleTextures = 0;
     for (size_t i = 0; i < titles.size(); ++i) {
         const auto* title = titles[i];
@@ -1182,8 +1196,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
-                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount +
-                                             hasPayphoneObjective + (next ? 19 : 0) +
+                                             shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount +
+                                             hasPayphoneObjective + (next ? 20 : 0) +
                                              (statusHud ? statusHud->gauges.size() * statusHud->gauges.front().layers.size() +
                                                           statusHud->cashGlyphs.size() + statusHud->spyLayers.size() : 0) +
                                              (hasBars ? 1 : 0) + (city.startup ? 1 : 0) +
@@ -1349,7 +1363,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         upload(city.cinematicSkip, image);
     }
     city.captions.resize(dialogues + tutorialCount + payphoneCount + postFightCount + missionLineCount +
-                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount);
+                         pierLineCount + shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount);
     for (auto& [portrait, texture] : city.portraits)
         upload(texture, rasterRetailDialoguePortrait(assets, portrait));
     for (size_t i = 0; i < dialogues; ++i) {
@@ -1397,6 +1411,8 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                    rasterCaption({0, 0, {}, next.cooperNextDriveObjective}, true, false, 432, 68, font.family()));
             upload(city.cooperNextFightObjective,
                    rasterCaption({0, 0, {}, next.cooperNextFightObjective}, true, false, 432, 68, font.family()));
+            upload(city.brawlNextObjective,
+                   rasterCaption({0, 0, {}, next.brawlNextObjective}, true, false, 432, 68, font.family()));
             auto tutorial = route->postFight.nextCheckpoint->weaponShopTutorial;
             tutorial.text = "Walk to the yellow marker and press E or gamepad A to enter.";
             upload(city.weaponShopTutorial, rasterCaption(tutorial, true, false, 432, 68, font.family()));
@@ -1440,7 +1456,9 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             upload(city.captions[dialogues + tutorialCount + payphoneCount + postFightCount + i],
                    rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
         }
-        const auto cooperArrivalBase = city.captions.size() - cooperArrivalLineCount;
+        const auto brawlNextBase = city.captions.size() - brawlNextLineCount;
+        const auto cooperClosingBase = brawlNextBase - cooperClosingLineCount;
+        const auto cooperArrivalBase = cooperClosingBase - cooperArrivalLineCount;
         const auto cooperNextBase = cooperArrivalBase - cooperNextLineCount;
         const auto cooperBase = cooperNextBase - cooperLineCount;
         const auto locoNextBase = cooperBase - locoNextLineCount;
@@ -1480,6 +1498,16 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                 upload(city.captions[postLcBase + i],
                        rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
             }
+            const auto uploadSceneCaptions = [&](const CityMissionCinematic& scene, size_t base) {
+                city.missionCaptionBases.emplace(&scene, base);
+                for (size_t i = 0; i < scene.dialogue.size(); ++i) {
+                    const auto& line = scene.dialogue[i];
+                    upload(city.captions[base + i],
+                           rasterCaption(line, false, false, line.portrait >= 0 ? 352 : 432, 68, font.family()));
+                }
+            };
+            uploadSceneCaptions(nextMission->brawlNextIntro, brawlNextBase);
+            uploadSceneCaptions(nextMission->cooperNextClosing, cooperClosingBase);
             city.missionCaptionBases.emplace(&nextMission->cooperNextArrival, cooperArrivalBase);
             for (size_t i = 0; i < cooperArrivalLineCount; ++i) {
                 const auto& line = (*cooperArrivalLines)[i];
@@ -1795,7 +1823,8 @@ void activatePostLcCheckpoint(CityRender& city)
     city.nextMissionMarker = city.payphoneGameplayMs.value_or(0);
     city.weaponShopUnlocked = true;
     const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
-    const auto& wait = city.playback.openingMissionsPaid[3] ? route.cooperNextCheckpointWait :
+    const auto& wait = city.playback.openingMissionsPaid[4] ? route.brawlNextCheckpointWait :
+        city.playback.openingMissionsPaid[3] ? route.cooperNextCheckpointWait :
         city.playback.openingMissionsPaid[2] ? route.locoNextCheckpointWait : route.postLcCheckpointWait;
     auto& script = city.nextMissionScript.emplace(CityScriptProgram{{{64, wait}}});
     script.unlock(0, 0, 0);
@@ -1861,7 +1890,8 @@ void restoreOpeningCheckpoint(CityRender& city, const RetailSavedState& checkpoi
     const auto& next = *route.postFight.nextCheckpoint;
     const auto script = checkpoint.completedScripts.empty() ? windowsOpeningCheckpointScript :
         checkpoint.completedScripts.front().script;
-    const bool postCooper = script == windowsPostCooperCheckpointScript;
+    const bool postBrawl = script == windowsPostBrawlCheckpointScript;
+    const bool postCooper = postBrawl || script == windowsPostCooperCheckpointScript;
     const bool postLoco = postCooper || script == windowsPostLocoCheckpointScript;
     const bool postLc = postLoco || script == windowsPostLcCheckpointScript;
     if (postLc && next.lcUnlockedScript != windowsPostLcCheckpointScript)
@@ -1870,7 +1900,9 @@ void restoreOpeningCheckpoint(CityRender& city, const RetailSavedState& checkpoi
         throw std::runtime_error("This game data does not contain the saved Loco handoff.");
     if (postCooper && next.cooperUnlockedScript != windowsPostCooperCheckpointScript)
         throw std::runtime_error("This game data does not contain the saved Cooper handoff.");
-    const auto& placements = postLoco ? next.postLcFightIntro.placements :
+    if (postBrawl && next.brawlUnlockedScript != windowsPostBrawlCheckpointScript)
+        throw std::runtime_error("This game data does not contain the saved C2M501 handoff.");
+    const auto& placements = postBrawl ? next.cooperNextClosing.placements : postLoco ? next.postLcFightIntro.placements :
         postLc ? next.lcClosingCinematic.placements : route.postFight.placements;
     const auto player = std::find_if(placements.rbegin(), placements.rend(), [](const auto& cue) {
         return cue.actor == "Player" && cue.visible;
@@ -1899,6 +1931,7 @@ void restoreOpeningCheckpoint(CityRender& city, const RetailSavedState& checkpoi
         playback.openingMissionsPaid[1] = true;
         playback.openingMissionsPaid[2] = postLoco;
         playback.openingMissionsPaid[3] = postCooper;
+        playback.openingMissionsPaid[4] = postBrawl;
         playback.nextMissionVehicleActive = true;
         playback.nextMissionVehicleAcquired = true;
         activatePostLcCheckpoint(city);
@@ -2029,6 +2062,7 @@ void activateNextMissionVehicle(CityRender& city)
 uint32_t nextMissionFadeDuration(const CityRender& city)
 {
     const auto& route = *city.opening.payphone->postFight.nextCheckpoint;
+    if (city.missionTitleIndex == 5) return route.brawlNextFadeMs;
     if (city.missionTitleIndex == 4) return route.cooperNextFadeMs;
     if (city.missionTitleIndex == 3) return route.locoNextFadeMs;
     return city.missionTitleIndex == 2 ? route.postLcFadeMs : route.fadeMs;
@@ -2681,6 +2715,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         else if (city.returningToLc && city.hummerRouteScript)
             overlay(city.returnToLcObjectives[city.hummerRouteMarker ? 1 : 0].descriptor,
                     screen, city.captionVertex, 6);
+        else if (city.brawlNextIntroFinished && city.brawlNextObjective.descriptor)
+            overlay(city.brawlNextObjective.descriptor, screen, city.captionVertex, 6);
         else if (city.cooperBrawlScript && city.cooperNextFightObjective.descriptor)
             overlay(city.cooperNextFightObjective.descriptor, screen, city.captionVertex, 6);
         else if (cooperNextDrive && city.hummerRouteMarker && city.cooperNextDriveObjective.descriptor)
@@ -3002,7 +3038,9 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     cityRender->missionTitleMs.reset();
                     if (cityRender->missionTitleIndex != 0) {
                         const auto& next = *cityRender->opening.payphone->postFight.nextCheckpoint;
-                        if (cityRender->missionTitleIndex >= 3) {
+                        if (cityRender->missionTitleIndex == 5) {
+                            cityRender->activeMissionCinematic = &next.brawlNextIntro;
+                        } else if (cityRender->missionTitleIndex >= 3) {
                             const auto& scene = cityRender->missionTitleIndex == 4 ? next.cooperNextIntro : next.locoNextIntro;
                             cityRender->activeMissionCinematic = &scene;
                             cityRender->hummerRemovalPending = cityRender->hummerRemovalReady = false;
@@ -3274,6 +3312,16 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         const auto& wait = handoff.nextCheckpoint->postLcWalkWaits[2];
                         auto& script = cityRender->postLcWalkScript.emplace(CityScriptProgram{{{64, wait}}});
                         script.unlock(0, 0, 0);
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextClosing) {
+                        const auto& route = *handoff.nextCheckpoint;
+                        completeOpeningMission(*cityRender, 4, *route.cooperNextTitle);
+                        playback.missionConditions.clear();
+                        if (route.brawlUnlockedScript == windowsPostBrawlCheckpointScript) {
+                            activatePostLcCheckpoint(*cityRender);
+                            if (!smokeTest) saveOpeningCheckpoint(*cityRender, *assets, windowsPostBrawlCheckpointScript);
+                        }
+                    } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->brawlNextIntro) {
+                        cityRender->brawlNextIntroFinished = true;
                     } else if (handoff.nextCheckpoint && &scene == &handoff.nextCheckpoint->cooperNextArrival) {
                         playback.locoOpponents.clear();
                         playback.locoLockTarget.reset();
@@ -3321,7 +3369,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
             const bool walking = movement && playback.elapsedMs >= *movement && !cityRender->terrain.ground.empty();
             const bool occupied = playback.vehicle && playback.vehicle->occupied;
             const bool scriptedArrival = cityRender->returnToLcFadeMs || cityRender->locoCooperPending ||
-                hummerArrivalFadeDuration(*cityRender) != 0;
+                hummerArrivalFadeDuration(*cityRender) != 0 ||
+                (cityRender->missionTitleIndex == 4 && cityRender->pendingHummerCinematic);
             const auto input = scriptedArrival ? std::array<float, 2>{} : touch->movement(occupied);
             if (walking && !playback.missionFailure && !cinematic && !postFight &&
                 !cityRender->nextMissionFadeMs && !(cityRender->missionTitleIndex != 0 && cityRender->missionTitleMs)) {
@@ -3447,7 +3496,12 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     auto& script = *cityRender->cooperBrawlScript;
                     script.execute(0, static_cast<int32_t>(std::clamp(delta, 0., 1000.)), 0,
                                    [](const auto&, int32_t) { return false; }, [] {}, [] {}, false, nullptr, {}, &fight);
-                    if (script.state(0) == RetailScriptState::locked) cityRender->cooperBrawlScript.reset();
+                    if (script.state(0) == RetailScriptState::locked) {
+                        cityRender->cooperBrawlScript.reset();
+                        playback.scriptedVehicleExit = playback.vehicle && playback.vehicle->occupied;
+                        cityRender->pendingHummerCinematic =
+                            &cityRender->opening.payphone->postFight.nextCheckpoint->cooperNextClosing;
+                    }
                 }
                 if (cityRender->locoCooperScript && playback.player && cityRender->locoCooper) {
                     const auto& route = *cityRender->opening.payphone->postFight.nextCheckpoint;
@@ -3516,7 +3570,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     if (script.state(0) == RetailScriptState::locked) {
                         cityRender->nextMissionScript.reset();
                         if (postLc) {
-                            cityRender->missionTitleIndex = playback.openingMissionsPaid[3] ? 4 :
+                            cityRender->missionTitleIndex = playback.openingMissionsPaid[4] ? 5 :
+                                playback.openingMissionsPaid[3] ? 4 :
                                 playback.openingMissionsPaid[2] ? 3 : 2;
                             if (nextMissionFadeDuration(*cityRender)) cityRender->nextMissionFadeMs = 0;
                             else cityRender->missionTitleMs = 0;
@@ -4101,10 +4156,12 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         cityRender->achievements->stat(49) != savedAchievements->stat(49))
                         throw std::runtime_error("Continue did not restore the saved player, stats, and next objective.");
                     const auto script = checkpoint->completedScripts.front().script;
-                    const bool postCooper = script == windowsPostCooperCheckpointScript;
+                    const bool postBrawl = script == windowsPostBrawlCheckpointScript;
+                    const bool postCooper = postBrawl || script == windowsPostCooperCheckpointScript;
                     const bool postLoco = postCooper || script == windowsPostLocoCheckpointScript;
                     const bool postLc = postLoco || script == windowsPostLcCheckpointScript;
-                    if (cityRender->playback.openingMissionsPaid[3] != postCooper ||
+                    if (cityRender->playback.openingMissionsPaid[4] != postBrawl ||
+                        cityRender->playback.openingMissionsPaid[3] != postCooper ||
                         cityRender->playback.openingMissionsPaid[2] != postLoco ||
                         cityRender->playback.openingMissionsPaid[1] != postLc ||
                         (postLc && (cityRender->playback.vehicle || !cityRender->weaponShopUnlocked)))
@@ -4319,7 +4376,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                             (render.achievements && render.achievements->stat(49) != 4))
                             throw std::runtime_error("Script 26 did not pay the retail escape reward once.");
                     }
-                    if (postLc) {
+                    if (postLc && !postBrawl) {
                         auto& render = *cityRender;
                         auto& playback = render.playback;
                         const auto& route = *render.opening.payphone->postFight.nextCheckpoint;
@@ -4390,6 +4447,37 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                         if (!render.cooperBrawlScript) throw std::runtime_error("Script 27 fight wait ended too early.");
                         update(1);
                         if (render.cooperBrawlScript) throw std::runtime_error("Script 27 fight did not finish its retail wait.");
+                        const auto cashBeforeClosing = playback.playerCash;
+                        update(0);
+                        if (render.activeMissionCinematic != &route.cooperNextClosing || !render.postFightCinematic ||
+                            playback.playerCash != cashBeforeClosing)
+                            throw std::runtime_error("Script 27 did not start its closing cinematic after the fight.");
+                        for (int step = 0; step < 96 && render.postFightCinematic; ++step) update(250, true);
+                        update(0);
+                        if (render.postFightCinematic || !playback.openingMissionsPaid[4] ||
+                            playback.playerCash != cashBeforeClosing + 400 ||
+                            !render.missionRewardCash[4].descriptor || !render.missionCompleteObjectives[4].descriptor ||
+                            !render.missionRewardMs || render.missionRewardIndex != 4 || !render.nextMissionMarker ||
+                            (render.achievements && render.achievements->stat(49) != 5))
+                            throw std::runtime_error("Script 27 did not award its retail payout once and hand off to script 28.");
+                    }
+                    if (postLc) {
+                        auto& render = *cityRender;
+                        auto& playback = render.playback;
+                        const auto& route = *render.opening.payphone->postFight.nextCheckpoint;
+                        playback.player->position = route.marker.position;
+                        update(0);
+                        if (render.missionTitleIndex != 5 || !render.nextMissionFadeMs)
+                            throw std::runtime_error("Script 28 did not start at the retail LC checkpoint.");
+                        update(route.brawlNextFadeMs);
+                        if (!render.missionTitleMs || !render.missionTitles[5].label.descriptor)
+                            throw std::runtime_error("Script 28 did not present its retail title.");
+                        update(4000);
+                        if (render.activeMissionCinematic != &route.brawlNextIntro || !render.postFightCinematic)
+                            throw std::runtime_error("Script 28 did not play its opening scene.");
+                        for (int step = 0; step < 96 && render.postFightCinematic; ++step) update(250, true);
+                        if (render.postFightCinematic || !render.brawlNextIntroFinished || !render.brawlNextObjective.descriptor)
+                            throw std::runtime_error("Script 28 did not hand off its first objective.");
                     }
                     std::cout << "Activated Continue from the main menu and restored the saved objective through Vulkan.\n"
                               << std::flush;

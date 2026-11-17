@@ -494,6 +494,13 @@ struct CityPostFightScene : CityMissionCinematic {
         uint32_t cooperNextArrivalFadeMs = 0;
         CityMissionCinematic cooperNextArrival;
         std::string cooperNextFightObjective;
+        CityMissionCinematic cooperNextClosing;
+        std::optional<uint32_t> brawlUnlockedScript;
+        std::vector<uint8_t> brawlNextCheckpointWait;
+        uint32_t brawlNextFadeMs = 0;
+        std::optional<CityMissionTitle> brawlNextTitle;
+        CityMissionCinematic brawlNextIntro;
+        std::string brawlNextObjective;
         std::vector<std::string> cooperFightTargets;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperFightCommands;
         std::vector<std::pair<uint32_t, std::vector<uint8_t>>> cooperNextDriveCommands;

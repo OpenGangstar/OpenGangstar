@@ -1710,6 +1710,15 @@ void poseRetailDoor(const std::filesystem::path& root)
             hummerRoute.cooperNextDriveCheckpoint && hummerRoute.cooperNextDriveCheckpoint->name == "CheckpointDrive_C2M501" &&
             markerDraw.cooperNextDriveFirstSurface && !markerDraw.checkpointMeshes[13].empty(),
             "Retail script 27 lost its title, opening, or protected drive checkpoint.");
+    const auto& closing = hummerRoute.cooperNextClosing;
+    require(hummerRoute.cooperNextTitle->cashReward == 400 && hummerRoute.brawlUnlockedScript == 28 &&
+            closing.cameras.size() == 2 && closing.dialogue.size() == 2 && closing.followCameraMs &&
+            closing.audio.back().action == CityAudioAction::stop,
+            "Retail C2M501 closing cues, payout, or script 28 link changed.");
+    require(hummerRoute.brawlNextFadeMs == 400 && hummerRoute.brawlNextTitle &&
+            hummerRoute.brawlNextTitle->id == 12 && hummerRoute.brawlNextIntro.cameras.size() == 2 &&
+            hummerRoute.brawlNextIntro.dialogue.size() == 1 && !hummerRoute.brawlNextObjective.empty(),
+            "Retail script 28 entrance or objective changed.");
     const auto& arrival = hummerRoute.cooperNextArrival;
     require(hummerRoute.cooperNextArrivalFadeMs == 300 && arrival.cameras.size() == 4 &&
             arrival.dialogue.size() == 4 && arrival.motions.size() == 3 && arrival.followCameraMs &&
