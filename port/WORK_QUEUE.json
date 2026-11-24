@@ -20,9 +20,9 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-083",
+      "assignment": "OG-088",
       "status": "IN_PROGRESS",
-      "baseline": "3e55d55"
+      "baseline": "3b9bf01"
     },
     {
       "slot": 2,
@@ -30,15 +30,15 @@
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
       "assignment": "OG-087",
       "status": "IN_PROGRESS",
-      "baseline": "90e3eeb"
+      "baseline": "3b9bf01"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-086",
+      "assignment": "OG-089",
       "status": "IN_PROGRESS",
-      "baseline": "3e55d55"
+      "baseline": "3b9bf01"
     }
   ],
   "unavailable_worker": {
@@ -2217,8 +2217,8 @@
         "OG-063"
       ],
       "blockers": [
-        "Retained scene/pose/global graph primitives, material state/prepared rendering and CPU deformation cores merged or under final review. Full original outer player/world/VM actor host remains unimplemented.",
-        "Real software process ownership074, live collision075 and actor-instance material ownership076 are active prerequisites; deformed renderer submission, target/facing, full scene pool policy and ordered outer host remain required."
+        "Verified scene/pose/graph/material/palette/CPU/process/livecollision/target-facing primitives are available; full retained canonical player/entity/weapon/target/pool and ordered world/VM host remain unimplemented.",
+        "Genuine Character factory/bind host087, resource current-stream sharing088 and morph current targets/runtime state089 active. Nested vehicle factory and dynamic Vulkan submission remain required."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -3796,11 +3796,16 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "3e55d55",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Actual original nonzero default factories execute for all supplied21morph->skin resources, exact source/weights/buffer/material identities.",
         "Precise next native owner reservation/resource plan, no product/original edits."
+      ],
+      "independent_validation": [
+        "Root freshly reproduced all21models/two fresh original instances in shared loaded BRES with actual finalizers:42constructions,63 paired buffers, separate resources/materials/weights/palettes, shared loaded source arrays.",
+        "Root original prefix reproduces observable private runtime base99to0.75 write; other instance/authored weights unchanged.",
+        "Root wider raw inventory359BRES/1877meshes has zero shared data pointers or overlapping interleaved vertex spans across geometries. Native factory/target-current/base-weight composition remains required."
       ]
     },
     {
@@ -3938,18 +3943,28 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "3e55d55",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original direct threshold/getter ordering and copied quaternion controls reproduced independently.",
         "Release/Debug focused and retail nonzero factory cases; distinguish leaf domain from missing full entity owner.",
         "Full-width callbacks/pointers; reuse normalization and actual post-position implementation."
+      ],
+      "submission": {
+        "patch": "../OpenGangstar-workers/worker-3/port/build/OG-086.patch",
+        "sha256": "1f55c41b42c8f549c4af856cd6436839c4778c3c7984c05194b7d148f0fa2031"
+      },
+      "independent_validation": [
+        "Root reviewed exact predicate/wrapper against084original and intervening074/082; reuse normalization and072readback, no turn or body Step.",
+        "Full Release/Debug builds and45CTest/config pass; new test AMD64PE32+.",
+        "Root freshly replayed actual original getters/normalizer/predicate/Player/NPC wrappers/Character post-position:20exact native event/state rows and120floatwords/config across actual Player/jail graphs.",
+        "Native real body readback, target lease lifetime/knownNULL/expired distinction, failed second lookup, fresh replacement, ignored false predicate and copied live quaternion pass. Real canonical entity manager/target producers remain040."
       ]
     },
     {
       "id": "OG-087",
       "description": "Compose the genuine Character plain animation factory, retained mutable timeline and bound pose lifecycle.",
-      "scope": "Design/research only until independent082integration and shared API/resource reservation. No empty host or detached-clock substitution; preserve actual24track/source order, first-timeline retention and release behavior.",
+      "scope": "Genuine Character SceneHost composition, sole actual optional Timeline member on Pose, narrow explicit bound-pose transfer preserving original bind-before-register order, real graph/material/library/node operations. General animator updateTime/event dispatch stays explicitly unported/unexposed, not substituted.",
       "symbols": [
         "Character::bindAnimation0x2f2516",
         "static plain animator factory0x298069",
@@ -3958,7 +3973,16 @@
         "Character animation shared cleanup0x2f14c1"
       ],
       "resources": [
-        "port/build/OG-087-* (worker-2 ignored research only)"
+        "port/retail_actor_animation_host.h",
+        "port/retail_actor_animation_host.cpp",
+        "port/tests/retail_actor_animation_host.cpp",
+        "port/ACTOR_ANIMATION_HOST.md",
+        "port/retail_actor_scene.h",
+        "port/retail_actor_scene.cpp",
+        "port/retail_actor_graph.h",
+        "port/retail_actor_graph.cpp",
+        "port/retail_actor_pose.h",
+        "port/retail_actor_pose.cpp"
       ],
       "priority": 1,
       "complexity": "high",
@@ -3969,17 +3993,84 @@
         "OG-082",
         "OG-085"
       ],
-      "blockers": [
-        "Original bind precedes shadow extraction; current blanket animator-bound transfer rejection requires narrow lifetime-safe implementation and API/resource review."
-      ],
+      "blockers": [],
       "assigned_agent": "/root/worker_2",
-      "baseline": "90e3eeb",
+      "baseline": "3b9bf01",
       "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
         "Reuse original080completed nonzero scenes and whole bind traces.",
         "One authoritative timeline/pose/material/graph state; demonstrate lifetimes, first timeline retain, subsequent local drops and shared cleanup.",
         "Public production host must implement real owned operations, not no-op callbacks."
+      ]
+    },
+    {
+      "id": "OG-088",
+      "description": "Implement canonical loaded actor-resource current streams shared across fresh instances.",
+      "scope": "One explicit loaded-resource identity owns actual mutable current position/normal storage per exact source geometry. Same loaded handle shares current arrays; separately created loads remain explicit even with common immutable metadata. No peractor copies, name-based/global cache, source immutable writes or replacement materials.",
+      "symbols": [
+        "DefaultFactory ordinary CColladaMeshBuffer loaded source array binding0x2a18e8..0x2a1942",
+        "RetailActorLoadedResource create/source/currentStreams API"
+      ],
+      "resources": [
+        "port/retail_actor_resource.h",
+        "port/retail_actor_resource.cpp",
+        "port/tests/retail_actor_resource.cpp",
+        "port/ACTOR_RESOURCE.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-074",
+        "OG-083"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "3b9bf01",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual loaded metadata identity and lifetime retained; repeated requests and fresh actors/target roles share same source array handles.",
+        "All359BRES/1877geometry decoded initial position/normal bits and source-format flags preserved; no geometry data-span overlaps confirmed.",
+        "Same-load mutation sharing and separate-load isolation, foreign same-name geometry rejection, actual retained owner lifetimes, Release/Debug x64 tests."
+      ]
+    },
+    {
+      "id": "OG-089",
+      "description": "Expose genuine morph runtime base-weight writes and current target streams through the single existing kernel.",
+      "scope": "Thin current-target-stream overload and one authoritative runtime entry0 base-weight in074. Existing immutable-target overloads delegate to same arithmetic core; genuine explicit target source bindings validate exact catalogue identity. No duplicate weights in ActorScene, immutable target fallback in future production binding, new sampler/math/kernel or Scene/Graph/Pose edits. Send API plan before code.",
+      "symbols": [
+        "CColladaMorphingMesh::morph0x2a56e5",
+        "Runtime base-weight writes0x2a5720..0x2a574a",
+        "RetailDeformationMesh::morph/evaluate"
+      ],
+      "resources": [
+        "port/retail_morph.h",
+        "port/retail_morph.cpp",
+        "port/retail_deformation.h",
+        "port/retail_deformation.cpp",
+        "port/tests/retail_morph.cpp",
+        "port/tests/retail_deformation.cpp",
+        "port/MORPH.md",
+        "port/DEFORMATION.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-058",
+        "OG-070",
+        "OG-074",
+        "OG-083"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "3b9bf01",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Legacy morph/kernel/deformation numerical snapshots unchanged in Release/Debug.",
+        "Fresh original runtime entry0 state updates and source-current target mutations match exact original events/float words.",
+        "Current target source exact indexed geometry, lifetime, sharing, foreign same-name rejection; no duplicate owner or target parser."
       ]
     }
   ],
@@ -3996,7 +4087,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after078:2969original tracked sizes/SHA256 unchanged vs pre-migration baseline; originalsubmodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and userlocaledits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full Release/Debug44CTests/config after082timeline and074deformation. Original114timelineupdates/213getters and56deformation snapshots/config exact. Production actor animation host087 and source-sharing/nested factory083 remain active prerequisites."
+    "native_integration": "2026-11-25: Full Release/Debug45CTest/config after086targetpredicate/PlayerNPCpostscenewrappers. Original20trace/state rows+120floatwords/config exact.074deformation/082timeline and083source-sharing independent proofs passed.087/088/089 active genuine host/resource prerequisites."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
