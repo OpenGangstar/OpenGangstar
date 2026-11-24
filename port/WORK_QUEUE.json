@@ -21,7 +21,7 @@
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
       "assignment": "OG-009",
-      "status": "IN_PROGRESS",
+      "status": "NEEDS_REVISION",
       "baseline": "89e4015"
     },
     {
@@ -29,15 +29,15 @@
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
       "assignment": "OG-013",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "baseline": "f5723dd"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-014",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "f5723dd"
     }
   ],
@@ -601,7 +601,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "89e4015",
-      "status": "IN_PROGRESS",
+      "status": "NEEDS_REVISION",
       "validation": [
         "Original selector precedence and fixed-width BRES fields; independent1366-material counts and concrete hospital/fire/health-crate fixtures.",
         "Layer0-only game alpha-reference override after actual instance material resolution.",
@@ -610,7 +610,15 @@
         "x64 build, relevant native/retail tests and automated Vulkan smoke; preserve missing-asset failures.",
         "Actual GPU readback proof for modes0/13/14/15/25 and strict-order comparator invariants; document allocation-hash/exact-distance ordering deviations."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-009.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-009-report.md",
+        "worker_validation": "11GPUreadbacks,5CTest,retailfixtures andsmoke pass on assignmentbaseline; independent source review in progress."
+      },
+      "review_requests": [
+        "Resolve effects by vector index directly; name-keyed map still collapses indexed identities and is unnecessary.",
+        "Verify material+12 null-target guard against original postload/prepare behavior before retaining obsolete URL-dependent skipping."
+      ]
     },
     {
       "id": "OG-011",
@@ -779,14 +787,18 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "f5723dd",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "validation": [
         "Original fullfilterbranch/field evidence; native typed metadata and genuine64-bit owner identities.",
         "Allzero/mask/group/absentmetadata cases in both shape orders, exact interval touching, rooted actor intervals, stored bounds and strict rectangle edges.",
         "Vehicle state and four-height surfaces; confirm exact transform column for velocity dot and test positive/nonpositive jump dispatch.",
         "Meaningful actualBox2D integration tests in Release/Debug plus all existing gates and smoke; no custom filter completeness claim if branches unresolved."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-013.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-013-report.md",
+        "worker_validation": "FullReleasebuild,7CTests,Debugphysics2tests,Vulkanstartupsmoke,PE64checks pass; productionbinding remains incomplete."
+      }
     },
     {
       "id": "OG-014",
@@ -821,14 +833,28 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "f5723dd",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Exact source-derived search order, original buffer/triangle identity, neighbor/marker/cache state, plane math and sentinel handling.",
         "Full edge eligibility/width/body construction rules or explicit untraced boundaries.",
         "Specify executable native data contract and independent asset/synthetic acceptance cases; no invented terrain adapter.",
         "Original ARM remains read-only; no manual progression or unsupported matching/runtime claims."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-014.patch",
+        "files": [
+          "port/HEIGHT_SEARCH.md"
+        ],
+        "implementation": false,
+        "limits": "Mixed reseed continuation,degeneratefloat/markerwrap/recursivecornercases,jumpmathandcapacityhazards need dedicated implementation proof."
+      },
+      "reservations_active": false,
+      "independent_validation": [
+        "Reviewed full ordinary search, phase-specific overlap bounds, state mutation, cliff geometry and explicit exception boundaries.",
+        "Independent original ZIP bytecounts/SHA256 confirm exact navigation and heightmap fixtures cited.",
+        "Original identities match existing native CityNavigation buffer/indexOffset/lane/overlap representations.",
+        "Documentation-only change; no native algorithm or runtime/matching completion claim."
+      ]
     }
   ],
   "orchestrator_resources": [
