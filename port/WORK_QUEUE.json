@@ -30,7 +30,7 @@
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
       "assignment": "OG-092",
       "status": "IN_PROGRESS",
-      "baseline": "cf7d176"
+      "baseline": "031a24e7c0e9e9befb1ddbade1fa0d9bc421223e"
     },
     {
       "slot": 3,
@@ -4191,7 +4191,7 @@
     {
       "id": "OG-092",
       "description": "Compose genuine default nested morph/skin actor resources and their actual deformation process owners.",
-      "scope": "Actual Scene-owned morph/base/target resource graph, supplied canonical loaded handle and shared089morphstate, separate Scene-retaining process composition without reverse ownership. Preserve old metadata-only domain and ordinary shadow lifetime safety; no duplicate weights/palette/cache or CGameFactory CarMorph substitution.",
+      "scope": "Actual Scene-owned morph/base/target resource graph, supplied canonical loaded handle and shared089morphstate, separate Scene-retaining process composition without reverse ownership. Preserve old metadata-only domain and ordinary shadow lifetime safety; no duplicate weights/palette/cache or CGameFactory CarMorph substitution. Actual supplied088loaded Scene constructor, intrinsic ordinary stream retention, canonical089MorphState/base/targets, separate weak-associated process pipeline and exact actual-resource guards. Default deferred path only; no CarMorph eager/damage substitution.",
       "symbols": [
         "DefaultFactory::createMorph0x29d27d/createSkin0x29d061",
         "CColladaMorphingMesh::instanciateMesh0x2a5b4d",
@@ -4199,7 +4199,17 @@
         "RetailDeformationMesh::source/skin exact constructed dependency guards"
       ],
       "resources": [
-        "port/build/OG-092-* (worker-2 ignored design/research only)"
+        "port/retail_actor_scene.h",
+        "port/retail_actor_scene.cpp",
+        "port/retail_deformation.h",
+        "port/retail_deformation.cpp",
+        "port/retail_actor_deformation.h",
+        "port/retail_actor_deformation.cpp",
+        "port/tests/retail_actor_deformation.cpp",
+        "port/ACTOR_DEFORMATION.md",
+        "port/ACTOR_SCENE.md",
+        "port/DEFORMATION.md",
+        "port/ACTOR_RESOURCE.md"
       ],
       "priority": 1,
       "complexity": "high",
@@ -4209,11 +4219,9 @@
         "OG-088",
         "OG-089"
       ],
-      "blockers": [
-        "087independent verification/integration pending; only ignored092design/research may be written until root advances verified implementation baseline and reserves shared files."
-      ],
+      "blockers": [],
       "assigned_agent": "/root/worker_2",
-      "baseline": "cf7d176",
+      "baseline": "031a24e7c0e9e9befb1ddbade1fa0d9bc421223e",
       "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
@@ -4288,11 +4296,12 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "cf7d176",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original category/type/clip/ammo/animation branches and call order, getter/callback mutations and signed boundaries; exact native R/D later.",
-        "Use canonical091weapon/ammo/sound and existing animation requests, no second weapon/clock/parser or fabricated manager."
+        "Use canonical091weapon/ammo/sound and existing animation requests, no second weapon/clock/parser or fabricated manager.",
+        "Root independently rebuilt Release and Debug: all51CTest cases/config pass; genuine AMD64 PE32+ reload binaries; fresh original replay exactly matches4408 native event/state traces/config. Logs: port/build/reviews/OG-094."
       ]
     },
     {
