@@ -167,6 +167,125 @@ void verifyScriptChapterCommands()
             "Cinema skip skipped a nonblocking HUD or chapter command.");
 }
 
+void verifyActorMovement()
+{
+    using Action = CityScriptActorMovement::Action;
+    constexpr std::array<uint32_t, 4> opcodes{25, 26, 34, 35};
+    constexpr std::array actions{Action::walkTo, Action::runTo, Action::runPath, Action::walkPath};
+    const std::vector<uint8_t> names{0, 0, 0, 1, 'P', 0, 0, 0, 1, 'Q'};
+    const std::vector<uint8_t> terminated{0, 0, 0, 2, 'P', 0, 0, 0, 0, 2, 'Q', 0};
+    auto trailing = names;
+    trailing.push_back(0);
+    const std::vector<std::vector<uint8_t>> malformed{
+        {}, {0, 0, 0}, {0, 0, 0, 2, 'P'}, {0, 0, 0, 1, 'P'},
+        {0, 0, 0, 1, 'P', 0, 0, 0, 2, 'Q'},
+        {0, 0, 0, 0, 0, 0, 0, 1, 'Q'}, {0, 0, 0, 1, 'P', 0, 0, 0, 0},
+        {0, 0, 0, 3, 'P', 0, 'X', 0, 0, 0, 1, 'Q'},
+        {0, 0, 0, 1, 'P', 0, 0, 0, 3, 'Q', 0, 'X'}, trailing
+    };
+    for (size_t i = 0; i < opcodes.size(); ++i) {
+        for (const auto& payload : {names, terminated}) {
+            const auto cue = decodeCityScriptActorMovement({opcodes[i], payload});
+            require(cue.action == actions[i] && cue.actor == "P" && cue.target == "Q",
+                    "Actor movement reversed its names, changed string framing, or selected the wrong action.");
+        }
+        for (const auto& payload : malformed) {
+            bool rejected = false;
+            try { decodeCityScriptActorMovement({opcodes[i], payload}); }
+            catch (const std::runtime_error&) { rejected = true; }
+            require(rejected, "Actor movement accepted an empty name or malformed payload.");
+        }
+    }
+    for (const uint32_t opcode : {24u, 33u, 36u}) {
+        bool rejected = false;
+        try { decodeCityScriptActorMovement({opcode, names}); }
+        catch (const std::runtime_error&) { rejected = true; }
+        require(rejected, "Actor movement accepted a different original command opcode.");
+    }
+
+    RetailScriptExecution scripts({{{25, names}, {5, {0, 0, 0, 1, 'P'}},
+                                    {26, names}, {35, names}, {34, names}}});
+    std::vector<Action> moved;
+    unsigned relocated = 0, refreshed = 0, saved = 0;
+    bool moving = true;
+    RetailMissionHooks mission;
+    mission.actorMove = [&](const CityScriptActorMovement& cue) {
+        require(cue.actor == "P" && cue.target == "Q", "Actor movement dispatched different object names.");
+        moved.push_back(cue.action);
+    };
+    mission.placeActor = [&](const CityScriptActorPlacement& cue) {
+        require(cue.action == CityScriptActorAction::moveTo && cue.actor == "P" && cue.marker == "Q" && moved.empty(),
+                "Skipped movement did not use moveObject placement before the following paths.");
+        ++relocated;
+    };
+    mission.objectMotion = [&](std::string_view actor) {
+        require(actor == "P", "Movement completion queried a different actor.");
+        return RetailScriptObjectMotion{1, moving ? 2u : 1u, 0, true};
+    };
+    const auto step = [&](bool skip = false) {
+        scripts.execute(0, 16, 0, [](const auto&, int32_t) -> bool {
+            throw std::runtime_error("Bound actor movement reached the fallback dispatcher.");
+        }, [&] { ++refreshed; }, [&] { ++saved; }, skip, nullptr, {}, &mission);
+    };
+    scripts.unlock(0, 0, 0);
+    step();
+    step();
+    require(moved == std::vector{Action::walkTo} && relocated == 0 && refreshed == 1 && saved == 0,
+            "Movement was replayed while StopObject blocked or a later command ran early.");
+    moving = false;
+    step();
+    require(moved == std::vector{Action::walkTo, Action::runTo, Action::walkPath, Action::runPath} &&
+            relocated == 0 && refreshed == 5 && saved == 1 && scripts.state(0) == RetailScriptState::locked,
+            "Actor movement did not resume once in original command order.");
+    moved.clear();
+    refreshed = saved = 0;
+    moving = true;
+    scripts.unlock(0, 0, 0);
+    step(true);
+    require(moved == std::vector{Action::walkPath, Action::runPath} && relocated == 2 &&
+            moving && refreshed == 5 && saved == 1,
+            "Skipping destination movement must relocate, while both path commands must still run.");
+
+    for (const auto opcode : opcodes) {
+        for (const bool skip : {false, true}) {
+            const bool relocate = skip && (opcode == 25 || opcode == 26);
+            RetailMissionHooks host;
+            const auto unrelated = [] { throw std::runtime_error("Movement used an unrelated host hook."); };
+            if (relocate) host.actorMove = [&](const auto&) { unrelated(); };
+            else host.placeActor = [&](const auto&) { unrelated(); };
+            RetailScriptExecution unbound({{{opcode, names}}});
+            unsigned dispatched = 0, applied = 0, saves = 0;
+            unbound.unlock(0, 0, 0);
+            const auto tick = [&] {
+                unbound.execute(0, 16, 0, [&](const auto& command, int32_t) {
+                    require(command.opcode == opcode && command.payload == names,
+                            "Unbound actor movement changed the fallback command.");
+                    ++dispatched;
+                    return false;
+                }, [] {}, [&] { ++saves; }, skip, nullptr, {}, &host);
+            };
+            tick();
+            require(dispatched == 1 && saves == 0 && unbound.state(0) == RetailScriptState::active,
+                    "An unrelated hook silently consumed actor movement without its required binding.");
+            if (relocate) host.placeActor = [&](const auto&) { ++applied; };
+            else host.actorMove = [&](const auto&) { ++applied; };
+            tick();
+            require(dispatched == 1 && applied == 1 && saves == 1 && unbound.state(0) == RetailScriptState::locked,
+                    "Actor movement did not resume after its missing host binding became available.");
+        }
+    }
+
+    RetailScriptExecution malformedScript({{{25, trailing}}});
+    malformedScript.unlock(0, 0, 0);
+    bool rejected = false;
+    try {
+        malformedScript.execute(0, 16, 0, [](const auto&, int32_t) { return false; },
+                                [] {}, [] {}, false, nullptr, {}, &mission);
+    } catch (const std::runtime_error&) { rejected = true; }
+    require(rejected && moved == std::vector{Action::walkPath, Action::runPath} && relocated == 2,
+            "Malformed movement changed native host state before payload validation.");
+}
+
 void verifyStopObject()
 {
     for (const bool player : {false, true}) {
@@ -1064,7 +1183,19 @@ void poseRetailDoor(const std::filesystem::path& root)
 {
     ResourceFileSystem assets(root);
     const auto inventory = auditCityScripts(assets);
-    RetailScriptExecution scripts(loadCityScriptProgram(assets));
+    const auto program = loadCityScriptProgram(assets);
+    RetailScriptExecution scripts(program);
+    std::array<size_t, 4> movementCounts{};
+    for (const auto& script : program) {
+        for (const auto& command : script) {
+            if (command.opcode != 25 && command.opcode != 26 && command.opcode != 34 && command.opcode != 35) continue;
+            const auto cue = decodeCityScriptActorMovement(command);
+            ++movementCounts.at(static_cast<size_t>(cue.action));
+        }
+    }
+    require(movementCounts == std::array<size_t, 4>{264, 161, 12, 36},
+            "Retail actor destination/path command coverage changed.");
+    std::cout << "473 retail actor movement commands validated.\n";
     using ScriptState = RetailScriptState;
     scripts.reset(0, false);
     require(inventory.chapterStarts == std::vector<uint32_t>{94, 32, 45, 48, 52, 67} &&
@@ -3802,6 +3933,7 @@ int wmain(int argc, wchar_t** argv)
         verifyTaggedKillTargets();
         verifyScriptExecution();
         verifyScriptChapterCommands();
+        verifyActorMovement();
         verifyStopObject();
         verifyWaitKilled();
         verifyWaitForLock();

@@ -188,6 +188,24 @@ CityScriptActorPlacement readActorPlacement(CityDataReader& command, uint32_t op
     return placement;
 }
 
+CityScriptActorMovement readActorMovement(CityDataReader& command, uint32_t opcode)
+{
+    using Action = CityScriptActorMovement::Action;
+    Action action;
+    switch (opcode) {
+    case 25: action = Action::walkTo; break;
+    case 26: action = Action::runTo; break;
+    case 34: action = Action::runPath; break;
+    case 35: action = Action::walkPath; break;
+    default: throw std::runtime_error("Expected a retail actor movement opcode.");
+    }
+    CityScriptActorMovement movement{action, command.string(), command.string()};
+    command.finish();
+    if (movement.actor.empty() || movement.target.empty())
+        throw std::runtime_error("Empty retail actor movement object name.");
+    return movement;
+}
+
 CityScriptActorAnimation readActorAnimation(CityDataReader& command, uint32_t opcode)
 {
     CityScriptActorAnimation animation;
@@ -303,6 +321,8 @@ public:
                 if (opcode == 12 || opcode == 13) readCameraCommand(command, opcode);
                 if (opcode >= 15 && opcode <= 18) command.finish(); // Cinematic transitions.
                 if (opcode == 21 || opcode == 22 || opcode == 24) readActorPlacement(command, opcode);
+                if (opcode == 25 || opcode == 26 || opcode == 34 || opcode == 35)
+                    readActorMovement(command, opcode);
                 if (opcode == 29) readActorAttack(command);
                 if (opcode == 41 || opcode == 42) readFadeCommand(command, opcode, 0);
                 if (opcode == 43) {
@@ -2130,6 +2150,13 @@ CityScriptActorPlacement decodeCityScriptActorPlacement(const CityScriptCommand&
     return readActorPlacement(reader, command.opcode);
 }
 
+CityScriptActorMovement decodeCityScriptActorMovement(const CityScriptCommand& command)
+{
+    const std::string path = scriptMapPath;
+    CityDataReader reader(path, command.payload);
+    return readActorMovement(reader, command.opcode);
+}
+
 CityScriptActorAnimation decodeCityScriptActorAnimation(const CityScriptCommand& command)
 {
     if (command.opcode != 6 && command.opcode != 7)
@@ -2493,9 +2520,12 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
             } else if (opcode == 23 && stopOpcode == 67) {
                 placements.emplace_back(time, CityScriptActorPlacement{
                     CityScriptActorAction::disable, readScriptObject(command), {}});
-            } else if ((opcode == 25 || opcode == 26 || opcode == 34) && motions) {
-                motions->push_back({time, command.string(), command.string(), opcode != 25, opcode == 34});
-                command.finish();
+            } else if ((opcode == 25 || opcode == 26 || opcode == 34 || opcode == 35) && motions) {
+                auto movement = readActorMovement(command, opcode);
+                using Action = CityScriptActorMovement::Action;
+                const bool running = movement.action == Action::runTo || movement.action == Action::runPath;
+                const bool followsPath = movement.action == Action::runPath || movement.action == Action::walkPath;
+                motions->push_back({time, std::move(movement.actor), std::move(movement.target), running, followsPath});
             } else if (opcode == 70 && captureProtection) {
                 const auto payload = command.remainingBytes();
                 const auto protection = readMissionCondition(command, opcode);

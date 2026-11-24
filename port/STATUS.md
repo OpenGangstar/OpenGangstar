@@ -156,7 +156,15 @@ mission playthroughs for discovery or verification.
   comparison, and category-5 completion-bit polarity are preserved. Tests cover
   blocking, resume order, skip, missing bindings, malformed records, and floating
   edge cases. All 151 retail StopObject records across 41 scripts validate.
-  This command waits; it does not cancel movement. Production compiled cinematic
+  This command waits; it does not cancel movement.
+  Original actor movement commands now share a typed decoder across catalog
+  validation, compiled motion parsing and the VM. Opcodes 25/26 dispatch walk/run
+  destinations; 34/35 dispatch run/walk paths. Skipped destinations reuse the
+  existing moveTo placement hook, while skipped paths still dispatch. Tests
+  verify order around StopObject, no replay while blocked, missing-host fallback,
+  skip differences and malformed payloads. All 473 retail movement records
+  validate. Production actorMove binding and independent actor/world advancement
+  remain unresolved; this is command support, not a completed movement system. Production compiled cinematic
   timelines still ignore opcode 5 and do not yet bind the motion query.
   The live game still uses its opening timeline. Runtime dispatch for the
   remaining opcodes and behavioral parity with the retail scheduler remain

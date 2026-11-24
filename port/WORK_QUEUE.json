@@ -28,17 +28,17 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-007",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "ff9b048"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "feb6317"
+      "assignment": "OG-010",
+      "status": "IN_PROGRESS",
+      "baseline": "4d849da"
     }
   ],
   "unavailable_worker": {
@@ -341,7 +341,8 @@
         "Game, texture test and audit verified AMD64 PE32+.",
         "Source and Microsoft RLE specification review found packet alignment and bounds consistent; original malformed-input deviations documented.",
         "Intervening commits change only queue/docs, not reserved texture sources."
-      ]
+      ],
+      "integration_commit": "4d849da"
     },
     {
       "id": "OG-007",
@@ -384,14 +385,28 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "ff9b048",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Validate original actor/target string order and all4 opcode payloads.",
         "Original skip relocates only destination25/26 via ScriptManager::moveObject; path34/35 still starts NPC path/AI state.",
         "Test dispatch order, skip variants, malformed payloads and missing-host fallback.",
         "Isolated x64 build, relevant native tests and retail audit; clearly identify production world binding as unresolved."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-007.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-007-report.md",
+        "worker_validation": "Full isolated x64 build,all5CTests,retail473movement records and opening smoke pass; audit unchanged exit1.",
+        "limitations": "Production native actorMove binding and ordered cinematic execution remain unresolved."
+      },
+      "reservations_active": false,
+      "independent_validation": [
+        "Original branch and skip semantics reviewed; skipped destinations reuse existing placement instead of duplicate relocation.",
+        "Full integration x64 Release build and all5 CTests passed.",
+        "Independent raw ZIP parsing confirms473 records:25=264,26=161,34=12,35=36.",
+        "Retail collision fixture passed; full audit stdout/stderr unchanged from verified OG003.",
+        "Automated native Vulkan opening smoke returned0 with temporary assets/saves.",
+        "Intervening BMP implementation and documentation changes do not overlap submitted files."
+      ]
     },
     {
       "id": "OG-008",
@@ -432,7 +447,8 @@
       "priority": 1,
       "complexity": "high",
       "dependencies": [
-        "OG-007"
+        "OG-007",
+        "OG-010"
       ],
       "blockers": [
         "Ordered original movement dispatch must be integrated first.",
@@ -447,6 +463,60 @@
         "Original placement/reset and destination/path completion behavior with independent subsystem tests.",
         "No fabricated flags or no-op unsupported movement.",
         "Automated x64 subsystem/build/runtime validation; no manual progression."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-010",
+      "description": "Reconstruct original actor destination advancement, root motion and completion ownership to unblock native independent world movement.",
+      "scope": "Read-only original Character/PlayerTest/GS3DStuff source and binary evidence; produce exact bounded controller specification and implementation dependencies, no duration-derived synthetic flags.",
+      "symbols": [
+        {
+          "signature": "Character::setDestination(...)",
+          "address": null
+        },
+        {
+          "signature": "Character::walkToLocation(...)",
+          "address": "0x002f400d"
+        },
+        {
+          "signature": "Character::Stop()",
+          "address": "0x002f1d3d"
+        },
+        {
+          "signature": "Character::updatePosition(...)",
+          "address": "0x002f42cd"
+        },
+        {
+          "signature": "PlayerTest::walkToLocation(...)",
+          "address": "0x00301535"
+        },
+        {
+          "signature": "PlayerTest::UpdateSceneNode()",
+          "address": "0x00302685"
+        },
+        {
+          "signature": "GS3DStuff::update(...)",
+          "address": "0x002e078d"
+        }
+      ],
+      "resources": [
+        "port/ACTOR_MOVEMENT.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-001"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "4d849da",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Trace actual flag lifecycle, completion threshold, step/collision/root-motion order and clock ownership with exact addresses.",
+        "Distinguish faithfully reusable native facilities from current approximations and missing original dependencies.",
+        "Give concrete original edge cases for independent controller tests and smallest correct implementation slice.",
+        "No ARM edits or manual gameplay; do not invent unsupported completion behavior."
       ],
       "submission": null
     }

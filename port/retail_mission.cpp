@@ -307,6 +307,13 @@ void RetailScriptExecution::execute(uint32_t id, int32_t elapsedMs, int32_t play
         } else if ((command.opcode == 21 || command.opcode == 22 || command.opcode == 24) &&
                    mission && mission->placeActor) {
             mission->placeActor(decodeCityScriptActorPlacement(command));
+        } else if ((command.opcode == 25 || command.opcode == 26 || command.opcode == 34 || command.opcode == 35) &&
+                   mission && ((skipBlockingCommands && (command.opcode == 25 || command.opcode == 26))
+                       ? bool(mission->placeActor) : bool(mission->actorMove))) {
+            const auto movement = decodeCityScriptActorMovement(command);
+            if (skipBlockingCommands && (command.opcode == 25 || command.opcode == 26))
+                mission->placeActor({CityScriptActorAction::moveTo, movement.actor, movement.target});
+            else mission->actorMove(movement);
         } else if ((command.opcode == 6 || command.opcode == 7) && mission && mission->animateActor) {
             mission->animateActor(decodeCityScriptActorAnimation(command));
         } else if (command.opcode == 56 && mission && mission->showDialogue &&

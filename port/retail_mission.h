@@ -72,6 +72,9 @@ struct RetailMissionHooks {
     std::function<void(uint8_t)> setFadeOpacity;
     std::function<void(int32_t)> selectCinematicAnimation;
     std::function<void(const CityScriptActorPlacement&)> placeActor;
+    // The native world owns movement, path/AI state, and completion flags. Destination
+    // commands skipped by the script use placeActor instead; path commands still run.
+    std::function<void(const CityScriptActorMovement&)> actorMove;
     std::function<void(const CityScriptActorAnimation&)> animateActor;
     std::function<int32_t()> missionState;
     std::function<void(uint32_t, int32_t)> startMission;

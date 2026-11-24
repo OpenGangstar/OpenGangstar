@@ -868,6 +868,13 @@ struct CityScriptActorPlacement {
     std::string marker;
 };
 CityScriptActorPlacement decodeCityScriptActorPlacement(const CityScriptCommand& command);
+struct CityScriptActorMovement {
+    enum class Action { walkTo, runTo, runPath, walkPath };
+    Action action;
+    std::string actor;
+    std::string target;
+};
+CityScriptActorMovement decodeCityScriptActorMovement(const CityScriptCommand& command);
 struct CityScriptActorAnimation {
     std::string actor;
     std::string first;
