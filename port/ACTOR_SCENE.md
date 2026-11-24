@@ -212,17 +212,21 @@ SNode factories, external mesh factories, node/modular/morph/particle/force
 instances, morph resources, embedded scene animators and genuinely resolved
 lights are explicit unsupported errors. Proven ignored kinds and missing local
 light/spline NULL results remain ignored. No dummy live light or morph is added.
-The authoritative skin decoder retains its existing strict input domain; for
-example it rejects zero-influence vertices in the supplied car_limo skin. This
-Player prerequisite is not a claim that all83 skin controllers decode.
+The authoritative skin decoder supports all83 supplied controllers after OG054,
+including the original empty-influence rows in car_limo. That decoder coverage
+does not expand this actor factory's currently rejected morph-resource domain.
 
-Current source geometry exposes the genuine raw bind-pose box. Original dynamic
-skinned computeBoundingBox, CPU skin buffers, renderer upload/material/layer/color
-effects, shadow registry, manager attachment, pool/streaming/context switching and
-full actor pose/controller composition remain separate work. There is deliberately
-no fabricated dynamic skinned-box getter or complete animation scene host. The
-existing clock/catalogue/verified pose work must compose through these real live
-references and original body/frame ordering; this owner does not duplicate them.
+Current source geometry exposes the genuine raw bind-pose box. OG055/077 add the
+real dynamic skin box, shared palette/box dirty state and enabled transitions;
+OG062 binds actual retained animation targets. OG068 supplies global actor and
+independent shadow ownership, manager attachment, layer and late-frame ordering.
+OG078 supports fixed empty-node local cubes and ordinary transformed-box caches
+with the distinct original transformBoxEx algorithm; see ACTOR_BOUNDS.md.
+CPU process-buffer ownership, live material ownership/recursive mutation,
+renderer upload, complete pool/streaming/context switching and full outer actor
+host composition remain separate work. The existing clock/catalogue/verified
+pose components compose through real live references and original body/frame
+ordering; this owner does not duplicate them or claim a complete scene host.
 
 Release/Debug builds, full CTest and retail audit results are recorded in the
 submission report. No manual gameplay or mission progression was used.

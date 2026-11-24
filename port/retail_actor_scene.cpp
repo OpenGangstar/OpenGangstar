@@ -84,16 +84,22 @@ void RetailActorSceneMesh::computeBoundingBox() {
   cachedBox = computeRetailSkinBounds(live, sourceSkin->jointBoundsCm);
 }
 const RetailSkinBoundingBox &RetailActorSceneNode::boundingBox() {
-  if (!runtimeMesh)
+  if (runtimeMesh)
+    return runtimeMesh->boundingBox();
+  if (runtimeType == 0x72656164 || runtimeType == 0x6e656164)
+    return emptyNodeBox; // Real CEmptySceneNode box; no child aggregation.
+  else
     throw std::logic_error(
-        "Actor container bounds require its original aggregate-box owner.");
-  return runtimeMesh->boundingBox();
+        "Unsupported original actor node local bounding-box type.");
 }
 const RetailSkinBoundingBox &RetailActorSceneNode::transformedBoundingBox() {
-  if (runtimeType != retailSceneSkinnedMeshType)
-    throw std::logic_error("Non-skin transformed actor bounds are not "
-                           "implemented by the skin getter.");
-  return boundingBox();
+  if (runtimeType == retailSceneSkinnedMeshType)
+    return boundingBox();
+  if (flags & 0x200) {
+    transformedBox = retailSceneTransformBoxEx(cachedAbsolute, boundingBox());
+    flags &= ~0x200u;
+  }
+  return transformedBox;
 }
 RetailActorGraph *RetailActorSceneNode::sceneManager() const {
   if (manager && managerState.expired())

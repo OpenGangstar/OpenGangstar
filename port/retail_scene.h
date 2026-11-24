@@ -18,6 +18,10 @@ inline constexpr uint32_t retailSceneEmptyType = 0x79746d65;
 // affine arithmetic. Identity child multiplication must not be algebraically removed.
 RetailSceneMatrix retailSceneRelative(const CityNode&, bool omitScale = false);
 RetailSceneMatrix retailSceneMultiply(const RetailSceneMatrix&, const RetailSceneMatrix&);
+// Original transformBoxEx0x243cad: translation-first min/max contributions.
+// Distinct from skin transformBox's two opposite corners and repair ordering.
+std::array<std::array<float, 3>, 2> retailSceneTransformBoxEx(
+    const RetailSceneMatrix&, std::array<std::array<float, 3>, 2>);
 // Original quaternion::normalize0x1c8d11 and Euler set(0,0,z)0x2185c9.
 // Literal exact-one shortcut/float sum/sqrt/reciprocal; no zero-quaternion fallback.
 // These are explicit actor/jump operations, never implicit raw SNode normalization.

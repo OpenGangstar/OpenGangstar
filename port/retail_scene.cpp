@@ -13,6 +13,29 @@ float dot(const Point& a, const Point& b) {
 }
 }
 
+std::array<std::array<float, 3>, 2> retailSceneTransformBoxEx(
+    const RetailSceneMatrix& matrix, std::array<std::array<float, 3>, 2> box) {
+    for (const auto& point : box)
+        for (float value : point)
+            if (!std::isfinite(value))
+                throw std::runtime_error("Nonfinite original local bounding box.");
+    for (size_t column = 0; column < 4; ++column)
+        for (size_t axis = 0; axis < 3; ++axis)
+            if (!std::isfinite(matrix[column * 4 + axis]))
+                throw std::runtime_error("Nonfinite addressed bounding-box matrix component.");
+    std::array<std::array<float, 3>, 2> result{{
+        {matrix[12], matrix[13], matrix[14]}, {matrix[12], matrix[13], matrix[14]}}};
+    for (size_t axis = 0; axis < 3; ++axis)
+        for (size_t column = 0; column < 3; ++column) {
+            const float a = matrix[column * 4 + axis] * box[0][column];
+            const float b = matrix[column * 4 + axis] * box[1][column];
+            const bool less = a < b;
+            result[0][axis] = result[0][axis] + (less ? a : b);
+            result[1][axis] = result[1][axis] + (less ? b : a);
+        }
+    return result;
+}
+
 std::array<float, 3> retailSceneNormalizeVector(Point value) {
     // Original vector3d<float>::normalize0x20a2d1: zero is unchanged; otherwise
     // sqrtf and single-precision inverse. No unit-length/tolerance shortcut.

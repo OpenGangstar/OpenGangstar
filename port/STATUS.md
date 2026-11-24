@@ -1469,3 +1469,6 @@ Root Release/Debug4original positioning and6actual reset/gate cases match54coord
 
 
 2026-11-25 OG077: original enabled state and single dirty/cache transitions, disabled palette versus explicit/lazy bounds behavior, stable direct proxy bbox borrowing; original unflattened skin source UID retained beside resolved bind geometry. Root R/D40CTests each,27056original state/component words/config exact and all83rawsourceUIDs including21morph links match. Process-owner output36/proxy toggle effects remain074.
+
+
+2026-11-25 OG078: actual DefaultFactory container/root local cubes and ordinary-node transformed bounds cache supported. Original transformBoxEx uses translation-first min/max contributions, distinct from skin two-corner transformBox; both retained. Root R/D41CTests each;630node snapshots+21corecases19026original words/config exact. Getter uses cached absolute only and clears0x200, preserving stale-box behavior. Global manager-specific/custom node boxes and full render/collision hosting remain separate.

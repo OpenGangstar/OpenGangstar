@@ -276,7 +276,8 @@ void ownerCases() {
             "Joint world absolute already includes root transform");
     for (const auto &live : scene.nodes())
         require(!live->absoluteIdentityHint(), "Proved original constructor/update matrix-hint invariant");
-    rejects([&] { scene.root().boundingBox(); });
+    require(scene.root().boundingBox() == Box{{{-1, -1, -1}, {1, 1, 1}}},
+            "Actual default root local box is fixed empty-node cube, not child aggregation");
     rejects([&] { skin.baseMesh().computeBoundingBox(); });
     source = actorFixture();
     source->skins[0].jointBoundsCm = std::vector<Box>{};

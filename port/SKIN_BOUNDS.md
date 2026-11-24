@@ -114,8 +114,10 @@ separate mutable resources and boxes. `boundingBox()` is lazy; explicit
 dirty flag, no independent bounds-dirty state or duplicate palette routine.
 Bounds read genuine live joint absolute pointers/hints. Node `boundingBox()`
 delegates to its actual mesh; the skin `transformedBoundingBox()` returns that
-same cached box without an extra node transform. Unsupported container
-aggregation and non-skin transformed-box paths fail explicitly.
+same cached box without an extra node transform. Default containers have a
+fixed empty-node cube rather than aggregation. OG078 implements ordinary and
+container transformed caches using the distinct original transformBoxEx;
+see ACTOR_BOUNDS.md. Custom/global-manager-specific box domains remain explicit.
 
 An unknown metadata getter always fails, including after palette preparation;
 it never exposes a raw seed as a fabricated dynamic result. Explicit compute

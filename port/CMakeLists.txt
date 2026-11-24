@@ -100,6 +100,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_actor_bounds_test tests/retail_actor_bounds.cpp)
+    target_link_libraries(retail_actor_bounds_test PRIVATE opengangstar_physics opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_actor_bounds_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_actor_bounds COMMAND retail_actor_bounds_test)
+
     add_executable(retail_actor_graph_test tests/retail_actor_graph.cpp)
     target_link_libraries(retail_actor_graph_test PRIVATE opengangstar_physics opengangstar_assets)
     if(MSVC)

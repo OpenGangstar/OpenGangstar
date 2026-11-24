@@ -119,8 +119,8 @@ public:
   // This is a constructor/update invariant, never numeric matrix equality.
   bool absoluteIdentityHint() const { return false; }
   const RetailSkinBoundingBox &boundingBox();
-  // Original skin-node getter aliases its mesh box; ordinary/container
-  // transformed-box implementations are outside this bounded API.
+  // Original skin-node getter aliases its mesh box. Ordinary/container getters
+  // use the distinct cached-absolute transformBoxEx and dirty0x200 contract.
   const RetailSkinBoundingBox &transformedBoundingBox();
   const RetailSceneMatrix &relative();
   std::uint32_t transformFlags() const { return flags; }
@@ -179,6 +179,7 @@ private:
   RetailSceneQuaternion localRotation{0, 0, 0, 1};
   RetailSceneMatrix cachedRelative = retailSceneIdentity,
                     cachedAbsolute = retailSceneIdentity;
+  RetailSkinBoundingBox emptyNodeBox{{{-1, -1, -1}, {1, 1, 1}}}, transformedBox{};
   bool effectiveVisible = true, localVisible = true, inheritedVisible = true;
   bool dispatching = false, detaching = false;
   std::list<std::shared_ptr<RetailActorSceneAnimator>> animators,

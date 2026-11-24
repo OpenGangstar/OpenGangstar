@@ -3506,7 +3506,7 @@
     {
       "id": "OG-075",
       "description": "Port genuine live contact-filter getter order and actor body scene binding.",
-      "scope": "Preserve captured metadata identities and ordered live category/player/position/rootHeight/transformed-box/jump reads. Retain explicit genuine skin node binding; unsupported ordinary transformed getter rejects setup. Keep constant fixture domain explicit; no eager snapshot refresh, new jump clock, fake runtime or actor_scene edits.",
+      "scope": "Preserve captured metadata identities and ordered live category/player/position/rootHeight/transformed-box/jump reads. Retain explicit genuine skin node binding; unsupported ordinary transformed getter rejects setup. Keep constant fixture domain explicit; no eager snapshot refresh, new jump clock, fake runtime or actor_scene edits. Scope expanded before edits: adapt steering node-presence/live bounding getter only after proving original canGoToPoint getter identity/order for both overloads; no guess or fake snapshot.",
       "symbols": [
         "ContactFilter::ShouldCollide0x31dc7d",
         "RetailContactFilter::ShouldCollide",
@@ -3519,7 +3519,9 @@
         "port/retail_actor_physics.h",
         "port/retail_actor_physics.cpp",
         "port/tests/retail_actor_physics.cpp",
-        "port/LIVE_COLLISION.md"
+        "port/LIVE_COLLISION.md",
+        "port/retail_steering.cpp",
+        "port/tests/retail_steering.cpp"
       ],
       "assigned_agent": "/root/worker_2",
       "dependencies": [
@@ -3606,6 +3608,47 @@
         "Full R/D gates and untouched original sources."
       ],
       "independent_verification": "Root full R/D40CTests/config. Both actual Player graphs19toggle/cache/bounds phases each:27056exact state/component words perconfig vsactual original toggle/prepare/compute/getter. Stable borrowed cachedbox access has no lazy side effects. Raw359BRES enumeration confirms83sourceUID fragments,21throughmorph distinct fromflattened geometry; existing bounds/weights unchanged. NewnativePE32+AMD64.074still owns process byte36/proxy portion."
+    },
+    {
+      "id": "OG-078",
+      "description": "Recover and port genuine ordinary/container local and transformed actor bounding boxes.",
+      "scope": "DefaultFactory root/container local cube and ordinary raw local boxes; preserve0x200 transformed cache and distinct original translation-first transformBoxEx, not skin two-corner transformBox. Global actual manager-specific box remains separate. No inferred child aggregation.",
+      "symbols": [
+        "ISceneNode::getTransformedBoundingBox0x272b05",
+        "CColladaMeshSceneNode::getBoundingBox0x2a2685",
+        "DefaultFactory container/root bbox virtuals"
+      ],
+      "resources": [
+        "port/retail_actor_scene.h",
+        "port/retail_actor_scene.cpp",
+        "port/retail_skin_bounds.h",
+        "port/retail_skin_bounds.cpp",
+        "port/tests/retail_actor_bounds.cpp",
+        "port/ACTOR_BOUNDS.md",
+        "port/tests/retail_skin_bounds.cpp",
+        "port/retail_scene.h",
+        "port/retail_scene.cpp",
+        "port/ACTOR_SCENE.md",
+        "port/SKIN_BOUNDS.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-055",
+        "OG-068",
+        "OG-073",
+        "OG-077"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "2141998",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Actual original per-node/getter cache/transform phases for both real Player graphs and synthetic shear/negative scale domains.",
+        "Existing skin/bounds/graph/pose regressions and full R/D tests, no original edits."
+      ],
+      "independent_verification": "Root full R/D41CTests/config.21actual original transformBoxEx cases plus both real Player graphs9phases x35non-skin nodes=630snapshots;19026state/component words exact/config. Proved actual constructor cube and virtual getter identities; transformBoxEx translation-first min/max distinct from skin two-corner routine. Skin/cache/pose/globalgraph regressions pass; PE32+AMD64. Global manager-specific/custom bbox/culling/renderer integration unclaimed."
     }
   ],
   "orchestrator_resources": [
@@ -3621,7 +3664,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full R/D40CTests/config after077.27056original skin-toggle/cache/bounds words/config exact,83rawsourceUIDs/21throughmorph exact.068globalownership merged;074deformation,075livecollision,076materialownership active."
+    "native_integration": "2026-11-25: Root R/D41CTests/config after078.19026ordinary/nodebounds words/config exact; existing skin/cache/globalgraph pass.074softwareowner,075livefilter+steering,076materialidentity active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
