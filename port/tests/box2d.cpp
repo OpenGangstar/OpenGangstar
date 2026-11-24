@@ -136,6 +136,28 @@ void verifyWorldSteppingAndContacts()
             "Refiltering did not remove the contact and permit movement through the masked wall.");
 }
 
+void verifyWorldRange()
+{
+    b2World world(worldBounds(), b2Vec2(0, 0), true);
+    b2AABB candidate;
+    candidate.lowerBound.Set(2000, -1);
+    candidate.upperBound.Set(2001, 1);
+    require(!world.InRange(candidate), "Touching the world boundary is outside proxy range.");
+    candidate.lowerBound.x = std::nextafter(2000.f, 0.f);
+    require(world.InRange(candidate), "Any strict world overlap is in proxy range, even if not contained.");
+    candidate.lowerBound.Set(2200, -1);
+    candidate.upperBound.Set(2201, 1);
+    require(!world.InRange(candidate), "A wholly outside proxy must be rejected.");
+    candidate.lowerBound.Set(-2001, -1);
+    candidate.upperBound.Set(-2000, 1);
+    require(!world.InRange(candidate), "Touching the lower boundary is outside proxy range.");
+    candidate.upperBound.x = std::nextafter(-2000.f, 0.f);
+    require(world.InRange(candidate), "Strict lower-bound overlap must be accepted.");
+    candidate.lowerBound.Set(-1, -1);
+    candidate.upperBound.Set(1, 1);
+    require(world.InRange(candidate), "Contained proxy is in range.");
+}
+
 void verifyRetailProxyCapacity()
 {
     require(b2_maxProxies == 1024 && b2_maxPairs == 8192,
@@ -189,6 +211,7 @@ int main()
         const auto baseline = b2_byteCount;
         verifyAllocationAlignment();
         verifyWorldSteppingAndContacts();
+        verifyWorldRange();
         verifyRetailProxyCapacity();
         verifyContinuousCollision();
         verifyDistanceJoint();

@@ -88,6 +88,14 @@ expected source fragment before adapting it and fails if the pinned source layou
 does not match. The adaptations are:
 
 - Restore the verified retail broad-phase capacity of 1,024 proxies.
+- Expose a nonvirtual `b2World::InRange(const b2AABB&) const` forwarding method
+  to the existing broad-phase predicate. This changes no class fields, object
+  layout, solver, or predicate. The terrain backend needs the real world's
+  bounds to reject unsupported cliff geometry before `CreateShape`: historical
+  Debug asserts for an outside AABB, while Release silently leaves a null proxy.
+  Strict overlap is accepted; touching alone is outside. The world remains the
+  single authority for its constructor-supplied bounds. Tests cover contained,
+  outside, boundary-touching, and nextafter-overlapping AABBs in both configs.
 - Include the standard declarations needed by a modern native compiler.
 - Replace the four-byte `b2Alloc` bookkeeping prefix with a prefix aligned to
   `std::max_align_t`. Returning `malloc` plus four bytes would misalign native

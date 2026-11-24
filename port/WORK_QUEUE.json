@@ -28,17 +28,17 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-017",
-      "status": "IN_PROGRESS",
-      "baseline": "5f77886"
+      "assignment": "OG-021",
+      "status": "RESERVED",
+      "baseline": "99e110e"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-015",
-      "status": "IN_PROGRESS",
-      "baseline": "eb7368c"
+      "assignment": "OG-020",
+      "status": "RESERVED",
+      "baseline": "pending verified OG015 commit"
     }
   ],
   "unavailable_worker": {
@@ -469,11 +469,13 @@
         "OG-012",
         "OG-013",
         "OG-014",
-        "OG-015"
+        "OG-015",
+        "OG-017",
+        "OG-018"
       ],
       "blockers": [
-        "Original customfilter and coreheight/cliff contracts must be implemented or accounted for; no no-op terrain/steering adapters.",
-        "city_view/vulkan/sharedtest resources are owned by current OG009 until integration."
+        "Verify original terrain, steering and root-motion backends, then bind live actor/world state and independent actor advancement.",
+        "Production contact-listener effects, player/NPC differences and exact host update ownership must be implemented or explicitly accounted for; no empty terrain/steering/contact adapters."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -960,7 +962,10 @@
         "port/retail_height.cpp",
         "port/retail_height.h",
         "port/tests/retail_height.cpp",
-        "port/CMakeLists.txt"
+        "port/CMakeLists.txt",
+        "port/cmake/Box2D.cmake",
+        "port/tests/box2d.cpp",
+        "port/PHYSICS_DEPENDENCY.md"
       ],
       "priority": 1,
       "complexity": "high",
@@ -972,7 +977,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "eb7368c",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Actual original buffer/indexOffset identity, lane7 visit state and ordered/phase-specific overlaps; retain separate roadFlags.",
         "Synthetic exact-height/order/cache/state/boundary fixtures and automated supplied-asset enumeration.",
@@ -980,7 +985,24 @@
         "No jump/controller/steering completeness claim; explicit unsupported boundary only where required and documented.",
         "Release/Debug physics and full native regression/smoke checks, no manual progression."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-015.patch",
+        "sha256": "dfd8db471fd08c138fbc646419cfbc487005736220cf2320a846e076f8d3a77c",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-015-report.md"
+      },
+      "findings": [
+        "Actual retail Debug cliff enumeration exposed out-of-world CreateProxy assertion: candidate anchor x2197.53m beyond originalworld upper2000m. Release creates null proxies silently; prior IsFrozen check was insufficient. Add explicit native world-range preflight and distinguish expanded-world geometry test from shippingworld coverage."
+      ],
+      "reservations_active": false,
+      "independent_validation": [
+        "Reviewed final height traversal/scalar order, classification/marker/cache/mixed-reseed state, cliff eligibility/shape/filter ordering and native ownership.",
+        "Reviewed exact actual-world InRange forwarding adaptation, real polygon bounds preflight, unchanged world/solver/layout and explicit partialstate limits.",
+        "No intervening CMake or sharedphysics changes conflict; renderer material-header additions rebuilt consistently.",
+        "Full integration Release+Debug builds and eight CTests perconfig pass; both retail_height_test images verifiedAMD64PE32+.",
+        "Independent supplied-asset runs:12998height resultbits/IDs and254range diagnostics identical acrossR+D;16330original-world proxies and17085test-only wider-world proxies.",
+        "Independently reran original ARM height core oracle:12998cases,zero resultbit/identity differences; edge callback intercepted and not claimed as cliffproof.",
+        "Release Vulkan opening smoke passed including11production GPU checks. PreexistingDebugstartup0x80000003 documented separately, not represented as pass."
+      ]
     },
     {
       "id": "OG-017",
@@ -1012,7 +1034,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "5f77886",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Exact3D normalization, category margins, query100 cap/order, metadata/group/sensor filters, strict hit selection and both segment casts.",
@@ -1020,7 +1042,24 @@
         "Actual native Box2D fixtures with independent expected geometry, height, tie, boundary and negative cases.",
         "Release/Debug build and relevant gates; do not edit CMake while OG015 owns it. Request reservation when integration wiring needed.",
         "Original ARM read-only; no gameplay progression."
-      ]
+      ],
+      "independent_validation": [
+        "Reviewed native source, typed owner identity and complete overload differences; shared existing metadata and realBox2D geometry, no copied ARM layouts.",
+        "Independently copied/rebuilt source and tests against integration Box2D in isolated x64 Release+Debug harness; both tests pass.",
+        "Independently reran eight actual ARM original steering oracle fixtures with additional return-sentinel assertion; all expectations pass. Box2DQuery/TestSegment are research hooks, distinct from real native geometry tests.",
+        "Final patch/hash, documentation and integration CMake wiring still pending."
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-017.patch",
+        "sha256": "24ffdb8cc59cee618ade21639f50b1b4b65fa7c583820859adea888de610797e",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-017-report.md",
+        "files": [
+          "port/retail_steering.cpp",
+          "port/retail_steering.h",
+          "port/tests/retail_steering.cpp",
+          "port/STEERING.md"
+        ]
+      }
     },
     {
       "id": "OG-018",
@@ -1098,6 +1137,118 @@
       "independent_validation": [
         "Reviewed single-resolved-material guard before map dereference; no ambiguous fallback introduced.",
         "x64 Release game rebuild and automated retail Vulkan opening smoke passed;11productionGPUcases remain passing."
+      ],
+      "integration_commit": "99e110e"
+    },
+    {
+      "id": "OG-020",
+      "description": "Implement original jump-surface selection and jump-height state for native physics owners.",
+      "scope": "Trace and port SetCurrentJumpShape/GetJumpHeight and exact height-wrapper jump branch with real native shape/owner/terrain state. Preserve ordinary terrain backend and contact ownership; no approximate impulse/ramp substitute or silent no-op. Request any additional mutable height/shared-interface resources before implementation.",
+      "symbols": [
+        {
+          "signature": "PhysicAttributes::SetCurrentJumpShape(b2Shape*)",
+          "address": "0x0031ccf1"
+        },
+        {
+          "signature": "PhysicAttributes::GetJumpHeight(vector3df const&,int)",
+          "address": "0x0031a6fd"
+        },
+        {
+          "signature": "PhysicAttributes::GetHeight(vector3df const&,int,bool)",
+          "address": "0x0031ff49"
+        }
+      ],
+      "resources": [
+        "port/retail_jump.h",
+        "port/retail_jump.cpp",
+        "port/tests/retail_jump.cpp",
+        "port/JUMP_PHYSICS.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-013",
+        "OG-015"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "pending verified OG015 commit",
+      "status": "RESERVED",
+      "reservations_active": true,
+      "validation": [
+        "Literal original branch/math/shape transform/quad heights/lifetime evidence; native64-bit identities and ordinary terrain interaction.",
+        "Independent actual nativeBox2D geometric fixtures including entry/direction/edges/height/cache/state transitions and callback deletion safety.",
+        "Original oracle where useful, clearly research-only; do not route native runtime through originalARM.",
+        "Release/Debug subsystem tests, supplied resource enumeration and explicit remaining host/vehicle/jump limitations."
+      ]
+    },
+    {
+      "id": "OG-021",
+      "description": "Port original Add/Persist contact-listener dispatch and required native actor/contact state.",
+      "scope": "Trace complete original Add/Persist category, sensor, path and collision side effects; implement evidence-backed native policy with actual Box2D contact inputs and genuine typed owner state. Required game operations must be explicit mandatory bindings, never empty callbacks or synthetic AI/path/damage. Separate unsupported host branches and Remove/jump dependency. Request shared metadata/build resources before editing.",
+      "symbols": [
+        {
+          "signature": "ContactListener::Add(b2ContactPoint const*)",
+          "address": "0x00320351"
+        },
+        {
+          "signature": "ContactListener::Persist(b2ContactPoint const*)",
+          "address": "0x0031d7a1"
+        },
+        {
+          "signature": "ContactListener::Remove(b2ContactPoint const*)",
+          "address": "0x0031a5ed"
+        }
+      ],
+      "resources": [
+        "port/retail_contacts.h",
+        "port/retail_contacts.cpp",
+        "port/tests/retail_contacts.cpp",
+        "port/CONTACT_LISTENER.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-011",
+        "OG-012",
+        "OG-013"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "99e110e",
+      "status": "RESERVED",
+      "reservations_active": true,
+      "validation": [
+        "Complete literal original category/owner/sensor/player/NPC/vehicle branch and state ownership map before code.",
+        "Actual nativeBox2D contact fixtures and independent golden cases; Release/Debug with assertions.",
+        "Use original research oracle for subtle scalar predicates where practical; runtime remains native.",
+        "Missing mandatory game dispatch must report fatal host binding failure; never manufacture NPC path, damage, jump or movement behavior.",
+        "Shared headers/build configuration remain unreserved; no edit until root grants. Original ARM remains read-only."
+      ]
+    },
+    {
+      "id": "OG-022",
+      "description": "Diagnose and repair pre-existing Debug game startup breakpoint before the GameSWF menu.",
+      "scope": "Establish exact assertion/callstack and original/native behavior before narrowly fixing the actual cause; no assertion suppression or release-mode workaround.",
+      "symbols": [
+        {
+          "signature": "GameSWF Debug startup path after initial intro image",
+          "address": null
+        }
+      ],
+      "resources": [],
+      "priority": 7,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": null,
+      "baseline": null,
+      "status": "AVAILABLE",
+      "reservations_active": false,
+      "validation": [
+        "Reproduce0x80000003 on known pre-OG015 binary and currentDebug build with isolated temporary saves.",
+        "Locate exact assertion/stack and verify existing source behavior before requesting writable resource reservations.",
+        "Targeted regression test and Debug+Release automated startup smoke; keep assertions active."
       ]
     }
   ],
@@ -1106,10 +1257,14 @@
     "port/WORK_SCHEDULING.md",
     "port/STATUS.md",
     "port/CINEMATIC_SCHEDULER.md",
-    "port/README.md"
+    "port/README.md",
+    "port/CMakeLists.txt"
   ],
   "validation": {
     "original_arm_preservation": "2969 tracked files retain their pre-migration SHA256 values; pre-existing local submodule changes preserved. Independently checked2026-11-25.",
     "original_decompilation_gates": "2026-11-24:83 Python unittests passed;check_repository.py passed;progress.py --check passed. No full ARM matching rebuild claimed."
-  }
+  },
+  "integration_notes": [
+    "OG017 four-file submission handed to root and source/native geometry/original oracle reviewed; final integration CMake wiring waits for OG015 ownership. Worker2 may begin independent OG021 from latest verified99e110e; OG017 resource reservations remain active until root integration."
+  ]
 }

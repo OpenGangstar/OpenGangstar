@@ -8,6 +8,36 @@ ported or that every exceptional original branch has been reconstructed.
 Only this document is changed. No gameplay, ARM edits or native controller edits
 were performed. Addresses retain the Thumb bit used by config/functions.tsv.
 
+## Native implementation update: OG-015
+
+The ordinary no-jump backend is implemented in retail_height.h/.cpp and its
+native subsystem test. It preserves original buffer/indexOffset identity,
+mutable lane-7 generations, query/cache/reseed ordering and exact local cliff
+strip construction with real native Box2D ownership. The investigation below
+remains the source map; separate jump and point/info helpers are not implicitly
+implemented by this component.
+
+Independent integration builds and all eight CTests pass in Release and Debug.
+A research-only execution of the original ARM height core matches all 12,998
+supplied positive-area centroid result bits and selected identities. Its edge
+update call is intercepted, so this oracle does not establish cliff-body parity.
+Separate native actual-body/contact/proxy tests validate that backend.
+
+Original world bounds remain +/-2000 m. Supplied geometry extending beyond
+them produces 254 explicit selected-triangle refresh errors, with 16,330 actual
+proxy instances in accepted cases. All 17,085 generated proxy instances build
+in a separate test-only wider world. The native guard queries the actual world
+using a staged nonvirtual InRange forwarding API and the native polygon's
+OBB-based AABB; no production bounds, solver or assertions are changed.
+
+Capacity beyond twelve strips and out-of-range polygons fail before replacing
+old bodies. Query/marker/cache state can already have changed; these are not
+resumable transactions. Reset or reinitialize from known state. Native metadata
+outlives DestroyBody callbacks. One shared terrain context per world and borrowed
+object lifetimes are caller invariants. Arbitrary boxes differing from decoded
+vertex extrema, full actor Init, jumps, steering/controller binding and the
+original out-of-world scene policy remain incomplete.
+
 ## Functions and evidence
 
 | Original symbol or function | Address | Evidence used |

@@ -7,6 +7,10 @@ mission playthroughs for discovery or verification.
 
 ## Code coverage
 
+- [ ] Resolve the existing Debug startup breakpoint (0x80000003) after the
+  intro image, before the GameSWF menu. The same failure reproduces with the
+  pre-terrain Debug executable. Release startup and GPU smoke checks pass;
+  successful Debug compilation and subsystem tests do not prove Debug startup.
 - [ ] Account for every original translation unit and symbol in the game's
   `config/functions.tsv`. It records 17,703 symbols across 622 source labels,
   including 15,698 marked matched for the Android build. The native build
@@ -81,7 +85,20 @@ mission playthroughs for discovery or verification.
   both Debug physics tests pass; the native Vulkan startup smoke passes.
   Missing mandatory jump-state handling is a fatal host-binding error, not a
   no-op. Production filter installation, live body ownership, SetCurrentJumpShape
-  state changes, contact listeners and height/cliff lifecycle remain pending.
+  state changes, contact listeners and production height/cliff binding remain pending.
+- [x] Implement the ordinary no-jump terrain-height and owned local-cliff backend
+  in retail_height.h/.cpp. Eight Release and eight Debug CTests pass. All
+  12,998 supplied positive-area triangle centroid height bits and selected
+  identities match an independent execution of the original ARM core.
+  Native tests exercise actual bodies, proxies, contacts, metadata lifetime,
+  markers, overlaps, mixed reseeds, cache mutation and fifty-slot ownership.
+  At original +/-2000 m bounds, 254 selected-triangle refreshes explicitly
+  reject out-of-range colliders; 16,330 body/proxy instances remain supported.
+  A separate test-only wider world validates 17,085 generated proxy instances.
+  The shipping world is not enlarged. More than twelve strips also fails
+  explicitly; errors preserve old bodies but may leave changed query state.
+  Jump surfaces, arbitrary node boxes, separate overlap helpers and production
+  actor/world binding remain incomplete. See HEIGHT_SEARCH.md.
 - [ ] Port physics, including collision, vehicle dynamics, rigid bodies,
   and camera obstruction. Current movement uses the retail height mesh and
   approximate collision against vertical scene triangles. The vehicle wall
@@ -996,7 +1013,7 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   wall-intersection routine, with visual wall geometry still used for other
   obstacles. Wall queries use the same 512 cm grid as ground queries and
   preserve collision order when merging cells. The original per-body Box2D
-  shape construction remains open.
+  strip construction has a bounded native backend; production actor binding remains open.
 - [x] Load both retail vehicle light models and resolve the Lincoln's
   authored light mounts. Both mount transforms follow the vehicle's
   translation and yaw. The native loader uses the sole image entry in each

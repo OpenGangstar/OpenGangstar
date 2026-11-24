@@ -34,6 +34,12 @@ foreach(relative IN LISTS box2d_files)
         replace_box2d_native(contents "#include <math.h>"
             "#include <math.h>\n// OpenGangstar native adaptation: host declarations and allocator alignment.\n#include <cstddef>\n#include <cstring>\n#include <climits>")
         replace_box2d_native(contents "b2_maxProxies = 512" "b2_maxProxies = 1024")
+    elseif(relative STREQUAL "Source/Dynamics/b2World.h")
+        replace_box2d_native(contents "int32 GetProxyCount() const;"
+            "int32 GetProxyCount() const;\n\n\t// OpenGangstar native adaptation: expose the world's authoritative proxy-range predicate.\n\tbool InRange(const b2AABB& aabb) const;")
+    elseif(relative STREQUAL "Source/Dynamics/b2World.cpp")
+        replace_box2d_native(contents "int32 b2World::GetProxyCount() const"
+            "// OpenGangstar native adaptation: no layout or broad-phase behavior change.\nbool b2World::InRange(const b2AABB& aabb) const\n{\n\treturn m_broadPhase->InRange(aabb);\n}\n\nint32 b2World::GetProxyCount() const")
     elseif(relative STREQUAL "Source/Common/b2Settings.cpp")
         replace_box2d_native(contents "b2Version b2_version = {2, 0, 1};"
             "// OpenGangstar native adaptation: preserve malloc's alignment after the size header.\nstatic const int32 allocationHeaderSize = static_cast<int32>(alignof(std::max_align_t));\nstatic_assert(allocationHeaderSize >= sizeof(int32), \"Allocation header must hold its size.\");\n\nb2Version b2_version = {2, 0, 1};")
