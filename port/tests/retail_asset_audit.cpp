@@ -608,7 +608,8 @@ try {
         const auto path = entry.path().lexically_relative(root).generic_string();
         if (extension == L".bdae") paths.push_back(path);
         if (extension == L".bmp" || extension == L".tga" || extension == L".psd" || extension == L".png" ||
-            extension == L".dds" || extension == L".jpg" || extension == L".jpeg" || extension == L".pcx")
+            extension == L".dds" || extension == L".jpg" || extension == L".jpeg" || extension == L".pcx" ||
+            extension == L".ppm" || extension == L".pgm" || extension == L".pbm")
             textures.push_back(path);
         if (extension == L".ogg") audio.push_back(path);
         if (extension == L".bsprite") spritePaths.push_back(path);
@@ -887,7 +888,7 @@ try {
             std::cerr << "Texture: " << path << " (" << error.what() << ")\n";
         }
     }
-    std::cout << decodedListed << '/' << listedTextures.size() << " BMP/DDS/PNG/JPEG/PCX/TGA/PSD images decoded\n";
+    std::cout << decodedListed << '/' << listedTextures.size() << " BMP/DDS/PNG/JPEG/PCX/PPM/PGM/PBM/TGA/PSD images decoded\n";
     std::cout << absentReferences << " distinct referenced texture paths could not be opened, "
               << rejectedReferences << " opened but failed to decode, and "
               << decoded.size() - decodedListed << " decoded outside the extension-based inventory\n";

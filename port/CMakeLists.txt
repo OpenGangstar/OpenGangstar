@@ -387,6 +387,13 @@ if(BUILD_TESTING)
     target_link_libraries(city_collision_test PRIVATE opengangstar_assets)
     add_test(NAME city_collision COMMAND city_collision_test)
 
+    add_executable(texture_ppm_test tests/texture_ppm.cpp)
+    target_link_libraries(texture_ppm_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(texture_ppm_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME texture_ppm COMMAND texture_ppm_test)
+
     add_executable(texture_pcx_test tests/texture_pcx.cpp)
     target_link_libraries(texture_pcx_test PRIVATE opengangstar_assets)
     if(MSVC)

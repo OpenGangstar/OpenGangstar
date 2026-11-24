@@ -20,25 +20,25 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-094",
+      "assignment": "OG-096",
       "status": "IN_PROGRESS",
-      "baseline": "b00137d"
+      "baseline": "cf7d176"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-087",
+      "assignment": "OG-092",
       "status": "IN_PROGRESS",
-      "baseline": "3b9bf01"
+      "baseline": "cf7d176"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-093",
+      "assignment": "OG-095",
       "status": "IN_PROGRESS",
-      "baseline": "c51c47e"
+      "baseline": "cf7d176"
     }
   ],
   "unavailable_worker": {
@@ -4000,7 +4000,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "3b9bf01",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Reuse original080completed nonzero scenes and whole bind traces.",
@@ -4188,14 +4188,7 @@
         "RetailDeformationMesh::source/skin exact constructed dependency guards"
       ],
       "resources": [
-        "port/retail_actor_scene.h",
-        "port/retail_actor_scene.cpp",
-        "port/retail_deformation.h",
-        "port/retail_deformation.cpp",
-        "port/retail_actor_deformation.h",
-        "port/retail_actor_deformation.cpp",
-        "port/tests/retail_actor_deformation.cpp",
-        "port/ACTOR_DEFORMATION.md"
+        "port/build/OG-092-* (worker-2 ignored design/research only)"
       ],
       "priority": 1,
       "complexity": "high",
@@ -4206,12 +4199,12 @@
         "OG-089"
       ],
       "blockers": [
-        "087shared Scene/Graph/Pose and089runtime-state/current-target changes remain exclusively reserved until verified integration."
+        "087independent verification/integration pending; only ignored092design/research may be written until root advances verified implementation baseline and reserves shared files."
       ],
-      "assigned_agent": null,
-      "baseline": null,
-      "status": "BLOCKED",
-      "reservations_active": false,
+      "assigned_agent": "/root/worker_2",
+      "baseline": "cf7d176",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
       "validation": [
         "BothPlayers andall21default nested vehicle resources use actual finalized runtime identity/order/current streams; original/kernel exact outputs and flags.",
         "Process release preserves Scene intrinsic weights/state, no Scene/process cycle, source/material/bbox aliases and shared loaded arrays are genuine.",
@@ -4242,24 +4235,37 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "c51c47e",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original parser/helpers/converters execute on independent P1-P6/color/gray/bitmap/comment/padding/binary boundary fixtures; exact native pixels/conversions in R/D.",
         "Explicit size/truncation/overflow/input checks, existing image loader regressions, generated extension enumeration and actual retail98decode/missing111set unchanged.",
         "Full x64 builds/tests; no gameplay, retail payloads or emulator dependency in product."
+      ],
+      "submission": {
+        "patch": "../OpenGangstar-workers/worker-3/port/build/OG-093.patch",
+        "sha256": "0944dbc85a6f636971325769b4fbef1a0d4aedac715dadef6bd41ecbee03f831"
+      },
+      "independent_validation": [
+        "Root reviewed parser/tokenizer/preflights/channel mapping and explicit bounded PBM allocation/readcount repair against original; no standards-only packing/polarity replacement. Intervening089/091 do not alter texture interfaces.",
+        "Full root Release/Debug game builds and48CTest/config pass; PPMtest AMD64PE32+. Fresh original54cases:1095unmodified pixels,7rejections and70separately repaired pixels across8guard-proven unsafe-original cases match each native config.",
+        "Root freshly executed actual CImage construction/getImageData/getBestColorFormat/processColorFormat/copyTexture upload argument path; unchangedRGBAbytes and nativeBGRA conversion agree. Actual extension probes pass. GL endpoints are captured; no realGL rendering claim.",
+        "R/D actualretail98/98decode with0openeddecodefailures and exactsame111missing-pathset;6generatedP1-P6suffix fixtures104/104decode withsame111paths. Strict audit exit1 preserved, no asset payload committed."
       ]
     },
     {
       "id": "OG-094",
       "description": "Compose original Character weapon reload checks and reload animation selection with genuine native weapon state.",
-      "scope": "Research/API only until091independent integration. Source checkForWeaponReload and complete setReloadWeaponAnimation, required live current weapon/category/NPC-state/animation/sound operations, preserve captured type and late role read after reload. No fake ammo/weapon/category/actor host.",
+      "scope": "Complete original checkForWeaponReload and setReloadWeaponAnimation via required live weapon/category/NPC-state and existing animation requests, canonical091Ammo/Sound and captured weapon/type semantics. Current equipped weapon replacement is tested; no test-only loaded-type mutation API, duplicate state or fake manager.",
       "symbols": [
         "Character::checkForWeaponReload",
         "Character::setReloadWeaponAnimation"
       ],
       "resources": [
-        "port/build/OG-094-* (worker-1 ignored research only)"
+        "port/retail_character_reload.h",
+        "port/retail_character_reload.cpp",
+        "port/tests/retail_character_reload.cpp",
+        "port/CHARACTER_RELOAD.md"
       ],
       "priority": 1,
       "complexity": "medium",
@@ -4268,16 +4274,77 @@
         "OG-091",
         "OG-036"
       ],
-      "blockers": [
-        "API/resources review required before product implementation."
-      ],
+      "blockers": [],
       "assigned_agent": "/root/worker_1",
-      "baseline": "b00137d",
-      "status": "IN_PROGRESS",
+      "baseline": "cf7d176",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Original category/type/clip/ammo/animation branches and call order, getter/callback mutations and signed boundaries; exact native R/D later.",
         "Use canonical091weapon/ammo/sound and existing animation requests, no second weapon/clock/parser or fabricated manager."
+      ]
+    },
+    {
+      "id": "OG-095",
+      "description": "Retain complete ordered metatype definitions and original longest-name resolution for canonical game object creation.",
+      "scope": "Extend existing authoritative CityDataReader path to retain all raw metatype records/type/name lengths/source order, share resolver with spawn binding, preserve all decoded weapon/spawn behavior. No second gmap parser or fabricated runtime object factory.",
+      "symbols": [
+        "GameObjectManager::LoadMetatypes",
+        "GameObjectManager::GetMetatypeFromName0x315a41",
+        "bindSpawnGroups authoritative metadata reader"
+      ],
+      "resources": [
+        "port/city_assets.h",
+        "port/city_assets.cpp",
+        "port/tests/retail_metatypes.cpp",
+        "port/METATYPES.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-090"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "cf7d176",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "All196original records and37788source bytes retained,193names/3invalidslots/source lengths preserved with full payloads.",
+        "Original full GetMetatypeFromName plus actual BufferStream/DataStream methods execute; native exact index/case/prefix/tie/NUL-length and malformed bounds checks.",
+        "Existing spawn/weapon/asset whole-corpus behavior unchanged, R/D full builds/tests and source pointer-width safety."
+      ]
+    },
+    {
+      "id": "OG-096",
+      "description": "Port the common borrowed Character target state and distinct original Player rich target setter.",
+      "scope": "Research/API only until canonical entity/lease seam reviewed. One common Character target state feeds086lookup; raw setter remains separate from rich NPC/camera/combat/Lock side effects. No stale scene-snapshot entity registry, hidden strong target ownership, fake NULL/default callbacks or duplicate target store.",
+      "symbols": [
+        "Character::SetTarget0x2f147d",
+        "PlayerTest::_GetTarget0x300db9",
+        "PlayerTest::_SetTarget0x301261",
+        "Common Character target+260/Player+264"
+      ],
+      "resources": [
+        "port/build/OG-096-* (worker-1 ignored research only)"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-084",
+        "OG-086"
+      ],
+      "blockers": [
+        "Canonical entity/borrowed weak lifetime and exact producer API/resources require review before product implementation."
+      ],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "cf7d176",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Reproduce084source raw/rich setter complete branches/side-effect order, repeated same target, callback-mutated current target and opaque byte stores.",
+        "KnownNULL distinct expired nonnull; no strong target retention outside serial endpoint leases; source common target identity and two086fresh queries use same store.",
+        "Required real NPC/camera/combat/Lock producer endpoints explicit; no whole manager/entity implementation claim from leaf."
       ]
     }
   ],
@@ -4294,7 +4361,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after091:2969original baseline file sizes/SHA256 unchanged; original submodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and6userlocaledit/untracked paths preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full Release/Debug47CTests/config after091canonical weapon/ammunition/reload.2940original state records+2352soundobservations/config exact;11loadedweapon definitions and timeline original-verified traces preserved.087finalizer/host active;092factory blocked on087;093PPM active;094Characterreload planning."
+    "native_integration": "2026-11-25: Root Release/Debug48CTest/config after093P1-P6images. Original1095unchanged+70deliberately repairedPBMpixels/config exact;98retail/104generatedasset audit same111missing paths.087genuine finalizer/host and094Characterreload frozenreview;092factory research,095fullmetatypes and096targetstate active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

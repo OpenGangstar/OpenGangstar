@@ -11,7 +11,9 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
+#include <string>
 
 namespace {
 uint32_t little32(const uint8_t* bytes)
@@ -506,6 +508,109 @@ Image readPcx(IFileStream& file)
     return result;
 }
 
+Image readPpm(IFileStream& file)
+{
+    const auto length = file.size();
+    if (length <= 11 || length > 64ull * 1024 * 1024)
+        throw std::runtime_error("Unsupported PPM file size.");
+    std::vector<uint8_t> bytes(static_cast<size_t>(length));
+    if (file.read(bytes.data(), length) != length)
+        throw std::runtime_error("PPM data is truncated.");
+    if (bytes[0] != 'P' || bytes[1] < '1' || bytes[1] > '6')
+        throw std::runtime_error("Unsupported PPM signature.");
+    size_t cursor = 2;
+    const auto whitespace = [](uint8_t value) {
+        return value == ' ' || value == '\t' || value == '\n' || value == '\r' || value == '\f' || value == '\v';
+    };
+    const auto comment = [&] {
+        while (cursor < bytes.size()) {
+            const auto value = bytes[cursor++];
+            if (value == '\n' || value == '\r') break;
+        }
+    };
+    const auto skip = [&] {
+        while (cursor < bytes.size()) {
+            const auto value = bytes[cursor++];
+            if (value == '#') comment();
+            else if (!whitespace(value)) { --cursor; break; }
+        }
+    };
+    const auto token = [&] {
+        skip();
+        std::string result;
+        while (cursor < bytes.size()) {
+            const auto value = bytes[cursor++];
+            if (value == '#') comment(); // Original splices a mid-token comment.
+            else if (whitespace(value)) break;
+            else result.push_back(static_cast<char>(value));
+        }
+        if (result.empty()) throw std::runtime_error("Missing PPM token.");
+        return result;
+    };
+    const auto decimal = [](const std::string& value) {
+        uint32_t result = 0;
+        for (const unsigned char byte : value) {
+            if (byte < '0' || byte > '9') break;
+            const unsigned digit = byte - '0';
+            if (result > (std::numeric_limits<uint32_t>::max() - digit) / 10)
+                throw std::runtime_error("PPM decimal overflows its original uint32 field.");
+            result = result * 10 + digit;
+        }
+        return result;
+    };
+    const unsigned kind = bytes[1] - '0';
+    const uint32_t width = decimal(token()), height = decimal(token());
+    if (!width || !height || width > 4096 || height > 4096)
+        throw std::runtime_error("Unsupported PPM dimensions.");
+    const size_t pixels = size_t(width) * height;
+    if (pixels > 64ull * 1024 * 1024 / 4)
+        throw std::runtime_error("PPM output exceeds the native size bound.");
+    if (kind != 1 && kind != 4 && decimal(token()) > 255)
+        throw std::runtime_error("Unsupported PPM max value.");
+    skip(); // Original also skips pixel whitespace/comments on binary paths.
+    Image result{width, height, std::vector<uint32_t>(pixels)};
+    if (kind == 1 || kind == 4) {
+        const size_t rowBytes = (size_t(width) + 7) / 8;
+        const size_t rowSpan = rowBytes * height;
+        // Deliberate bounded repair: original accidentally uses a boolean
+        // allocation/read count. Retain its flat LSB pack, zero initialization
+        // and separate per-row MSB converter, without reproducing heap overruns.
+        std::vector<uint8_t> packed(std::max((pixels + 7) / 8, rowSpan));
+        if (kind == 1) {
+            if (bytes.size() - cursor < pixels * 2)
+                throw std::runtime_error("Short original ASCII PBM preflight span.");
+            for (size_t i = 0; i < pixels; ++i) {
+                const auto value = token();
+                if (value[0] == '1' && (value.size() == 1 || value[1] == '\0'))
+                    packed[i / 8] |= uint8_t(1u << (i % 8));
+            }
+        } else {
+            if (bytes.size() - cursor < rowSpan)
+                throw std::runtime_error("Binary PBM row data is truncated.");
+            std::copy_n(bytes.data() + cursor, rowSpan, packed.data());
+        }
+        for (size_t y = 0; y < height; ++y)
+            for (size_t x = 0; x < width; ++x)
+                result.bgra[y * width + x] = bitmap555((packed[y * rowBytes + x / 8] >> (7 - x % 8)) & 1 ? 0xffff : 0x8000);
+        return result;
+    }
+    const size_t channels = (kind == 3 || kind == 6) ? 3 : 1;
+    if (bytes.size() - cursor < pixels * channels * (kind <= 3 ? 2 : 1))
+        throw std::runtime_error("PPM samples are truncated or fail the original ASCII preflight span.");
+    const auto sample = [&]() -> uint8_t {
+        return kind <= 3 ? static_cast<uint8_t>(decimal(token())) : bytes[cursor++];
+    };
+    for (auto& pixel : result.bgra) {
+        const auto red = sample();
+        const auto green = channels == 3 ? sample() : red;
+        const auto blue = channels == 3 ? sample() : red;
+        // Original format3 bytes reach GL_RGBA/UNSIGNED_BYTE unchanged through
+        // getImageData. Convert their rendered channels to native BGRA storage.
+        pixel = 0xff000000u | (uint32_t(red) << 16) | (uint32_t(green) << 8) | blue;
+    }
+    return result;
+}
+
 Image readJpeg(IFileStream& file)
 {
     const auto length = file.size();
@@ -595,6 +700,8 @@ Image readTexture(IFileStream& file, bool keepBitmapAlpha)
         return readAtcTexture(file);
     if (std::memcmp(signature.data(), "8BPS", 4) == 0)
         return readPsd(file);
+    if (signature[0] == 'P' && signature[1] >= '1' && signature[1] <= '6')
+        return readPpm(file);
     if (signature[0] == 10) {
         try { return readPcx(file); }
         catch (const std::runtime_error&) {

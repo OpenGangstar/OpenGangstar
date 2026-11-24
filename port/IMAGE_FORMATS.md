@@ -1,8 +1,8 @@
 # Native image loading
 
-The native loader dispatches by file signature. It supports BMP, PNG, JPEG, PCX, TGA,
-PSD and retail ATC DDS mip chains. The automated retail asset audit enumerates
-`.bmp`, `.tga`, `.psd`, `.png`, `.dds`, `.jpg`, `.jpeg` and `.pcx`; no gameplay progression
+The native loader dispatches by file signature. It supports BMP, PNG, JPEG, PCX,
+P1-P6 PBM/PGM/PPM, TGA, PSD and retail ATC DDS mip chains. The automated retail asset audit enumerates
+`.bmp`, `.tga`, `.psd`, `.png`, `.dds`, `.jpg`, `.jpeg`, `.pcx`, `.pbm`, `.pgm` and `.ppm`; no gameplay progression
 is needed to find or decode those resources.
 
 ## JPEG source and behavior
@@ -152,6 +152,94 @@ separately verified bitmap conversion contract. No retail PCX is present in the
 supplied asset inventory; generated fixtures establish format coverage without
 claiming otherwise.
 
-Remaining original loader work includes PPM, WAL and DDS variants beyond the
+Remaining original loader work includes WAL and DDS variants beyond the
 supported retail ATC family. Missing retail texture paths remain asset inventory
 findings rather than substituted images.
+
+## P1-P6 source, tokens and rendered channels
+
+Original `CImageLoaderPPM::isALoadableFileFormat` at `0x2bdc91` recognizes
+uppercase P1 through P6. Its filename probe at `0x2bdcc1` uses case-sensitive
+substring checks for `.ppm`, `.pgm` and `.pbm`; it accepts `image.ppm.backup`,
+but not `.pnm` or uppercase `.PPM`. The native public API remains signature-based;
+the audit enumerates the three conventional original suffixes.
+
+The loader at `0x2bdf1d` rejects files of 11 bytes or less. Header/sample token
+behavior follows the actual `getNextToken0x2bddf9` and
+`skipToNextToken0x2bdd6d`: whitespace is space, tab, LF, CR, form feed and vertical
+tab. A `#` comment ends at CR/LF or EOF. Inside a token it is removed and the
+token continues; `17#comment\n3` becomes `173`. Numeric fields use their initial
+decimal digit prefix; a nonnumeric first byte yields zero. Maximum values over
+255 reject, but zero/nonnumeric maximum values are accepted. No maximum-value
+scaling occurs. ASCII samples retain their low byte, including values above255.
+P1 sets a bit only for the literal C-string `1`; other tokens leave it zero.
+
+After the header the original skipper also runs on binary data. Leading pixel
+whitespace is discarded, and a leading `#` consumes a comment. This is preserved
+rather than replaced with a standards-only single-separator rule. NUL is not
+whitespace. The original ASCII remaining-byte preflight is retained: at least
+two bytes per P1/P2 pixel, or six bytes per P3 pixel, before token processing.
+An otherwise sufficient final undelimited token can therefore fail that check.
+
+P2/P3/P5/P6 create original format3 images. Original loader bytes reach the
+actual same-size `CImage` copy through `getImageData0x2cee05` unchanged under
+default flags0x12. Actual `getBestColorFormat0x2ce031` chooses3 and
+`processColorFormat0x2ce441` selects `GL_RGBA`/`GL_UNSIGNED_BYTE`. Thus byte0 is
+rendered red and byte2 blue, irrespective of the separate CPU SColor byte
+representation. Native converts those rendered channels to BGRA storage, with
+opaque alpha. P1/P4 use original format0 and `convert1BitTo16Bit0x2b95dd`;
+their black/white values are opaque0x8000/0xffff and reuse the verified555 upload
+expansion. No vertical inversion or sample normalization is introduced.
+
+## PBM allocation repair and checked input
+
+The original P1/P4 branch accidentally reduces its allocation/read count to the
+boolean `((pixelCount & 3) + (pixelCount >> 3)) != 0`. That gives only zero or
+one byte. Actual memory-access probes show P1 writes beyond it and the original
+row converter reads beyond it for larger images; even width4,height1 allocates
+zero. Those heap-dependent outputs are not valid pixel references.
+
+Native deliberately repairs only these allocation/read spans. The ASCII packing
+span is `ceil(pixelCount/8)`; the converter span is
+`height * ceil(width/8)`. P1 allocates the larger span and zeroes it, matching
+the original initialization operation on a safe allocation. It still packs
+the entire token sequence continuously, LSB first. The original row converter
+still consumes each row MSB first and advances past partial row bytes. Thus
+odd-width ASCII PBM retains the original packing/converter mismatch; it is not
+silently repacked to a standard PBM layout. Unwritten bytes in the expanded
+ASCII allocation are explicitly initialized storage, not invented sample tokens.
+Missing required tokens reject.
+
+P4 reads the complete converter row span from actual file bytes; short rows
+reject. It neither supplies a zero pixel tail nor reuses adjacent heap contents.
+Its set bits produce white as in the original converter, including the original
+polarity difference from standard PBM. Safe original single-row cases match
+unchanged original code. Previously unsafe larger/width4 cases are compared
+separately against original execution with only its allocation/memset/read count
+repaired. No parity with the original out-of-allocation contents is claimed.
+
+Encoded files and BGRA output are limited to64MiB, dimensions to4096 per axis.
+Zero dimensions, decimal uint32 overflow, missing tokens and short binary
+payloads reject. These checked native bounds also avoid original wrapped
+allocations, empty-token zero tails and unsafe reads; they are explicit malformed
+input adaptations. There are no unbounded retry loops or changes to WAL/DDS.
+
+Ignored reference fixtures use original token, packing, converter and actual
+CImage/copy/format-selection execution. File I/O includes signed relative seek-1;
+system memory and CRT boundaries are explicit shims. PBM guard diagnostics
+separate unsafe original cases from unchanged-code pixel comparisons. Native
+tests cover every P1-P6 path, comments, all whitespace bytes, binary first-byte
+rules, row padding, max values, byte wrapping, rendered RGB, alpha and checked
+malformed inputs. Generated `.pbm`/`.pgm`/`.ppm` files also pass through the real
+retail audit extension inventory. Reference tooling is not part of the game.
+
+Release and Debug full builds and all47 CTests pass. Across54 reference fixtures,
+each native configuration matches1,095 pixels from unmodified original code and
+seven original rejections. Eight guarded unsafe PBM cases are separately checked
+against the allocation/readcount-repaired original, matching70 pixels. The
+actual original CImage/copyTexture path additionally confirms bytes at its
+GL texture upload call; GL execution itself is outside that reference boundary.
+The supplied ZIP contains no PBM/PGM/PPM files. Its98 images still decode, with
+the exact same111 missing texture paths and zero opened-image decode failures.
+Adding six temporary P1-P6 files under the three original suffixes raises the
+successful audit inventory to104 without changing those missing paths.
