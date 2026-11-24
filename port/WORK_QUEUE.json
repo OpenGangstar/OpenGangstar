@@ -20,9 +20,9 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-034",
+      "assignment": "OG-036",
       "status": "IN_PROGRESS",
-      "baseline": "6053cd4"
+      "baseline": "64ea54f"
     },
     {
       "slot": 2,
@@ -36,9 +36,9 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-029",
-      "status": "NEEDS_REVISION",
-      "baseline": "330d2de"
+      "assignment": "OG-035",
+      "status": "IN_PROGRESS",
+      "baseline": "64ea54f"
     }
   ],
   "unavailable_worker": {
@@ -482,9 +482,12 @@
         "OG-020",
         "OG-021",
         "OG-025",
-        "OG-030"
+        "OG-030",
+        "OG-034"
       ],
-      "blockers": [],
+      "blockers": [
+        "Independent controller command/root-velocity work is in progress. Actual production binding awaits genuine loaded terrain-scene identities (OG035) and original actor animation catalog/root binding (OG036)."
+      ],
       "assigned_agent": "/root/worker_2",
       "baseline": "60c55a2",
       "status": "IN_PROGRESS",
@@ -495,7 +498,11 @@
         "No fabricated flags or no-op unsupported movement.",
         "Automated x64 subsystem/build/runtime validation; no manual progression."
       ],
-      "submission": null
+      "submission": null,
+      "production_dependencies": [
+        "OG-035",
+        "OG-036"
+      ]
     },
     {
       "id": "OG-010",
@@ -1693,7 +1700,8 @@
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029.patch",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029-report.md",
         "sha256": "ae03ac97b440b4b84c1e9c20b1b0921bbdb213d0242e19fbd86584bf6967bf3d"
-      }
+      },
+      "integration_commit": "64ea54f"
     },
     {
       "id": "OG-030",
@@ -1855,12 +1863,106 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "6053cd4",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Exact original accumulator math/order and strict timestep boundary with original-backed fixtures.",
         "Actual native world/body movement and mandatory original hook ordering; no silent no-op host.",
         "Release/Debug relevant tests, architecture and regression evidence; no manual gameplay."
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-034.patch",
+        "sha256": "9b6e05dd73e6f9f01e2fec1d18772cbfdf82e3421cbbe0535d8d8c1b5e45432b",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-034-report.md"
+      },
+      "independent_validation": [
+        "Root verified complete patch SHA256 and inspected native source against original ARM accumulator, signed clamp, inclusive comparison, live vector passes, Step arguments and subtraction/counter order.",
+        "Root full x64 Release and Debug builds and all 16 CTests passed, including real colliding-body integration and real contact-driven post-list replacement.",
+        "Root copied the original instruction-window oracle into ignored review storage and reran all 33 bit fixtures, every callback argument/state observation and 1024 sequential frames against both root-built native dumps. Zero differences.",
+        "Root Release/Debug output bytes match SHA256 71221f3ab75cf31d8a24f033c02712d3c6dec61abff760396ca62c1d1d39633c; new test images are genuine AMD64 PE32+.",
+        "Intervening materials and authored-jump integration change no submitted clock source; this leaf creates no new timer, substitutes no vehicle implementation and does not claim complete world/actor host integration."
+      ]
+    },
+    {
+      "id": "OG-035",
+      "description": "Implement an original-backed decoded height-scene binding with genuine raw mesh bounds, runtime node types and loaded absolute-transform identities.",
+      "scope": "Trace the actual scene construction/global heightmap selection and build stable owning native views for the proved path. Preserve original factory-generated mesh children and complete transform arithmetic. Decode raw bounds once in the authoritative asset reader; do not duplicate BRES parsing or guess final transforms/types. Reuse or consolidate the already verified jump scene-matrix math only where behavior is identical. Broader unsupported factory branches remain explicit. No renderer/skeleton rewrite.",
+      "symbols": [
+        {
+          "signature": "PhysicAttributes::CreateNeighborTris(ISceneNode*,int)",
+          "address": "0x0031cc69"
+        },
+        {
+          "signature": "CResFileManager::constructNode and createMeshNode",
+          "address": "0x0029692d;0x0029d3b1"
+        },
+        {
+          "signature": "ISceneNode::updateAbsolutePosition and relative transform",
+          "address": "0x00273141;0x002738b1"
+        }
+      ],
+      "resources": [
+        "port/retail_scene.h",
+        "port/retail_scene.cpp",
+        "port/tests/retail_scene.cpp",
+        "port/SCENE_HEIGHT_BINDING.md",
+        "port/city_assets.h",
+        "port/city_assets.cpp",
+        "port/retail_jump_surface.h",
+        "port/retail_jump_surface.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-027",
+        "OG-029",
+        "OG-030"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "64ea54f",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original constructor/global-selection/load-chain evidence for actual type, raw bbox, hierarchy and absolute positions; no nearest-Z or assumed zero-translation replacement.",
+        "Actual decoded source fixtures and original matrix/scene oracle comparisons, including signed-zero child regression; stable ownership and existing height/jump tests preserved.",
+        "Native Release/Debug compilation, subsystem tests and automated asset enumeration; no manual progression."
+      ]
+    },
+    {
+      "id": "OG-036",
+      "description": "Implement original actor animation catalog/root binding and lifecycle prerequisites for the direct-player controller.",
+      "scope": "Reconstruct Character::bindAnimation and Player setup mapping from original scene/animation resources to genuine IDs, frame ranges and root identity. Reuse verified selection/clock/sampler; preserve reload-before-commit callback ordering and root cache initialization. No hardcoded mapping from requested IDs202/188 to an arbitrary clip, fake animator/root, duplicate clock or full skin-parity claim. Request shared interface reservations before modifying existing components.",
+      "symbols": [
+        {
+          "signature": "Character::bindAnimation(char const*,AnimationInfo&,ISceneNode*)",
+          "address": "0x002f23fd"
+        },
+        {
+          "signature": "Player setup animation catalog/root and accepted animation lifecycle",
+          "address": "Trace original call graph"
+        }
+      ],
+      "resources": [
+        "port/retail_actor_animation.h",
+        "port/retail_actor_animation.cpp",
+        "port/tests/retail_actor_animation.cpp",
+        "port/ACTOR_ANIMATION_BINDING.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-018"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "64ea54f",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original catalog/range/root/cache/callback evidence with actual asset enumeration and original-backed fixtures.",
+        "No inferred animation identity from clip name or movement duration. Real host ordering and changed live-state behavior must be tested.",
+        "Native Release/Debug tests and relevant integration checks; original ARM unchanged and no manual gameplay."
       ]
     }
   ],
@@ -1880,7 +1982,6 @@
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
-    "Root owns CMake and integration. Worker1 owns only remaining-material evidence document until additional source reservations; OG025 remains frozen for independentreview.",
     "OG027 independently validated with pending OG029 producer present, then rebuilt without that pending CMake source before material integration."
   ]
 }
