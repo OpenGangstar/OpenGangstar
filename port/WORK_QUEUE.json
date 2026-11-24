@@ -28,9 +28,9 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-008",
+      "assignment": "OG-037",
       "status": "IN_PROGRESS",
-      "baseline": "60c55a2"
+      "baseline": "71a7de5"
     },
     {
       "slot": 3,
@@ -275,11 +275,13 @@
         "OG-001",
         "OG-002",
         "OG-007",
-        "OG-008"
+        "OG-008",
+        "OG-040"
       ],
       "blockers": [
         "Compiled timelines omit original command order at equal timestamps and freeze actor motion during held dialogue. Static movement-duration delays would be incorrect.",
-        "Requires original ordered movement dispatch (OG-007), then independent actor advancement and an ordered cinematic host."
+        "Requires original ordered movement dispatch (OG-007), then independent actor advancement and an ordered cinematic host.",
+        "OG008 provides a bounded direct-player component, not the production actor host. OG040 must supply genuine runtime/outer update bindings before compiled waits can be integrated."
       ],
       "assigned_agent": "/root/worker_2",
       "baseline": "feb6317",
@@ -429,7 +431,7 @@
     },
     {
       "id": "OG-008",
-      "description": "Port original actor movement and completion with world advancement independent of blocked script execution.",
+      "description": "Port bounded original direct-player walk/run, scripted arrival, steering and sampled-root application to the real body.",
       "scope": "Implement the smallest faithful alive/on-foot direct-player walk/run controller first, then production host composition where evidenced. Use real shared body/terrain/jump/filter/contact/steering and verified animation selection/clock/root sampler, preserving live original flags and independent world advancement. Coordinate OG034 worldclock interface rather than duplicate timing. Broader NPC/vehicle/reset/AI branches stay explicit until implemented. No duration-derived completion, average-speed root substitute or empty required host. Reserve additional shared interfaces before edits; root owns CMake.",
       "symbols": [
         {
@@ -490,18 +492,32 @@
       ],
       "assigned_agent": "/root/worker_2",
       "baseline": "60c55a2",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actor movement continues while script dialogue/waits block.",
         "Original placement/reset and destination/path completion behavior with independent subsystem tests.",
         "No fabricated flags or no-op unsupported movement.",
         "Automated x64 subsystem/build/runtime validation; no manual progression."
       ],
-      "submission": null,
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-008.patch",
+        "sha256": "d42104d9528908566eb42408b98a025dc50be798d360bd52aadb01ca6be1b0c5",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-008-report.md"
+      },
       "production_dependencies": [
         "OG-035",
         "OG-036"
+      ],
+      "updated_baseline": "71a7de5",
+      "original_description": "Port original actor movement and completion with world advancement independent of blocked script execution.",
+      "remaining_scope": "Genuine retained scene/animation instance, outer Player update and production world/VM host are tracked by OG040; NPC/vehicle/AI remain separate unimplemented systems.",
+      "independent_validation": [
+        "Root verified complete patch SHA256 and reviewed constructor identity/ownership, command guards/flags, mapping, steering, exact arrival expression and root-to-body order against original evidence.",
+        "Root full x64 Release and Debug builds and all17CTest passed before catalog integration; all18CTest passed afterward.",
+        "Root independently reran the original73-case mapping/wrapper/arrival oracle with return-sentinel checking; all passed. Real native tests exercise actual body velocity/WakeUp, rootZ, steering and shared-world displacement, with no duplicate Step loop.",
+        "Both configuration retail geometry fixtures, exact expected missing-resource audit,31GPU readbacks and opening smokes passed after catalog integration. New images are AMD64PE32+.",
+        "Production actor/VM bindings remain incomplete; existing presentation movement is not relabeled as this controller. Intervening source changes do not overlap the four submitted files."
       ]
     },
     {
@@ -1881,7 +1897,8 @@
         "Root copied the original instruction-window oracle into ignored review storage and reran all 33 bit fixtures, every callback argument/state observation and 1024 sequential frames against both root-built native dumps. Zero differences.",
         "Root Release/Debug output bytes match SHA256 71221f3ab75cf31d8a24f033c02712d3c6dec61abff760396ca62c1d1d39633c; new test images are genuine AMD64 PE32+.",
         "Intervening materials and authored-jump integration change no submitted clock source; this leaf creates no new timer, substitutes no vehicle implementation and does not claim complete world/actor host integration."
-      ]
+      ],
+      "integration_commit": "71a7de5"
     },
     {
       "id": "OG-035",
@@ -1909,7 +1926,8 @@
         "port/city_assets.h",
         "port/city_assets.cpp",
         "port/retail_jump_surface.h",
-        "port/retail_jump_surface.cpp"
+        "port/retail_jump_surface.cpp",
+        "port/tests/retail_jump_surface.cpp"
       ],
       "priority": 1,
       "complexity": "high",
@@ -1927,6 +1945,9 @@
         "Original constructor/global-selection/load-chain evidence for actual type, raw bbox, hierarchy and absolute positions; no nearest-Z or assumed zero-translation replacement.",
         "Actual decoded source fixtures and original matrix/scene oracle comparisons, including signed-zero child regression; stable ownership and existing height/jump tests preserved.",
         "Native Release/Debug compilation, subsystem tests and automated asset enumeration; no manual progression."
+      ],
+      "findings": [
+        "Original runtime type depends on database-path substrings. The synthetic signed-model.bdae path contains sign and selects an empty-tag factory path; rename the geometry-child matrix fixture to a neutral zero-model.bdae path and qualify the collector through the same original-backed runtime-type helper. Preserve its exact signed-zero expectations. Original direct child oracle remains a bounded math proof rather than full factory execution."
       ]
     },
     {
@@ -1947,12 +1968,15 @@
         "port/retail_actor_animation.h",
         "port/retail_actor_animation.cpp",
         "port/tests/retail_actor_animation.cpp",
-        "port/ACTOR_ANIMATION_BINDING.md"
+        "port/ACTOR_ANIMATION_BINDING.md",
+        "port/retail_animation.h",
+        "port/retail_animation.cpp"
       ],
       "priority": 1,
       "complexity": "high",
       "dependencies": [
-        "OG-018"
+        "OG-018",
+        "OG-039"
       ],
       "blockers": [],
       "assigned_agent": "/root/worker_1",
@@ -1963,6 +1987,188 @@
         "Original catalog/range/root/cache/callback evidence with actual asset enumeration and original-backed fixtures.",
         "No inferred animation identity from clip name or movement duration. Real host ordering and changed live-state behavior must be tested.",
         "Native Release/Debug tests and relevant integration checks; original ARM unchanged and no manual gameplay."
+      ],
+      "findings": [
+        "The original accepted path does not rerun guards after live reload. It reads live speedMultiplier and preserves callback mutations to root/cache/flags before selected-field commit. Share accepted-transition commit with the pure selector; keep existing API behavior/tests."
+      ]
+    },
+    {
+      "id": "OG-037",
+      "description": "Add native JPEG texture loading through the existing Windows image-decoding seam and account for remaining original image formats.",
+      "scope": "Replace the withdrawn WIC JPEG candidate with the original-compatible historical JPEG 6b decoder and exact original options. Reuse an existing compatible dependency if present; otherwise pin the official IJG archive and preserve license. Keep PNG and other readers unchanged. Native C error/longjmp and allocation boundaries must be safe for x86-64; original data/decoder numerics retained. Root owns main CMake wiring; worker owns new isolated codec CMake module.",
+      "symbols": [
+        {
+          "signature": "irr::video::CImageLoaderJPG::loadImage(IReadFile*) const",
+          "address": "0x002bcf11"
+        },
+        {
+          "signature": "irr::video::CImageLoaderJPG::isALoadableFileFormat(IReadFile*) const",
+          "address": "0x002bcea9"
+        },
+        {
+          "signature": "Historical JPEG 6b source, original forced RGB output and do_fancy_upsampling=false",
+          "address": "Loader0x2bcfc6..0x2bcfd4; original version string ELF0x4061e0"
+        }
+      ],
+      "resources": [
+        "port/texture.cpp",
+        "port/texture.h",
+        "port/tests/texture_png.cpp",
+        "port/IMAGE_FORMATS.md",
+        "port/jpeg_decode.c",
+        "port/jpeg_decode.h",
+        "port/cmake/Jpeg.cmake"
+      ],
+      "priority": 5,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-027"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "71a7de5",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original JPEG loader source/binary evidence, opaque RGB output, supported baseline/progressive/grayscale/CMYK behavior accounted for.",
+        "Independent synthetic fixtures and malformed rejection; preserve all existing PNG/BMP/TGA/PSD/ATC tests and exact supplied-image audit/missing-reference behavior.",
+        "Native Release/Debug compilation and focused tests; original ARM remains unchanged."
+      ],
+      "review_findings": [
+        "OG038 actual original codec shows WIC fancy chroma interpolation differs on 186/187 nonconstant pixels, maximum channel error76; forcing only original fancy flagtrue reproduces WIC exactly.",
+        "WIC accepts missing EOI while original decoder raises error68. No speculative pixel filtering or undocumented fallback is acceptable. Original ELF embeds6b27-Mar-1998.",
+        "Correction from original source trace: fill_input_buffer returnsTRUE without supplying bytes and skip_input_data is unbounded. Observed missing-EOI error68 depended on deterministic research heap bytes; bounded native EOF errors are an explicit safety adaptation, not guaranteed original failure-code parity."
+      ]
+    },
+    {
+      "id": "OG-038",
+      "description": "Independently review native JPEG loading and establish original decoder reference evidence for the synthetic fixtures.",
+      "scope": "Read-only review of root OG037 texture.cpp/h and JPEG tests. Build/run reference-only original instruction probes and independent native fixture export/harness under ignored own build storage; no product modifications or original ARM edits. Bound codec numerical parity honestly.",
+      "symbols": [
+        {
+          "signature": "CImageLoaderJPG::loadImage",
+          "address": "0x002bcf11"
+        },
+        {
+          "signature": "jinit_color_deconverter",
+          "address": "0x001edcf5"
+        }
+      ],
+      "resources": [
+        "port/build/OG-038-*"
+      ],
+      "priority": 5,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "71a7de5",
+      "status": "VERIFIED",
+      "reservations_active": false,
+      "validation": [
+        "Review shared WIC lifecycle preserves PNG and original output-format/alpha semantics.",
+        "Validate hand-authored baseline RGB/grayscale/progressive fixtures and original forced JCS_RGB acceptance/rejection, distinguishing actual image decoding from intercepted entry/setup checks.",
+        "Actionable source-backed findings, independent report and reproducible reference artifacts."
+      ],
+      "submission": {
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-038-review.md",
+        "sha256": "f4050e96d21119a786a6a7d6fefbfdd1ec85c1dbfe13acb30716b34c31582d76"
+      }
+    },
+    {
+      "id": "OG-039",
+      "description": "Preserve authoritative indexed animation source ranges and expose exact-order catalog decoding for actor binding.",
+      "scope": "Frozen subset split from OG035: CityAnimationSource, readClipIndexed/shared legacy wrapper, loadCityAnimationCatalog and focused test. Reuse one BRES/channel decoder; preserve intentional script casefold behavior. No scene/bbox changes in this subset.",
+      "symbols": [
+        {
+          "signature": "Native readClipIndexed/readClip/loadCityAnimationCatalog; original timeline indexed range identity",
+          "address": "Original getClipIndex0x002b2a21, existing BRES12-byte records"
+        }
+      ],
+      "resources": [
+        "port/city_assets.h (frozen catalog subset)",
+        "port/city_assets.cpp (frozen catalog subset)",
+        "port/tests/animation_catalog.cpp"
+      ],
+      "priority": 1,
+      "complexity": "small",
+      "dependencies": [
+        "OG-018"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "64ea54f",
+      "status": "MERGED",
+      "reservations_active": false,
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-035-animation-catalog.patch",
+        "sha256": "8293080027a8642ff72c7da2ddd21150919b6c8671781fe32aa9e9394ac1914d"
+      },
+      "validation": [
+        "Root source review and focused Release/Debug catalog fixtures passed.",
+        "Root full Release18CTest passed; complete Debug gate in progress before MERGED.",
+        "Approved reviewed subset transferred to worker1 for dependent OG036 development; no duplicate metadata reader introduced."
+      ],
+      "independent_validation": [
+        "Root checked frozen patch SHA256 and exact-index/shared-reader factor; source signed ranges and IDs retained without new BRES parser.",
+        "Root focused metadata fixtures pass Release and Debug, including case variants/duplicates, signed ranges, source index, sparse-filter boundary and legacy first casefold behavior.",
+        "Root full18CTest passed in both configurations; both actual retail city fixtures,31GPU readbacks and opening smokes pass. Full audit retains98decodedimages and expected111missingreferences.",
+        "Reviewed frozen metadata dependency was transferred to worker1 for real OG036 catalog/bind validation; full scene035development remains separately reserved."
+      ]
+    },
+    {
+      "id": "OG-040",
+      "description": "Bind a genuine retained native player scene/animation/body instance into original outer update order and production world advancement.",
+      "scope": "Implement real runtime pose/root/skin identities and source-backed actor update, height/jump-Z, turn/switchAnim and post-physics scene synchronization. Compose verified direct-player commands, world clock, catalog/bind lifecycle and loaded terrain. Replace existing presentation approximations only when the required live host is genuine. No fake source-node identity, empty contact/vehicle host, duration completion or partial full-Update claim.",
+      "symbols": [
+        {
+          "signature": "PlayerTest::Update",
+          "address": "0x00304ec9"
+        },
+        {
+          "signature": "PlayerTest::updateAnim",
+          "address": "0x00303fe9"
+        },
+        {
+          "signature": "PlayerTest::UpdateSceneNode",
+          "address": "0x00302685"
+        },
+        {
+          "signature": "Character::updatePosition",
+          "address": "0x002f42cd"
+        },
+        {
+          "signature": "GS3DStuff::update actor/physics/scene/script order",
+          "address": "0x002e078d"
+        }
+      ],
+      "resources": [
+        "port/retail_actor_controller.h",
+        "port/retail_actor_controller.cpp",
+        "port/city_view.h",
+        "port/city_view.cpp",
+        "port/vulkan.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-008",
+        "OG-034",
+        "OG-035",
+        "OG-036",
+        "OG-039"
+      ],
+      "blockers": [
+        "Loaded terrain and original animation binding are in progress; retained runtime actor pose/skin and complete outer branch/host operations remain unimplemented."
+      ],
+      "assigned_agent": null,
+      "baseline": null,
+      "status": "BLOCKED",
+      "reservations_active": false,
+      "validation": [
+        "Real actor/root identities and native shared-world movement continue independently of waiting scripts.",
+        "Original update/height/jump/scene order and nonuniform animation sampling; no fake casts or empty hosts.",
+        "Relevant native subsystem/original-reference tests, asset enumeration and startup checks; no manual progression."
       ]
     }
   ],

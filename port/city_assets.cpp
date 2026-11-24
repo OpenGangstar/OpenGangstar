@@ -1284,28 +1284,20 @@ int32_t signedBresWord(const BresReader& bres, uint32_t offset)
     return value;
 }
 
-CityAnimationClip readClip(const CityScene& library, const CityScene* model, const std::string& name,
-                           bool allowEmpty = false)
+CityAnimationClip readClipIndexed(const CityScene& library, const CityScene* model, uint32_t index,
+                                  const std::string& name, bool allowEmpty)
 {
     const BresReader bres(library);
     const auto root = library.rootOffset;
     bres.checkSpan(root, 1, 36);
-    const auto clipCount = bres.word(root + 28);
-    const auto clips = bres.word(root + 32);
+    const auto clipCount = bres.word(root + 28), clips = bres.word(root + 32);
     bres.checkSpan(clips, clipCount, 12);
-    int32_t begin = 0, end = 0;
-    for (uint32_t i = 0; i < clipCount; ++i) {
-        const auto clip = clips + i * 12;
-        // The script's crackingHands cue differs in case from the animation library.
-        if (_stricmp(bres.string(bres.word(clip)).c_str(), name.c_str()) == 0) {
-            begin = signedBresWord(bres, clip + 4);
-            end = signedBresWord(bres, clip + 8);
-            break;
-        }
-    }
+    if (index >= clipCount) bres.fail();
+    const auto record = clips + index * 12;
+    const auto begin = signedBresWord(bres, record + 4), end = signedBresWord(bres, record + 8);
     if (end <= begin) throw std::runtime_error("Missing or empty retail animation clip " + name);
-
-    CityAnimationClip result{name, static_cast<uint32_t>(int64_t(end) - begin), {}};
+    CityAnimationClip result{name, static_cast<uint32_t>(int64_t(end) - begin), {},
+                             CityAnimationSource{index, begin, end}};
     const auto animations = bres.word(root + 20);
     const auto animationCount = bres.word(root + 16);
     bres.checkSpan(animations, animationCount, 36);
@@ -1372,6 +1364,22 @@ CityAnimationClip readClip(const CityScene& library, const CityScene* model, con
     if (result.channels.empty() && !allowEmpty)
         throw std::runtime_error("No matching animation tracks for " + name);
     return result;
+}
+
+CityAnimationClip readClip(const CityScene& library, const CityScene* model, const std::string& name,
+                           bool allowEmpty = false)
+{
+    const BresReader bres(library);
+    const auto root = library.rootOffset;
+    bres.checkSpan(root, 1, 36);
+    const auto count = bres.word(root + 28), clips = bres.word(root + 32);
+    bres.checkSpan(clips, count, 12);
+    for (uint32_t i = 0; i < count; ++i) {
+        // Preserve the existing script crackingHands case-insensitive lookup and requested name.
+        if (_stricmp(bres.string(bres.word(clips + i * 12)).c_str(), name.c_str()) == 0)
+            return readClipIndexed(library, model, i, name, allowEmpty);
+    }
+    throw std::runtime_error("Missing or empty retail animation clip " + name);
 }
 
 std::vector<CitySkin> readActorSkins(const CityScene& model)
@@ -1559,6 +1567,20 @@ CityAnimationClip readCityParticleClip(const CityScene& scene)
     return readClip(scene, &scene, "AUTO_SceneAnims_Range", true);
 }
 
+std::vector<CityAnimationClip> loadCityAnimationCatalog(FileSystemBase& assets, const std::string& path)
+{
+    const auto library = loadBres(assets, path);
+    const BresReader bres(library);
+    bres.checkSpan(library.rootOffset, 1, 36);
+    const auto count = bres.word(library.rootOffset + 28), records = bres.word(library.rootOffset + 32);
+    bres.checkSpan(records, count, 12);
+    std::vector<CityAnimationClip> clips;
+    clips.reserve(count);
+    for (uint32_t i = 0; i < count; ++i)
+        clips.push_back(readClipIndexed(library, nullptr, i, bres.string(bres.word(records + i * 12)), true));
+    return clips;
+}
+
 std::vector<CityAnimationClip> loadCityDoorClips(FileSystemBase& assets, const std::string& path)
 {
     const auto library = loadBres(assets, path);
@@ -1574,7 +1596,7 @@ std::vector<CityAnimationClip> loadCityDoorClips(FileSystemBase& assets, const s
     for (uint32_t i = 0; i < count; ++i) {
         const auto name = bres.string(bres.word(clips + i * 12));
         if (!names.insert(name).second) bres.fail();
-        result.push_back(readClip(library, nullptr, name));
+        result.push_back(readClipIndexed(library, nullptr, i, name, false));
     }
     return result;
 }

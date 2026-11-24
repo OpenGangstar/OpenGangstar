@@ -326,10 +326,16 @@ struct CityAnimationChannel {
     std::string target;
 };
 
+struct CityAnimationSource {
+    uint32_t index;
+    int32_t startMs, endMs;
+};
+
 struct CityAnimationClip {
     std::string name;
     uint32_t durationMs;
     std::vector<CityAnimationChannel> channels;
+    std::optional<CityAnimationSource> source; // Original indexed range, not a name-derived identity.
 };
 
 struct CityActorAnimation {
@@ -964,6 +970,9 @@ void validateBresContainer(FileSystemBase& assets, const std::string& path);
 CityScene loadCityScene(FileSystemBase& assets, const std::string& path);
 std::map<uint8_t, CityActor> loadCitySpawnActors(FileSystemBase& assets, const CityAssets& city);
 CityAnimationClip readCityParticleClip(const CityScene& scene);
+// Exact source-order/index catalogue. Names retain source case and duplicates;
+// legacy script-name lookup remains separate and case-insensitive.
+std::vector<CityAnimationClip> loadCityAnimationCatalog(FileSystemBase& assets, const std::string& path);
 std::vector<CityAnimationClip> loadCityDoorClips(FileSystemBase& assets, const std::string& path);
 void bindCityAnimationTracks(std::vector<CityAnimationClip>& clips, const CityScene& model);
 const CityScene& cityGeometryLibrary(const CityAssets& city, const CityScene& scene,
