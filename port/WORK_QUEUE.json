@@ -36,8 +36,8 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-010",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "4d849da"
     }
   ],
@@ -527,14 +527,28 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "4d849da",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Trace actual flag lifecycle, completion threshold, step/collision/root-motion order and clock ownership with exact addresses.",
         "Distinguish faithfully reusable native facilities from current approximations and missing original dependencies.",
         "Give concrete original edge cases for independent controller tests and smallest correct implementation slice.",
         "No ARM edits or manual gameplay; do not invent unsupported completion behavior."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-010.patch",
+        "files": [
+          "port/ACTOR_MOVEMENT.md"
+        ],
+        "implementation": false,
+        "evidence": "Original27-function map; root-motion/body ownership,100cm strictXY completion,1/60s physics/10iterations,250ms accumulator cap,player/NPC placement differences."
+      },
+      "reservations_active": false,
+      "independent_validation": [
+        "Reviewed original Character::setDestination,SetPosition and walkToLocation C++ bodies.",
+        "Independently inspected PlayerTest strict floating comparison and zeroZ term in ARM instructions at0x30513a..30519a.",
+        "Independently verified Step call at0x2e0954..95a uses10iterations and1/60 constant0x3c888889;250ms clamp visible in original update.",
+        "Documentation-only prerequisite; no runtime implementation or matching rebuild claim."
+      ]
     },
     {
       "id": "OG-009",

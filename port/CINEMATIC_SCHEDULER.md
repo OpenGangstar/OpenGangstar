@@ -62,3 +62,9 @@ stop, original NPC zero-speed behavior, vehicle readiness and skip, and dynamic
 actor-relative destinations. Camera, fade, audio, and animation timing also need
 original-state evidence. This dependency investigation made no production change;
 the compiled cinematic defect remains unresolved. No manual progression was used.
+
+ACTOR_MOVEMENT.md records the original controller and frame-order evidence.
+Player teleport resets and ordinary NPC placement have different effects; a
+non-player transform copy must not universally cancel destination/animation
+state. Native body/root-motion/collision binding remains an implementation
+prerequisite, including strict horizontal player completion below 100 cm.
