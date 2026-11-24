@@ -71,6 +71,7 @@ bool auditReferences(const std::map<std::string, SceneIndex>& catalog,
     size_t boundTextures = 0, missingBindings = 0;
     size_t secondaryBindings = 0, missingSecondaryBindings = 0;
     std::set<std::string> missingBoundTextures;
+    std::set<std::string> missingTableTextures;
     for (const auto& [path, scene] : catalog) {
         const auto check = [&](const std::string& source, const std::string& name, auto member) {
             if (source.empty()) return;
@@ -118,14 +119,22 @@ bool auditReferences(const std::map<std::string, SceneIndex>& catalog,
             ++images;
             if (decodedTextures.count(resourceKey(image))) continue;
             ++missingImages;
+            missingTableTextures.insert(resourceKey(image));
             std::cerr << "Unresolved image table entry: " << path << " -> " << image << '\n';
         }
         for (const auto& texture : scene.materialTextures) {
             ++materialTextures;
             if (decodedTextures.count(texture)) continue;
             ++missingMaterialTextures;
+            missingTableTextures.insert(texture);
             std::cerr << "Unresolved material texture: " << path << " -> " << texture << '\n';
         }
+    }
+    size_t missingWithoutBindings = 0;
+    for (const auto& texture : missingTableTextures) {
+        if (missingBoundTextures.count(texture)) continue;
+        ++missingWithoutBindings;
+        std::cerr << "Unresolved catalog texture without decoded mesh-buffer binding: " << texture << '\n';
     }
     std::cout << checked - missing << '/' << checked << " external mesh and material references resolved\n";
     std::cout << images - missingImages << '/' << images << " BRES image references resolved to decoded textures\n";
@@ -136,6 +145,11 @@ bool auditReferences(const std::map<std::string, SceneIndex>& catalog,
               << missingBoundTextures.size() << " distinct missing textures across all slots)\n";
     std::cout << secondaryBindings - missingSecondaryBindings << '/' << secondaryBindings
               << " secondary textured mesh buffer bindings resolved across the BRES catalog\n";
+    // Catalog membership does not prove runtime use. In particular, an instance
+    // can select different materials from its mesh library's defaults. Keep the
+    // full dependency failure below; this classification only directs investigation.
+    std::cout << missingBoundTextures.size() << " distinct unresolved textures have decoded catalog mesh-buffer bindings; "
+              << missingWithoutBindings << " have only image/material table references (runtime reachability unverified)\n";
     return missing == 0 && missingMaterialTextures == 0 && missingBindings == 0 && missingSecondaryBindings == 0;
 }
 

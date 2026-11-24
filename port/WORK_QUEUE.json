@@ -34,8 +34,8 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-003",
-      "status": "IN_PROGRESS"
+      "assignment": null,
+      "status": "AVAILABLE"
     }
   ],
   "unavailable_worker": {
@@ -78,7 +78,10 @@
         "Isolated x64 build and relevant CTest.",
         "Audit retail opcode-5 payloads; report unsupported production binding honestly."
       ],
-      "submission": null
+      "submission": null,
+      "findings": [
+        "Vehicle spawn category 5 completes when flag 0x4000 is SET; player/category 1 completes when flags & 0xfe == 0; categories 2/3 compare GetSpeed exactly to zero."
+      ]
     },
     {
       "id": "OG-002",
@@ -112,7 +115,10 @@
         "Compile GLSL with glslc and isolated x64 game build for runtime changes.",
         "Focused regression evidence; no manual gameplay."
       ],
-      "submission": null
+      "submission": null,
+      "findings": [
+        "Original VERTEX_COLOR_ALPHA is opaque and uses GL_DECAL; native material decoding lacks the selection. Decoder/header expansion awaits OG-001 reservation release. Worker continues independent renderer investigation."
+      ]
     },
     {
       "id": "OG-003",
@@ -138,13 +144,33 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "6d454d1",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Compare full retail asset audit against baseline exit status and missing-path sets.",
         "Compile isolated x64 retail_asset_audit if modified.",
         "Report missing supplied assets separately from decoder/lookup failures."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-003.patch",
+        "files": [
+          "port/tests/retail_asset_audit.cpp"
+        ],
+        "worker_validation": "Isolated x64 audit builds;111 missing-path set unchanged; exit1 preserved;100 decoded catalog mesh bindings,11 table-only references; district2 Hollywood buffers/light_parking.tga."
+      },
+      "independent_validation": [
+        "Integration x64 Release retail_asset_audit rebuild passed.",
+        "Full audit rerun from original ZIP; exit1 and complete stdout/stderr match submission exactly.",
+        "Intervening main changes affect scheduler documentation only."
+      ],
+      "reservations_active": false
     }
-  ]
+  ],
+  "orchestrator_resources": [
+    "port/WORK_QUEUE.json",
+    "port/WORK_SCHEDULING.md",
+    "port/STATUS.md"
+  ],
+  "validation": {
+    "original_arm_preservation": "2969 tracked files retain their pre-migration SHA-256 values; pre-existing local submodule changes preserved. Checked 2026-11-24."
+  }
 }

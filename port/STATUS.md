@@ -749,6 +749,12 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   applying instance material overrides. The 158 unresolved bindings use 100
   distinct texture names. This count covers decoded mesh instances in every
   supplied BRES scene, including scenes the game may load only as libraries.
+  The remaining 11 absent paths have only image/material table references,
+  with no decoded catalog mesh-buffer binding; their runtime reachability
+  remains unverified. All 111 absent basenames are missing from both supplied
+  archives. The audit reports this distinction without changing its dependency
+  failure status or dropping unresolved references. The native x64 audit was
+  rebuilt and rerun against the ZIP; its existing diagnostics remain unchanged.
 - [x] Preserve secondary BRES material texture slots and validate every image
   index. The hospital sign fixture retains separate references to
   `props_alpha_02.tga` and `props_alpha_01.tga`. The audit checks both.
