@@ -20,9 +20,9 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-096",
+      "assignment": "OG-099",
       "status": "IN_PROGRESS",
-      "baseline": "cf7d176"
+      "baseline": "530c3b1"
     },
     {
       "slot": 2,
@@ -38,7 +38,7 @@
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
       "assignment": "OG-097",
       "status": "IN_PROGRESS",
-      "baseline": "5a4b73b"
+      "baseline": "530c3b1"
     }
   ],
   "unavailable_worker": {
@@ -2217,8 +2217,8 @@
         "OG-063"
       ],
       "blockers": [
-        "Verified scene/pose/graph/material/palette/CPU/process/livecollision/target-facing primitives are available; full retained canonical player/entity/weapon/target/pool and ordered world/VM host remain unimplemented.",
-        "Genuine Character factory/bind host087, resource current-stream sharing088 and morph current targets/runtime state089 active. Nested vehicle factory and dynamic Vulkan submission remain required."
+        "Verified genuine Character host/finalizer087, current resource088, morph state089, weapon091, complete metatypes095 and common target096 exist. Actual canonical entity/LevelObject lifecycle, ordered game-object lists, genuine NPC/camera/combat/Lock/weapon producers and destruction ownership remain uncomposed.",
+        "092nested default deformation factory is active. Dynamic Vulkan submission and full ordered world/VM/outer Player bindings remain unimplemented."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -4361,40 +4361,96 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "cf7d176",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Reproduce084source raw/rich setter complete branches/side-effect order, repeated same target, callback-mutated current target and opaque byte stores.",
         "KnownNULL distinct expired nonnull; no strong target retention outside serial endpoint leases; source common target identity and two086fresh queries use same store.",
-        "Required real NPC/camera/combat/Lock producer endpoints explicit; no whole manager/entity implementation claim from leaf."
+        "Required real NPC/camera/combat/Lock producer endpoints explicit; no whole manager/entity implementation claim from leaf.",
+        "Root independently rebuilt Release/Debug:53CTest/config pass, AMD64 PE32+ target binaries; fresh actual original371rich transitions and12raw/getter controls; exact371native event/state traces/config. KnownNULL/expiry/by-value input/transient-lease native safety checks pass. Logs: port/build/reviews/OG-096."
       ]
     },
     {
       "id": "OG-097",
       "description": "Port genuine intrusive game-object lists and their original iteration/lifetime semantics.",
-      "scope": "Research/API first. Source GameObjectList and manager list selection form the actual ordered040entity update/lookup foundation. Use one real intrusive hook on canonical objects, no copied scene registry/order or fake entity/manager callbacks. Exact callbacks/prefetch/destruction/condition/name/respawn and undefined-context boundaries need reviewed interfaces before implementation.",
+      "scope": "Approved actual non-owning intrusive entity hook/list algorithms, distinct selector rules, initialized17counts and required genuine teardown/creation endpoints. Explicit source FillList unknown-context and checked native lifetime/membership domains; no fake canonical entity, copied order or second registry.",
       "symbols": [
         "GameObjectList::Add/InsertAfter/Remove/RemoveAndDestroy/Clear",
         "GameObjectList::UpdateGameObjects/ForEach/GetFirst/GetNext/ForEachIf/FillList/GetGameObjectByName",
         "GameObjectManager::Add/GetFirst/getObjectList"
       ],
       "resources": [
-        "port/build/OG-097-* (worker-3 ignored research only)"
+        "port/retail_game_object_list.h",
+        "port/retail_game_object_list.cpp",
+        "port/tests/retail_game_object_list.cpp",
+        "port/GAME_OBJECT_LIST.md"
       ],
       "priority": 1,
       "complexity": "high",
       "dependencies": [],
-      "blockers": [
-        "Canonical intrusive hook/actual operation and ownership interface/API review required before product code."
-      ],
+      "blockers": [],
       "assigned_agent": "/root/worker_3",
-      "baseline": "5a4b73b",
+      "baseline": "530c3b1",
       "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
         "Original list/manager selector methods execute with actual typed links and controlled callbacks, preserving prefetch versus reread order and all fields/events.",
         "One actual entity/one link per membership, native full-width pointers, no source pointer overlays or fake creation/destruction/name/death/default callbacks.",
         "Explicit original FillList uninitialized context and invalid iterator domains; meaningful native/original cases and full R/D after API approval."
+      ]
+    },
+    {
+      "id": "OG-098",
+      "description": "Map actual original game-object metatype factory dispatch and native implementation gaps.",
+      "scope": "Original source/ARM research only in root ignored review artifacts. Account for every supplied raw record kind and original constructor/load/return/lifetime branch without introducing fake factories or changing worker resources.",
+      "symbols": [
+        "GameObjectManager::CreateGameObjectFromMetatype",
+        "CGameFactory and original concrete object constructor/load dispatch"
+      ],
+      "resources": [
+        "port/build/reviews/OG-098/* (root ignored research only)"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-095"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "530c3b1",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Inspect original decompilation and actual ARM dispatch; enumerate all196raw records against real branch kinds and report constructors/load symbols and missing prerequisites.",
+        "No original source edits, runtime emulator dependency, guessed object types or manufactured callback behavior."
+      ]
+    },
+    {
+      "id": "OG-099",
+      "description": "Recover canonical LevelObject state, base loading and lifecycle requirements for genuine runtime ownership.",
+      "scope": "Research/API first in worker-1 ignored099 artifacts only. Account for actual constructor/setup/GetMetatype/SetName/Load/enable/disable/Update/destructor and exact canonical field/lifetime/scene/list bindings. No product files or duplicate owner/table/parser before reviewed interface.",
+      "symbols": [
+        "LevelObject::LevelObject(int)",
+        "LevelObject::setup/Load/enable/disable/Update/~LevelObject/SetName/GetMetatype"
+      ],
+      "resources": [
+        "port/build/OG-099-* (worker-1 ignored research only)"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-095"
+      ],
+      "blockers": [
+        "Canonical fields, shared table and real scene/list/target/physics lifetime interface require source evidence and API review."
+      ],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "530c3b1",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Execute actual original constructor/load/lifecycle branches with explicit required endpoint captures; distinguish exact field writes from unknown constructor bytes and raw pointer offsets.",
+        "Map same096target/097hook whole entity ownership, single flags/category/scene/physics/store state and genuine destruction effects; no proxy entity, second registry/table/cache or guessed gameplay."
       ]
     }
   ],
@@ -4411,7 +4467,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after091:2969original baseline file sizes/SHA256 unchanged; original submodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and6userlocaledit/untracked paths preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root Release/Debug52CTest/config after094Character reload and095complete metatype catalogue. Fresh4408reload traces and740lookup results/config exact;196raw records retained and full asset regression unchanged.092nested default factory,096canonical target and097intrusive lists active. Full040outer entity/world/VM and Vulkan submission remain pending."
+    "native_integration": "2026-11-25: Root Release/Debug53CTest/config after096canonical common target/rich Player transitions.371fresh actual original/native required-operation and final-state traces/config exact, plus12raw/getter controls.094reload/095full metatypes merged.092nested factory,097intrusive list implementation,098factory coverage and099canonical LevelObject research active; full040outer entity/world/VM and dynamic Vulkan submission remain pending."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
