@@ -32,7 +32,8 @@ struct RetailPhysicsBodyData {
     std::optional<RetailPhysicsZBounds> nodeBounds;
     std::array<float, 4> heightsCm;
     bool jumpSurface;
-    // Original metadata byte +25, copied to jump state +113; meaning unproven.
+    // Original metadata byte +25: wrapping authored Jump producer ID, copied to
+    // jump state +113. Further consumer semantics remain unverified.
     std::uint8_t opaqueJumpFlag = 0;
 };
 

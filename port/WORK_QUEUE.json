@@ -28,9 +28,9 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-032",
+      "assignment": "OG-008",
       "status": "IN_PROGRESS",
-      "baseline": "330d2de"
+      "baseline": "60c55a2"
     },
     {
       "slot": 3,
@@ -430,7 +430,7 @@
     {
       "id": "OG-008",
       "description": "Port original actor movement and completion with world advancement independent of blocked script execution.",
-      "scope": "Evidence-backed native actor controller for destinations, paths, placement resets, animation/root motion and original completion predicates. No completion flags fabricated from scene duration.",
+      "scope": "Implement the smallest faithful alive/on-foot direct-player walk/run controller first, then production host composition where evidenced. Use real shared body/terrain/jump/filter/contact/steering and verified animation selection/clock/root sampler, preserving live original flags and independent world advancement. Coordinate OG034 worldclock interface rather than duplicate timing. Broader NPC/vehicle/reset/AI branches stay explicit until implemented. No duration-derived completion, average-speed root substitute or empty required host. Reserve additional shared interfaces before edits; root owns CMake.",
       "symbols": [
         {
           "signature": "PlayerTest::walkToLocation(...)",
@@ -461,7 +461,11 @@
         "port/city_view.cpp",
         "port/city_view.h",
         "port/vulkan.cpp",
-        "port/tests/city_collision.cpp"
+        "port/tests/city_collision.cpp",
+        "port/retail_actor_controller.h",
+        "port/retail_actor_controller.cpp",
+        "port/tests/retail_actor_controller.cpp",
+        "port/ACTOR_CONTROLLER.md"
       ],
       "priority": 1,
       "complexity": "high",
@@ -480,15 +484,11 @@
         "OG-025",
         "OG-030"
       ],
-      "blockers": [
-        "Verify and integrate the real on-foot actor body backend OG025, then implement live actor/world and independent advancement with the completed native clock/steering/height/jump/contact components.",
-        "Production host operations and original actor update/animation selection/scene ownership must be implemented; no empty adapters or average-speed cancellation.",
-        "Complete original point/node height initialization contracts OG030 before claiming production terrain binding."
-      ],
-      "assigned_agent": null,
-      "baseline": null,
-      "status": "BLOCKED",
-      "reservations_active": false,
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "60c55a2",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
       "validation": [
         "Actor movement continues while script dialogue/waits block.",
         "Original placement/reset and destination/path completion behavior with independent subsystem tests.",
@@ -1582,7 +1582,8 @@
         "OG033 independent peer review no actionable findings. Original primary lighting/tracked material color and scene/skin transforms remain explicitly incomplete; no speculative multiplier.",
         "Intervening actorbody/height integration does not overlap submitted material files.",
         "Root removed pending authored-jump CMake wiring and rebuilt the exact material integration slice:14CTest passed in Release and Debug."
-      ]
+      ],
+      "integration_commit": "60c55a2"
     },
     {
       "id": "OG-028",
@@ -1659,8 +1660,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "330d2de",
-      "status": "NEEDS_REVISION",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Complete source/ELF evidence for producer identities and exact vertexorder/heights/rawflag/localtransform/filter/group/ownership.",
         "Map original fields to decoded scene data and expose unsupported or absent data explicitly; no guessed ramps or genericmeshprojection.",
@@ -1672,11 +1673,27 @@
       ],
       "submission": {
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029.patch",
-        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029-report.md"
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029-report.md",
+        "sha256": "77707b31b060cd41537725f0a7cff2b06dfb1cf70090beadb23dfeba3365c955"
       },
       "review_findings": [
         "OG032 original finite-TRS comparison found collector omits final generated identity-child mult34; signed-zero matrix/body-yaw bits differ. Author correcting both Jump/current and visible/placement child contexts with actual-loader and original-bridge regression."
-      ]
+      ],
+      "independent_validation": [
+        "Initial submitted root builds and15CTest pass in Release/Debug;23synthetic/15retail producer and15raw-BRES/originalrelative/mult34 comparisons pass but omit identity-child signed-zero edge.",
+        "Root copied revised raw-scene regression into initial original029source. Release/Debug both fail with Original identity-child current matrix signed-zero bits, confirming peer finding before fix.",
+        "Root verified frozen replacement patch and matching final regression test, then copied all four revised files. Full Release and Debug builds and all15CTest pass.",
+        "Root reran both actual original generated-child update/mult34/producer contexts, including exact signed-zero regression; all bits agree. Raw-BRES bindings now compare final child multiplication for all15retail cases with zero differences.",
+        "Root supplied15actual static bodies/proxies and23synthetic definitions pass; configuration dumps identical. Existing14592height corpus retains the original-compared hash, actual cliff/range enumeration unchanged.",
+        "Both configuration opening smokes and tested AMD64PE32+ images pass; original ARM hashes and83tooling tests rechecked unchanged.",
+        "Root native target shares existing physics/body/asset readers; asset dependency is transitive through physics because collector resolves real decoded asset bindings. Full production visibility/scene factory and actor host remain incomplete.",
+        "Intervening material fields preserve source compatibility; no global renderer/skeleton transform change was made."
+      ],
+      "initial_submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029-report.md",
+        "sha256": "ae03ac97b440b4b84c1e9c20b1b0921bbdb213d0242e19fbd86584bf6967bf3d"
+      }
     },
     {
       "id": "OG-030",
@@ -1777,10 +1794,17 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "330d2de",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Source-backed findings with precise location and reproducible evidence; distinguish implemented component from unbound production behavior."
+      ],
+      "submission": {
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-032-review.md",
+        "sha256": "6a0f013e68c648042bdc9de9da294835377d7c8047d953a241bf199008e56801"
+      },
+      "findings": [
+        "Confirmed omission of actual generated geometry-child identity mult34. Original final matrix and body yaw +0, submitted native -0, in a valid static-body/proxy fixture with finite jump height236. No larger numerical or gameplay failure established."
       ]
     },
     {
@@ -1850,8 +1874,9 @@
     "port/ACTOR_COLLISION.md"
   ],
   "validation": {
-    "original_arm_preservation": "2969trackedfiles retain pre-migrationSHA256; pre-existing local submodule changes preserved. Independently checked2026-11-25 after actorfoundation integration.",
-    "original_decompilation_gates": "2026-11-24:83 Python unittests passed;check_repository.py passed;progress.py --check passed. No full ARM matching rebuild claimed."
+    "original_arm_preservation": "2026-11-25: Root independently rechecked all2969tracked original ARM files against pre-migration SHA256; all unchanged and pre-existing local edits preserved.",
+    "original_decompilation_gates": "2026-11-25:83Python unittests,check_repository.py and progress.py --check all pass. No full ARM matching rebuild claimed.",
+    "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
