@@ -36,9 +36,9 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-055",
+      "assignment": "OG-068",
       "status": "IN_PROGRESS",
-      "baseline": "f95ae2d"
+      "baseline": "9d748c1"
     }
   ],
   "unavailable_worker": {
@@ -2771,20 +2771,20 @@
       "complexity": "medium",
       "dependencies": [
         "OG-049",
-        "OG-051"
+        "OG-051",
+        "OG-055"
       ],
-      "blockers": [
-        "OG049/051 merged. City asset decoder is exclusively reserved by OG055; zero-influence source rows must be handled after that integration without fabricated weights."
-      ],
-      "assigned_agent": null,
-      "baseline": null,
-      "status": "BLOCKED",
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "9d748c1",
+      "status": "MERGED",
       "reservations_active": false,
       "validation": [
         "All 83 supplied local skins decode through the one authoritative reader; 96 zero-count rows remain empty and retain source order.",
         "Actual original 96 zero-count/zero-total rows yield 576 NaN component classifications; native CPU skin preserves this without bind-pose fallback.",
         "Existing model/catalogue/scene/asset gates and Release/Debug tests; no gameplay progression."
-      ]
+      ],
+      "independent_verification": "Root old decoder fails serialized empty/nonempty regression; corrected R/D complete builds36CTests/config pass. Independent raw359BRES comparison matches all83controllers/27434vertices, every joint index/weight bit/empty row. Exactly96limo empty rows preserve576NaN classes; actual original2ranges compare6192finite/inf+576NaN classes exact. All83joint-box tables5676componentbits match native. No weights fabricated; renderer/vehicle process host separate."
     },
     {
       "id": "OG-055",
@@ -3261,13 +3261,11 @@
         "OG-065",
         "OG-067"
       ],
-      "blockers": [
-        "OG055 owns actor graph header/source until independently verified;062 pose lifetime must remain compatible with actual shadow extraction."
-      ],
-      "assigned_agent": null,
-      "baseline": null,
-      "status": "BLOCKED",
-      "reservations_active": false,
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "9d748c1",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
       "validation": [
         "Actual original54 ownership/lifecycle/projection cases and additional manager propagation/hierarchy flag/lifetime cases compared against real Player/jail native graphs.",
         "Pool reuse/unpooled teardown, independent visibility, unchanged local/cache bits on reparent, original child order/UID lookup/layer and late cache update. Native destruction/invalidation must occur at genuine record ownership boundaries.",
@@ -3320,7 +3318,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root Release/Debug complete builds35CTests/config pass with055+062 combined. Original bounds core/live-owner/metadata and full pose dump compatibility pass. Next054 removes original zero-row decoder gap; global graph/material/deformation/world integration remain pending."
+    "native_integration": "2026-11-25: Root full R/D builds36CTests/config pass after054. All83retail skins27434vertices and83authored box tables now decode and match rawbits; limo576 original NaN classes preserved. Last bounds/pose/heading source regressions pass; no new rendering changes."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

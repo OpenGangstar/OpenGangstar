@@ -131,11 +131,24 @@ these raw ranges yields576 NaN position/normal component classifications, with
 untouched output exact. The morph constructor/render path is not executed by this
 probe; a zero-influence result is independent of the supplied matrix/position.
 
-The existing authoritative readActorSkins decoder rejects zero influences before
-this core can run. This patch does not change that separate decoder contract or
-claim full native processing of all83 skins. The broader vehicle/decoder boundary
-must be accounted for explicitly; silently injecting bind-pose weights would hide
-an original data/behavior discrepancy. Native Player validation is unaffected.
+OG054 removes the authoritative readActorSkins rejection of authored empty
+influence rows. They consume no joint/weight pairs and remain empty; the existing
+nonempty-row checks and total validation are preserved. The existing CPU core
+therefore produces the original nonfinite result without an invented bind-pose
+weight. Driver/proxy ownership and live vehicle deformation remain separate.
+
+Root Release/Debug catalogue validation enumerates all359 supplied BRES and
+accepts all83 skins/27,434 vertices. Every controller index, empty/nonempty row,
+joint index and weight bit matches independent raw ZIP parsing. Exactly96 empty
+rows occur at the two proved limo ranges. Native decoded-row CPU tests retain
+all576 original NaN classifications; the actual original two-range probe matches
+those classifications and6,192 untouched finite/infinity components. NaN payload
+identity is not claimed. All83 authored joint-box tables (5,676 component bits)
+also match raw data, including both previously withheld limo controllers.
+A serialized mixed empty/nonempty fixture rejects on the old decoder and passes
+after the correction; excess/unconsumed pairs and malformed nonempty totals still
+reject. No renderer or full vehicle-host completion is inferred from catalogue
+acceptance.
 
 ## Verification and limits
 

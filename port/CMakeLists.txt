@@ -100,6 +100,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_skin_catalog_test tests/retail_skin_catalog.cpp)
+    target_link_libraries(retail_skin_catalog_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_skin_catalog_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_skin_catalog COMMAND retail_skin_catalog_test)
+
     add_executable(retail_skin_bounds_test tests/retail_skin_bounds.cpp)
     target_link_libraries(retail_skin_bounds_test PRIVATE opengangstar_physics opengangstar_assets)
     if(MSVC)

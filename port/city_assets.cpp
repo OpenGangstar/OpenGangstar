@@ -1511,7 +1511,7 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
         uint32_t index = 0;
         for (uint32_t v = 0; v < vertexCount; ++v) {
             const auto influences = bres.byte(counts + v);
-            if (!influences || influences > (indexCount - index) / 2) bres.fail();
+            if (influences > (indexCount - index) / 2) bres.fail();
             auto& vertex = skin.vertices.emplace_back();
             float total = 0;
             for (uint32_t k = 0; k < influences; ++k) {
@@ -1524,7 +1524,10 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
                 total += weight;
                 index += 2;
             }
-            if (std::abs(total - 1) > 0.001f) bres.fail();
+            // Original car_limo contains96 authored empty rows. Preserve them
+            // without consuming pairs or inventing weights; its CPU zero-total
+            // arithmetic is handled by the existing original skinning core.
+            if (influences && std::abs(total - 1) > 0.001f) bres.fail();
         }
         if (index != indexCount) bres.fail();
         skins.push_back(std::move(skin));
