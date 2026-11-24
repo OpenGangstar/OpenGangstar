@@ -125,6 +125,11 @@ class RetailHeightController {
     // extrapolation, preserves cache and may leave partial identity on failure.
     // Repeated recursive states throw explicitly instead of an invented height.
     float setHeightAttributesFromPoint(std::size_t slot, const RetailHeightPoint&);
+    // Original GetHeightFrom0x320041. Copy only the evidenced selected geometry,
+    // cache and three random identities when the source node is nonnull, then
+    // perform the existing detailed query. Keep point as a live const reference:
+    // it may alias target vertices/cache overwritten by this partial transfer.
+    float heightFrom(std::size_t source, const RetailHeightPoint&, std::size_t target);
     float height(const RetailHeightPoint&, std::size_t slot = 0, bool detailed = true);
     void setGroundState(std::size_t slot, bool value);
     void updateEdges(std::size_t slot);

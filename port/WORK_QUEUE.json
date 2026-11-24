@@ -28,17 +28,17 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-057",
-      "status": "IN_PROGRESS",
-      "baseline": "3976e52"
+      "assignment": "OG-049",
+      "status": "NEEDS_REVISION",
+      "baseline": "a01e74f"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-055",
+      "assignment": "OG-058",
       "status": "IN_PROGRESS",
-      "baseline": "3976e52"
+      "baseline": "a01e74f"
     }
   ],
   "unavailable_worker": {
@@ -2569,9 +2569,9 @@
         "OG-045"
       ],
       "blockers": [],
-      "assigned_agent": "/root/worker_1",
-      "baseline": "72345dd",
-      "status": "AWAITING_REVIEW",
+      "assigned_agent": "/root/worker_2",
+      "baseline": "a01e74f",
+      "status": "NEEDS_REVISION",
       "reservations_active": true,
       "validation": [
         "Two actual Player models, source/generated/controller identities, shared immutable source with independent live instances and exact first UID/scope lookup.",
@@ -2583,7 +2583,16 @@
         "sha256": "81eeec821187b76efb313f257dde7e66c7fbacc0f45766d0914afa4a414fd4a6",
         "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-049-report.md",
         "report_sha256": "4dabff10fe456bf50f1964d22b954da506448627e2fa9d2bd549f2959cdfac3c"
-      }
+      },
+      "initial_submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-049.patch",
+        "sha256": "81eeec821187b76efb313f257dde7e66c7fbacc0f45766d0914afa4a414fd4a6",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-049-report.md",
+        "report_sha256": "4dabff10fe456bf50f1964d22b954da506448627e2fa9d2bd549f2959cdfac3c"
+      },
+      "review_findings": [
+        "OG057 P2: ordinaryMesh and skinMesh deduplicate mutable resources by UID within one root. Original repeated geometry construction allocates distinct resources; native repeated-instance fixtures leak buffer visibility and skin dirty state. Remove the unsupported resource cache and validate per-construction ownership."
+      ]
     },
     {
       "id": "OG-050",
@@ -2675,7 +2684,8 @@
         "Root independently reran original component/pointer/stride probes and all supplied inventories: 359 BRES, 83 local skins, 21 through morph chains, all 83 position/normal declarations float32 with no unresolved source formats.",
         "Root actual original limo zero-count ranges produce 576 NaN classifications and 6192 exact untouched finite components. Existing decoder rejects those 96 rows; OG054 tracks the correction without bind-pose substitution.",
         "New skin test executables are AMD64 PE32+. Genuine current cache/morph state, dirty/buffer lifecycle, bounds and production renderer/actor composition remain separate."
-      ]
+      ],
+      "integration_commit": "a01e74f"
     },
     {
       "id": "OG-052",
@@ -2702,8 +2712,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "d212638",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original selective copy and GetHeight execution including null source, distinct/same slots, target fields, live scene identities and aliasing reference points.",
         "Release/Debug synthetic/retail state and body lifetime tests; original query regressions remain intact."
@@ -2713,7 +2723,14 @@
         "sha256": "938cb41d7f09fa70e4be6551ec1b2b2be90887ac5d4bfe7fac9b935fd1e1cefe",
         "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-052-report.md",
         "report_sha256": "6d4f950cf2befa9ae6d285a90f0c3f0f9147250006cefd32775ae2f989e15ed3"
-      }
+      },
+      "independent_validation": [
+        "Root reviewed the exact conditional field-copy order and original const-reference alias timing; no whole-state clone, eager normal/body transfer or independent height algorithm.",
+        "Root full Release/Debug builds and all 28 CTests pass; test formatting changed readability only.",
+        "Actual original execution matches all 13062 records per configuration: 64 synthetic and 12998 eligible retail queries, with all14576 source triangle records enumerated. Exact result bits, both slots, node identities, sparse visitation changes and generation agree.",
+        "All90 original GetHeightFrom instructions execute; frozen native corpus hashes match and test executables are AMD64 PE32+.",
+        "Real native cliff bodies remain owned after transfer and are destroyed only by delegated height ground-transition behavior; live alias mutation preserves original100 versus external-point77 result."
+      ]
     },
     {
       "id": "OG-054",
@@ -2772,11 +2789,11 @@
         "OG-045"
       ],
       "blockers": [
-        "Additional shared owner/decoder extension awaits independent verification and transfer of frozen OG049; original bounds core/probes continue in the four reserved files."
+        "Frozen arithmetic core is ready; complete metadata/lazy-owner extension waits for corrected OG049 review and shared resources. No complete bounds implementation is claimed."
       ],
       "assigned_agent": "/root/worker_3",
       "baseline": "3976e52",
-      "status": "IN_PROGRESS",
+      "status": "BLOCKED",
       "reservations_active": true,
       "validation": [
         "Actual original nonidentity/rotated/scaled/signed-zero and empty/degenerate source bounds with exact cache/update timing.",
@@ -2788,7 +2805,11 @@
         "port/city_assets.cpp",
         "port/retail_actor_scene.h",
         "port/retail_actor_scene.cpp"
-      ]
+      ],
+      "core_submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-055-core-review.patch",
+        "sha256": "f0df8473d1f6aa48570d4a294c74f24ce8bc92335f4dbbeb8af8fa16df5cb5b1"
+      }
     },
     {
       "id": "OG-056",
@@ -2826,10 +2847,46 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "3976e52",
+      "status": "VERIFIED",
+      "reservations_active": false,
+      "validation": [
+        "Precise original symbols/addresses and reproducible original-reference evidence; distinguish implemented native behavior from pending integration."
+      ],
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-057-review.md",
+        "sha256": "0781362d1ae5c1f475ece82b8c1151bb5c624114cc73d32a71d10e4fc95735b8"
+      }
+    },
+    {
+      "id": "OG-058",
+      "description": "Port original CPU morph vertex/normal evaluation for genuine morph-backed skin inputs.",
+      "scope": "Trace and implement CColladaMorphingMesh::morph with exact normalized/relative method, source/target weight order, stream/range behavior and original float operations. Reuse existing decoded CityMorphController/CityScene and shared stream types where appropriate; do not copy preview deformation or duplicate BRES parsing. Explicit caller-owned current weights and process outputs; no invented vehicle damage policy.",
+      "symbols": [
+        {
+          "signature": "CColladaMorphingMesh::morph and buffer preparation references",
+          "address": "0x002a56e5;0x002a55a5"
+        }
+      ],
+      "resources": [
+        "port/retail_morph.h",
+        "port/retail_morph.cpp",
+        "port/tests/retail_morph.cpp",
+        "port/MORPH.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-051"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "a01e74f",
       "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
-        "Precise original symbols/addresses and reproducible original-reference evidence; distinguish implemented native behavior from pending integration."
+        "Actual original normalized/relative blend math for zero, signed, nonunit, cancellation and multiple-target weights, exact range/normal-stream rules.",
+        "Automated supplied morph-controller enumeration and actual original comparisons using current source data; no fake base-pose substitution before skin.",
+        "Release/Debug tests and source-backed checked input adaptations."
       ]
     }
   ],
@@ -2846,7 +2903,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Combined root Release/Debug full builds and 25 CTests pass each; actual original pose/root/selection/heading/jump regressions pass; 31 GPU checks and opening smoke each; AMD64 PE32+ verified. Retail audit98/98 images and expected111missing references."
+    "native_integration": "2026-11-25: Root complete Release/Debug builds and 28 CTests pass. Copied-height13062-record original corpora match per configuration; prior root CPU skin, RNG and pose gates pass. Last root31GPU/opening gates passed with OG047; no rendering code has changed since."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

@@ -394,6 +394,26 @@ void RetailHeightController::setGroundState(size_t slot, bool value) {
     s.wasOnGround = s.onGround;
     s.onGround = value;
 }
+float RetailHeightController::heightFrom(size_t source, const Point& point, size_t target) {
+    const auto& from = states.at(source);
+    auto& to = states.at(target);
+    if (from.selectedNode) {
+        to.triangle.buffer = from.triangle.buffer;
+        to.selectedNode = from.selectedNode;
+        to.hasHeightmap = true; // Native representation of the copied nonnull node.
+        to.triangle.indexOffset = from.triangle.indexOffset;
+        to.vertices[0] = from.vertices[0];
+        to.vertices[1] = from.vertices[1];
+        to.vertices[2] = from.vertices[2];
+        to.randomEdge.edge = from.randomEdge.edge;
+        to.randomEdge.triangle.indexOffset = from.randomEdge.triangle.indexOffset;
+        to.randomEdge.triangle.buffer = from.randomEdge.triangle.buffer;
+        to.cached = from.cached;
+    }
+    // No normal, changed/ground flag, lane ordinal, intersection marker or body
+    // transfer; their ordinary detailed-query behavior remains authoritative.
+    return height(point, target, true);
+}
 float RetailHeightController::height(const Point& point, size_t slot, bool detailed) {
     auto& s = states.at(slot);
     if (s.cached[2] == noHeight)

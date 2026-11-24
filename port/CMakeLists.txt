@@ -97,6 +97,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_height_from_test tests/retail_height_from.cpp)
+    target_link_libraries(retail_height_from_test PRIVATE opengangstar_physics opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_height_from_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_height_from COMMAND retail_height_from_test)
+
     add_executable(retail_skinning_test tests/retail_skinning.cpp)
     target_link_libraries(retail_skinning_test PRIVATE opengangstar_assets)
     if(MSVC)
