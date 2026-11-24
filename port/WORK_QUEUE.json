@@ -20,9 +20,9 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-088",
+      "assignment": "OG-091",
       "status": "IN_PROGRESS",
-      "baseline": "3b9bf01"
+      "baseline": "e4c2ed5"
     },
     {
       "slot": 2,
@@ -4027,12 +4027,23 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "3b9bf01",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual loaded metadata identity and lifetime retained; repeated requests and fresh actors/target roles share same source array handles.",
         "All359BRES/1877geometry decoded initial position/normal bits and source-format flags preserved; no geometry data-span overlaps confirmed.",
         "Same-load mutation sharing and separate-load isolation, foreign same-name geometry rejection, actual retained owner lifetimes, Release/Debug x64 tests."
+      ],
+      "submission": {
+        "patch": "../OpenGangstar-workers/worker-1/port/build/OG-088.patch",
+        "sha256": "b658043e58b43e133dc50b954b140f6573903b664f01e98c571627d42b63b609"
+      },
+      "independent_validation": [
+        "Root reviewed actual retained bank/alias ownership and exact geometry identities; intervening086target wrapper has no conflicting interface changes. No source decoder/kernel/palette/material duplicate or mutable actor retention.",
+        "Full root Release/Debug game builds and46CTest/config pass; new test AMD64PE32+.",
+        "Each configuration validates all359libraries/1877source geometries/242627vertices through actual public load route against authoritative separate decode, including bothPlayers and21vehicle metadata.",
+        "Root freshly reproduced independent raw descriptor inventory against original ZIP:1877exact records, zero shared data pointers or overlapping interleaved geometry spans. Same-load sharing, explicit separate-load isolation, NaN/signed-zero bits and bank/source teardown controls pass.",
+        "Actual scene/process factory association remains separate; this does not relax the existing native nested morph factory rejection."
       ]
     },
     {
@@ -4072,6 +4083,72 @@
         "Fresh original runtime entry0 state updates and source-current target mutations match exact original events/float words.",
         "Current target source exact indexed geometry, lifetime, sharing, foreign same-name rejection; no duplicate owner or target parser."
       ]
+    },
+    {
+      "id": "OG-090",
+      "description": "Recover genuine weapon/ammo owner and reload semantics for the canonical player host.",
+      "scope": "Root read-only original code/executable research and next native resource plan. Existing decoded weapon definitions, manager context/ammo storage and reload/getter behavior; no temporary whole-weapon implementation or fake projectile manager.",
+      "symbols": [
+        "Weapon::reload(bool)",
+        "WeaponManager::getAmmo/setAmmo",
+        "Character::checkForWeaponReload/setReloadWeaponAnimation",
+        "Weapon::reloadRocket"
+      ],
+      "resources": [
+        "port/build/reviews/OG-090/*"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-008",
+        "OG-036",
+        "OG-081"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "e4c2ed5",
+      "status": "VERIFIED",
+      "reservations_active": false,
+      "validation": [
+        "Original get/set ammo and reload math/order/control cases, including live context/unlimited changes and signed extremes.",
+        "Identify canonical state/scene/projectile/achievement/sound producer requirements and minimal faithful native owner reservation."
+      ],
+      "findings": [
+        "Root actual2940get/set/reload records saved in reviews/OG-090/results.json; report defines genuine state/context/unlimited and required sound endpoint boundaries. No full Weapon/manager/gameobject init or projectile implementation claimed."
+      ]
+    },
+    {
+      "id": "OG-091",
+      "description": "Implement genuine loaded weapon scalar state, canonical ammunition and original reload.",
+      "scope": "Bounded sole weapon scalar/clip state from existing decoded definitions plus initialized two-context ammunition owner borrowing canonical live context; exact original get/set/reload and required sound endpoint. No full Weapon/manager init/factory/scene/projectile/shooting claim. Share existing signed32 subtraction helper with timeline if required, preserving all existing comments/behavior.",
+      "symbols": [
+        "Weapon::reload0x330bf9",
+        "WeaponManager::getAmmo0x331409/setAmmo0x33161d",
+        "Weapon scalar getters and clip setters"
+      ],
+      "resources": [
+        "port/retail_weapon.h",
+        "port/retail_weapon.cpp",
+        "port/tests/retail_weapon.cpp",
+        "port/WEAPON.md",
+        "port/retail_integer.h",
+        "port/retail_timeline.cpp"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-090"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "e4c2ed5",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Exact2940original/native outputs and actual operation ordering in R/D, all source signed32 effects retained without C++overflow.",
+        "Existing decoded weapon records authoritative; canonical current context, unlimited policy and clip/ammo state have no duplicate cache or parser.",
+        "Invalid context/type checks, sound ordering and source metadata/lifetimes; full x64 builds/tests and timeline regressions if helper extraction."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -4087,7 +4164,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after078:2969original tracked sizes/SHA256 unchanged vs pre-migration baseline; originalsubmodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and userlocaledits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Full Release/Debug45CTest/config after086targetpredicate/PlayerNPCpostscenewrappers. Original20trace/state rows+120floatwords/config exact.074deformation/082timeline and083source-sharing independent proofs passed.087/088/089 active genuine host/resource prerequisites."
+    "native_integration": "2026-11-25: Full Release/Debug46CTest/config after088canonical loaded current streams.359libraries/1877geometry/242627vertices exact initial stream validation/config; original raw overlap inventory agrees.087genuine animation host,089live morph runtime/targets and091weapon ammo/reload active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
