@@ -3223,12 +3223,17 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "25f391f",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Exact original function/ownership evidence, targeted actual-original execution probes and raw retail coverage where useful.",
         "Frozen report/complete ignored research artifacts with source identity, limitations and reserved product-resource plan; no manual gameplay."
-      ]
+      ],
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-066-report.md",
+        "sha256": "e5d1cb286b11933b6f05b99dd268a5c8a6020ab44a2f2c5b44ad293217c1b3ee"
+      },
+      "independent_verification": "Root source review and rerun15actual software/proxy plus29real preparation/CPU/render-order cases, and independent359BRES/104controller inventory all pass. No actual native process-owner or hardware/GPU parity claim. Corrected MORPH.md stream-mask/type namespace error."
     },
     {
       "id": "OG-068",

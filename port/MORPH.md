@@ -53,8 +53,9 @@ with an undeformed base mesh or cache by a guessed UID.
 component arrays and the source mesh box through `setReferences` (`0x2a5321`).
 The true-bool branch clears the proxy's position and normal pointers, leaving
 their strides and other components retained for later driver preparation. The
-false-bool branch requests real driver process buffers (type 1 or type 3 depending
-on the material flag bit), with the original driver flags. It does not establish
+false-bool branch requests real driver process buffers with stream mask1 or3
+depending on material flags40 mask2, and process type1. Stream masks, process
+types and returned flags are distinct namespaces. It does not establish
 a new independent morph vertex topology or normalize normals.
 
 `onPrepareBufferForRendering` (`0x2a58f5`) obtains the driver process buffer,
