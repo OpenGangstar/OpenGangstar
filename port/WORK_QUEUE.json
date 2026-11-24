@@ -1,0 +1,150 @@
+{
+  "baseline": "6d454d1",
+  "requested_workers": 4,
+  "runtime_agent_limit_including_orchestrator": 4,
+  "active_worker_capacity": 3,
+  "orchestrator": "/root",
+  "states": [
+    "AVAILABLE",
+    "RESERVED",
+    "IN_PROGRESS",
+    "BLOCKED",
+    "AWAITING_REVIEW",
+    "NEEDS_REVISION",
+    "VERIFIED",
+    "MERGED"
+  ],
+  "integration_policy": "Only the orchestrator commits, integrates, pushes, or creates pull requests. Workers modify only their reserved resources in their own worktree. Reservations remain until independent verification and integration, or explicit cancellation.",
+  "workers": [
+    {
+      "slot": 1,
+      "agent": "/root/worker_1",
+      "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
+      "assignment": "OG-001",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "slot": 2,
+      "agent": "/root/worker_2",
+      "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
+      "assignment": "OG-002",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "slot": 3,
+      "agent": "/root/worker_3",
+      "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
+      "assignment": "OG-003",
+      "status": "IN_PROGRESS"
+    }
+  ],
+  "unavailable_worker": {
+    "slot": 4,
+    "status": "BLOCKED",
+    "blocker": "Runtime permits four agents total, including the orchestrator; a fourth simultaneous worker cannot be spawned."
+  },
+  "tasks": [
+    {
+      "id": "OG-001",
+      "description": "Port StopObject decoding, original completion predicates, and shared script-executor blocking behavior. Record compiled cinematic binding as separate unresolved work unless separately reserved.",
+      "scope": "Native adaptation only; preserve original ARM submodule. No speculative cancellation or movement behavior.",
+      "symbols": [
+        {
+          "signature": "Script::executeCommand(Structs::ScriptCommand const*, int, int)",
+          "address": "0x00339cb9",
+          "branch": "opcode 5: 0x0033b6be; blocking checks 0x0033c844, 0x0033c9de, 0x0033c9d0"
+        },
+        {
+          "signature": "Structs::StopObject::Read(DataStream&)",
+          "address": "0x0033d625"
+        }
+      ],
+      "resources": [
+        "port/city_assets.cpp",
+        "port/city_assets.h",
+        "port/retail_mission.cpp",
+        "port/retail_mission.h",
+        "port/tests/city_collision.cpp"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "6d454d1",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Focused native script tests: blocking, completion, skip, malformed payloads, original category-specific predicates.",
+        "Isolated x64 build and relevant CTest.",
+        "Audit retail opcode-5 payloads; report unsupported production binding honestly."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-002",
+      "description": "Investigate original rendering behavior missing from the native Vulkan implementation; implement one bounded evidence-backed correction if supported by existing interfaces, otherwise submit exact findings and dependency tasks.",
+      "scope": "Original material alpha, vertex color, and render-state fidelity. Do not invent lighting or fog constants. Request further reservations before interface changes.",
+      "symbols": [
+        {
+          "signature": "irr::video::CCommonGLDriver::setBasicRenderStates(irr::video::SMaterial const&, irr::video::SMaterial const&, bool)",
+          "address": "0x002c6661"
+        },
+        {
+          "signature": "irr::video::CCommonGLDriver::setFog(irr::video::SColor, bool, float, float, float, bool, bool)",
+          "address": "0x002c54d1"
+        }
+      ],
+      "resources": [
+        "port/vulkan.cpp",
+        "port/shaders/city.vert",
+        "port/shaders/city.frag",
+        "port/tests/shader_contract.py"
+      ],
+      "priority": 4,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "6d454d1",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Original source or binary evidence tied to exact changed behavior.",
+        "Compile GLSL with glslc and isolated x64 game build for runtime changes.",
+        "Focused regression evidence; no manual gameplay."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-003",
+      "description": "Trace unresolved retail texture references and distinguish unused catalog entries from reachable mesh dependencies. Improve audit diagnostics where supported; preserve strict failure for genuine missing resources.",
+      "scope": "Asset dependency audit and inventory only. Check supplied ZIP/APK and original filesystem/resource resolution. Never fabricate textures or suppress dependency failures.",
+      "symbols": [
+        {
+          "signature": "irr::io::CFileSystem::createAndOpenFile(char const*)",
+          "address": "0x001d36cd"
+        },
+        {
+          "signature": "auditReferences and auditDistrictMaterials",
+          "address": null
+        }
+      ],
+      "resources": [
+        "port/tests/retail_asset_audit.cpp",
+        "port/asset_inventory.py"
+      ],
+      "priority": 5,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "6d454d1",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Compare full retail asset audit against baseline exit status and missing-path sets.",
+        "Compile isolated x64 retail_asset_audit if modified.",
+        "Report missing supplied assets separately from decoder/lookup failures."
+      ],
+      "submission": null
+    }
+  ]
+}
