@@ -20,9 +20,9 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-091",
+      "assignment": "OG-094",
       "status": "IN_PROGRESS",
-      "baseline": "e4c2ed5"
+      "baseline": "b00137d"
     },
     {
       "slot": 2,
@@ -4158,12 +4158,23 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "e4c2ed5",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Exact2940original/native outputs and actual operation ordering in R/D, all source signed32 effects retained without C++overflow.",
         "Existing decoded weapon records authoritative; canonical current context, unlimited policy and clip/ammo state have no duplicate cache or parser.",
         "Invalid context/type checks, sound ordering and source metadata/lifetimes; full x64 builds/tests and timeline regressions if helper extraction."
+      ],
+      "submission": {
+        "patch": "../OpenGangstar-workers/worker-1/port/build/OG-091.patch",
+        "sha256": "7fe327d221737d3248b68cee3eb9bbf53a331a373782b723a19a3f4f38581119"
+      },
+      "independent_validation": [
+        "Root source/API review confirms sole loaded scalar/clip owner and initialized2x7ammo/current-context/unlimited owner; required sound has no default, no duplicated player/weapon/manager snapshot. Intervening088/089 do not conflict.",
+        "Full root Release/Debug game builds and47CTest/config pass; game andweapon test AMD64PE32+. All11 actual decoded weapon definitions preserve every scalar/flag/initial clip.",
+        "Root freshly executed2940original outputs and3additional realARM context/sound/bypass controls; exact2940native state cases and2352committed sound observations/config pass.",
+        "Existing timeline public traces/213clip getters remain byte-identical to root082original-verified traces after exact shared subtract32 extraction. Negative/signed-extreme andinvalid unused table bypass semantics pass.",
+        "Original2969tracked baseline file sizes/SHA256 and08e4fc11d8457ac40c502f3b0b2e966a20247293submodule pin unchanged; userlocaledits preserved."
       ]
     },
     {
@@ -4238,6 +4249,36 @@
         "Explicit size/truncation/overflow/input checks, existing image loader regressions, generated extension enumeration and actual retail98decode/missing111set unchanged.",
         "Full x64 builds/tests; no gameplay, retail payloads or emulator dependency in product."
       ]
+    },
+    {
+      "id": "OG-094",
+      "description": "Compose original Character weapon reload checks and reload animation selection with genuine native weapon state.",
+      "scope": "Research/API only until091independent integration. Source checkForWeaponReload and complete setReloadWeaponAnimation, required live current weapon/category/NPC-state/animation/sound operations, preserve captured type and late role read after reload. No fake ammo/weapon/category/actor host.",
+      "symbols": [
+        "Character::checkForWeaponReload",
+        "Character::setReloadWeaponAnimation"
+      ],
+      "resources": [
+        "port/build/OG-094-* (worker-1 ignored research only)"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-090",
+        "OG-091",
+        "OG-036"
+      ],
+      "blockers": [
+        "API/resources review required before product implementation."
+      ],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "b00137d",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original category/type/clip/ammo/animation branches and call order, getter/callback mutations and signed boundaries; exact native R/D later.",
+        "Use canonical091weapon/ammo/sound and existing animation requests, no second weapon/clock/parser or fabricated manager."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -4250,10 +4291,10 @@
     "port/ACTOR_COLLISION.md"
   ],
   "validation": {
-    "original_arm_preservation": "2026-11-25: Root latest after078:2969original tracked sizes/SHA256 unchanged vs pre-migration baseline; originalsubmodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and userlocaledits preserved.",
+    "original_arm_preservation": "2026-11-25: Root latest after091:2969original baseline file sizes/SHA256 unchanged; original submodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and6userlocaledit/untracked paths preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Full Release/Debug46CTest/config after089current morph targets/canonical observable base state. Original48+126corecases and56+16processphases exact/config. Source-stream producer088available; factory092 awaits087actual root finalizer/animation host integration."
+    "native_integration": "2026-11-25: Root full Release/Debug47CTests/config after091canonical weapon/ammunition/reload.2940original state records+2352soundobservations/config exact;11loadedweapon definitions and timeline original-verified traces preserved.087finalizer/host active;092factory blocked on087;093PPM active;094Characterreload planning."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

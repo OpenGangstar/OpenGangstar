@@ -1,4 +1,5 @@
 #include "retail_timeline.h"
+#include "retail_integer.h"
 
 #include <cmath>
 #include <limits>
@@ -6,16 +7,6 @@
 #include <utility>
 
 namespace {
-// ARM SUBS preserves the signed32 bit pattern even across overflow. Avoid native
-// signed overflow while retaining the original value before float conversion.
-std::int32_t subtract32(std::int32_t a, std::int32_t b)
-{
-    const auto bits = std::uint32_t(a) - std::uint32_t(b);
-    const auto value = bits <= std::uint32_t(INT32_MAX) ? std::int64_t(bits) :
-        std::int64_t(bits) - 0x100000000LL;
-    return static_cast<std::int32_t>(value);
-}
-
 void checkedName(std::string_view name)
 {
     if (name.find('\0') != std::string_view::npos)
@@ -75,7 +66,7 @@ std::int32_t RetailTimeline::clipIndex(std::string_view name) const
 const std::string& RetailTimeline::clipName(std::int32_t index) const { return clip(index).name; }
 std::int32_t RetailTimeline::clipStart(std::int32_t index) const { return clip(index).source->startMs; }
 std::int32_t RetailTimeline::clipEnd(std::int32_t index) const { return clip(index).source->endMs; }
-std::int32_t RetailTimeline::clipLength(std::int32_t index) const { return subtract32(clipEnd(index), clipStart(index)); }
+std::int32_t RetailTimeline::clipLength(std::int32_t index) const { return retailSubtractInt32(clipEnd(index), clipStart(index)); }
 
 void RetailTimeline::init(std::int32_t first, std::int32_t last)
 {
@@ -88,7 +79,7 @@ void RetailTimeline::setRange(std::int32_t first, std::int32_t last)
     if (!clips) {
         init(first, last);
         startSeconds = static_cast<float>(first) / 1000.f;
-        spanSeconds = static_cast<float>(subtract32(last, first)) / 1000.f;
+        spanSeconds = static_cast<float>(retailSubtractInt32(last, first)) / 1000.f;
     }
     requireRange();
     jumpTo(start);
@@ -100,7 +91,7 @@ void RetailTimeline::setClip(std::int32_t index)
     selectedClip = index;
     init(source.startMs, source.endMs);
     startSeconds = static_cast<float>(start) / 1000.f;
-    spanSeconds = static_cast<float>(subtract32(end, start)) / 1000.f;
+    spanSeconds = static_cast<float>(retailSubtractInt32(end, start)) / 1000.f;
     currentTime = start;
     currentSeconds = startSeconds;
 }
