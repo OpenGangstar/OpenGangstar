@@ -29,7 +29,7 @@
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
       "assignment": "OG-021",
-      "status": "RESERVED",
+      "status": "IN_PROGRESS",
       "baseline": "99e110e"
     },
     {
@@ -37,8 +37,8 @@
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
       "assignment": "OG-020",
-      "status": "RESERVED",
-      "baseline": "pending verified OG015 commit"
+      "status": "IN_PROGRESS",
+      "baseline": "80705a2"
     }
   ],
   "unavailable_worker": {
@@ -1002,7 +1002,8 @@
         "Independent supplied-asset runs:12998height resultbits/IDs and254range diagnostics identical acrossR+D;16330original-world proxies and17085test-only wider-world proxies.",
         "Independently reran original ARM height core oracle:12998cases,zero resultbit/identity differences; edge callback intercepted and not claimed as cliffproof.",
         "Release Vulkan opening smoke passed including11production GPU checks. PreexistingDebugstartup0x80000003 documented separately, not represented as pass."
-      ]
+      ],
+      "integration_commit": "80705a2"
     },
     {
       "id": "OG-017",
@@ -1034,8 +1035,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "5f77886",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Exact3D normalization, category margins, query100 cap/order, metadata/group/sensor filters, strict hit selection and both segment casts.",
         "Original polygon/differing-height/vehicle-adjustment evidence; no guessed slide or first-hit third-output substitute.",
@@ -1047,7 +1048,10 @@
         "Reviewed native source, typed owner identity and complete overload differences; shared existing metadata and realBox2D geometry, no copied ARM layouts.",
         "Independently copied/rebuilt source and tests against integration Box2D in isolated x64 Release+Debug harness; both tests pass.",
         "Independently reran eight actual ARM original steering oracle fixtures with additional return-sentinel assertion; all expectations pass. Box2DQuery/TestSegment are research hooks, distinct from real native geometry tests.",
-        "Final patch/hash, documentation and integration CMake wiring still pending."
+        "Verified final patchSHA25624ffdb8cc59cee618ade21639f50b1b4b65fa7c583820859adea888de610797e and reviewed the added vehicle equal-height scratch fixture.",
+        "Root integration wires physics library and CTest target with strict FP; fullx64Release+Debug builds and nine CTests perconfiguration pass.",
+        "Independently reran final nine actual original steering ARM oracle cases, with additional return-sentinel assertion; both native test executablesAMD64PE32+.",
+        "New source files do not overlap intervening renderer/terrain changes; original typedbodymetadata remains shared. No productionbinding/runtime movement completeness claimed."
       ],
       "submission": {
         "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-017.patch",
@@ -1143,7 +1147,7 @@
     {
       "id": "OG-020",
       "description": "Implement original jump-surface selection and jump-height state for native physics owners.",
-      "scope": "Trace and port SetCurrentJumpShape/GetJumpHeight and exact height-wrapper jump branch with real native shape/owner/terrain state. Preserve ordinary terrain backend and contact ownership; no approximate impulse/ramp substitute or silent no-op. Request any additional mutable height/shared-interface resources before implementation.",
+      "scope": "Trace and port SetCurrentJumpShape/GetJumpHeight and exact height-wrapper jump branch with real native shape/owner/terrain state. Preserve ordinary terrain backend and contact ownership; no approximate impulse/ramp substitute or silent no-op. Request any additional mutable height/shared-interface resources before implementation. Root grants shared metadata trailing defaulted opaqueJumpFlag and explicit optional typed jump-controller composition in the height wrapper. Preserve existing ordinary callers and native ownership; no source-layout casts or independent duplicate counter.",
       "symbols": [
         {
           "signature": "PhysicAttributes::SetCurrentJumpShape(b2Shape*)",
@@ -1162,7 +1166,10 @@
         "port/retail_jump.h",
         "port/retail_jump.cpp",
         "port/tests/retail_jump.cpp",
-        "port/JUMP_PHYSICS.md"
+        "port/JUMP_PHYSICS.md",
+        "port/retail_physics.h",
+        "port/retail_height.h",
+        "port/retail_height.cpp"
       ],
       "priority": 1,
       "complexity": "high",
@@ -1172,8 +1179,8 @@
       ],
       "blockers": [],
       "assigned_agent": "/root/worker_3",
-      "baseline": "pending verified OG015 commit",
-      "status": "RESERVED",
+      "baseline": "80705a2",
+      "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
         "Literal original branch/math/shape transform/quad heights/lifetime evidence; native64-bit identities and ordinary terrain interaction.",
@@ -1216,7 +1223,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "99e110e",
-      "status": "RESERVED",
+      "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
         "Complete literal original category/owner/sensor/player/NPC/vehicle branch and state ownership map before code.",
@@ -1265,6 +1272,7 @@
     "original_decompilation_gates": "2026-11-24:83 Python unittests passed;check_repository.py passed;progress.py --check passed. No full ARM matching rebuild claimed."
   },
   "integration_notes": [
-    "OG017 four-file submission handed to root and source/native geometry/original oracle reviewed; final integration CMake wiring waits for OG015 ownership. Worker2 may begin independent OG021 from latest verified99e110e; OG017 resource reservations remain active until root integration."
+    "OG017 integrated with root-owned CMake wiring; worker2 continues independent OG021 from verified99e110e.",
+    "OG020 exclusively owns sharedretail_physics.h and retail_height.h/.cpp; root owns allCMake wiring, including development wiring in workerworktrees."
   ]
 }

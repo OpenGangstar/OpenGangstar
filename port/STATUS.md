@@ -99,6 +99,15 @@ mission playthroughs for discovery or verification.
   explicitly; errors preserve old bodies but may leave changed query state.
   Jump surfaces, arbitrary node boxes, separate overlap helpers and production
   actor/world binding remain incomplete. See HEIGHT_SEARCH.md.
+- [x] Implement both original destination obstruction-query overloads with
+  actual native Box2D shapes and shared body metadata. Query cap/order, category
+  margins, full 3D normalization, separate height filters, first/second-ray
+  behavior, polygon corner extension, vehicle-circle adjustment and retained
+  rejected fractions/scratch follow original evidence. Nine Release and nine
+  Debug CTests pass; nine original ARM oracle fixtures independently pass.
+  Missing native metadata, insufficient/unmatched polygon geometry and original
+  zero-margin degenerate queries fail explicitly. This component does not own
+  actor movement or establish production controller binding. See STEERING.md.
 - [ ] Port physics, including collision, vehicle dynamics, rigid bodies,
   and camera obstruction. Current movement uses the retail height mesh and
   approximate collision against vertical scene triangles. The vehicle wall
