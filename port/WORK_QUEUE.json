@@ -36,9 +36,9 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-047",
+      "assignment": "OG-051",
       "status": "IN_PROGRESS",
-      "baseline": "72345dd"
+      "baseline": "c8bc7fa"
     }
   ],
   "unavailable_worker": {
@@ -2446,7 +2446,8 @@
         "Root formatted the new test for readability without changing its operations; complete Release/Debug builds and all 24 CTests pass.",
         "Root actual original execution agrees for all 6045 cases per configuration (5888 retail and 157 synthetic): exact point bits, cursor fields and RNG consumption; 781 nonpadding source instructions exercised.",
         "Both native corpus hashes match the frozen submission; new test executables are AMD64 PE32+. Shared original application RNG and actual NPC/vehicle production host remain incomplete."
-      ]
+      ],
+      "integration_commit": "c8bc7fa"
     },
     {
       "id": "OG-048",
@@ -2517,8 +2518,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "72345dd",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original quaternion and track comparisons including exact keys, interpolation, before/after bounds, negative dot, near-unit, nonunit and signed-zero cases.",
         "Reuse existing translation/root clock and preserve all prior clock/selection/sampler regressions; Release/Debug gates and retail track comparisons.",
@@ -2529,7 +2530,17 @@
         "sha256": "8b5814808821af6a527a2a2105505b2e7d78f8274274ee2280938fdf03919c29",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-047-report.md",
         "report_sha256": "a2abf418b8b0a5ef7b2583c06dd6b72182e1c21c34dca3c7939287a4de2e7be9"
-      }
+      },
+      "independent_validation": [
+        "Root reviewed frozen patch hash, original slerp/typed-track branches, shared bracket and normalization consolidation, live cursor/sample/cache ordering and delayed body/root-setter boundary.",
+        "Root complete Release/Debug builds and all 25 CTests pass; root formatted the new test for readability without semantic changes.",
+        "Actual original comparisons per configuration: 91 quaternion cases, 80 typed synthetic cases, 144 independently sourced retail samples; four original Character callback/cache timing captures pass.",
+        "Root independently inventories all 5112 source clip/channel pairs with no missing brackets; native checks 20448 typed samples per configuration.",
+        "Root rebuilt imported-library reference drivers: 560 clock, 840 selection and 72 root sampler cases plus duplicate-time boundary remain bit-identical.",
+        "Root reran 18 shared scene math, 465 heading, 23 synthetic/15 retail jump cases, 15 raw bindings and two identity-child contexts against actual original code.",
+        "Both retail fixtures, 31 Vulkan material pixel readbacks and temporary-save opening smokes pass; 98 images decode and exact 111 missing texture references remain. New pose test executables are AMD64 PE32+.",
+        "Concrete actor pose-to-node binding, CPU skin, production controller/renderer integration and unsupported source classes remain separately incomplete."
+      ]
     },
     {
       "id": "OG-049",
@@ -2597,6 +2608,39 @@
         "Primary original startup seed dataflow and historical Bionic implementation, exact integer vectors/default/reset/seed boundaries and shared consumption.",
         "Native Release/Debug tests and use through real random-position source; no emulated libc dependency in shipped code."
       ]
+    },
+    {
+      "id": "OG-051",
+      "description": "Port actual original CPU skin vertex and normal evaluation for retained actor meshes.",
+      "scope": "Trace and implement the complete original CPU skin loop over authoritative decoded positions, normals, source-order joints/influences and genuine caller-owned skin matrices. Preserve float operations, weight accumulation and zero/missing influence behavior. Keep original matrix-cache identity arithmetic distinct unless equivalence is proved; no renderer rewrite or second BRES parser.",
+      "symbols": [
+        {
+          "signature": "CColladaSkinnedMesh::skin and referenced vertex/normal helpers",
+          "address": "0x002b1c6d and traced callees"
+        }
+      ],
+      "resources": [
+        "port/retail_skinning.h",
+        "port/retail_skinning.cpp",
+        "port/tests/retail_skinning.cpp",
+        "port/SKINNING.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-035",
+        "OG-045"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "c8bc7fa",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original CPU skin execution for signed/nonidentity matrices, source weight order, all branch classes and available normal/position paths.",
+        "Synthetic and supplied model data via existing public typed assets; coordinate future049 seam without editing reserved city_assets files.",
+        "Release/Debug tests, full-width native ownership/bounds and no fabricated identity/normalization or full-render claim."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -2612,7 +2656,7 @@
     "original_arm_preservation": "2026-11-25: Root independently rechecked all2969tracked original ARM files against pre-migration SHA256; all unchanged and pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25:83Python unittests,check_repository.py and progress.py --check all pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Combined OG035/036/037 root Release/Debug full builds and20CTest pass each;31GPU material checks/opening smoke each; game/subsystem executables verified AMD64 PE32+;47IJG C objects AMD64 each. Retail audit98/98 images and expected111missing references."
+    "native_integration": "2026-11-25: Combined root Release/Debug full builds and 25 CTests pass each; actual original pose/root/selection/heading/jump regressions pass; 31 GPU checks and opening smoke each; AMD64 PE32+ verified. Retail audit98/98 images and expected111missing references."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

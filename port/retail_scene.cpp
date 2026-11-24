@@ -1,4 +1,5 @@
 #include "retail_scene.h"
+#include "retail_animation.h"
 
 #include <algorithm>
 #include <cmath>
@@ -54,13 +55,7 @@ RetailSceneMatrix retailSceneMultiply(const RetailSceneMatrix& a, const RetailSc
 }
 
 RetailSceneQuaternion retailSceneNormalizeQuaternion(RetailSceneQuaternion q) {
-    const float length = ((q[0] * q[0] + q[1] * q[1]) + q[2] * q[2]) + q[3] * q[3];
-    if (length != 1.f) {
-        const float inverse = 1.f / std::sqrt(length);
-        for (float& value : q)
-            value *= inverse;
-    }
-    return q;
+    return retailAnimationNormalizeQuaternion(q);
 }
 RetailSceneQuaternion retailSceneYawQuaternion(float angle) {
     // Original Euler set(0,0,angle), double trig/products then float normalize.

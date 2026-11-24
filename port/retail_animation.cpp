@@ -23,6 +23,131 @@ int32_t clipLength(const RetailAnimationClock& clock)
         throw std::runtime_error("Invalid original animation clip interval.");
     return static_cast<int32_t>(length);
 }
+
+size_t components(CityAnimationTransform transform)
+{
+    switch (transform) {
+    case CityAnimationTransform::translationZ: return 1;
+    case CityAnimationTransform::translation:
+    case CityAnimationTransform::scale: return 3;
+    case CityAnimationTransform::rotation: return 4;
+    }
+    throw std::runtime_error("Unsupported original animation channel transform.");
+}
+
+void validateChannel(const CityAnimationChannel& channel, RetailAnimationInterpolation interpolation)
+{
+    if (channel.keys.empty()) throw std::runtime_error("An original animation channel requires keys.");
+    if (interpolation != RetailAnimationInterpolation::step && interpolation != RetailAnimationInterpolation::linear)
+        throw std::runtime_error("Unsupported original interpolation selector.");
+    const auto count = components(channel.transform);
+    for (size_t i = 0; i < channel.keys.size(); ++i) {
+        const auto& key = channel.keys[i];
+        if (key.timeMs > uint32_t(std::numeric_limits<int32_t>::max()) ||
+            (i && key.timeMs <= channel.keys[i-1].timeMs))
+            throw std::runtime_error("Animation keys require strictly increasing int32 times.");
+        for (size_t axis = 0; axis < count; ++axis)
+            if (!std::isfinite(key.value[axis])) throw std::runtime_error("Nonfinite animation key value.");
+    }
+}
+
+struct ChannelBracket {
+    const CityAnimationKey& first;
+    const CityAnimationKey* second;
+    float amount;
+};
+
+ChannelBracket bracket(const CityAnimationChannel& channel, int32_t relativeMs,
+                        RetailAnimationInterpolation interpolation)
+{
+    validateChannel(channel, interpolation);
+    const auto next = std::upper_bound(channel.keys.begin(), channel.keys.end(), relativeMs,
+        [](int32_t ms, const CityAnimationKey& key) { return int64_t(ms) < key.timeMs; });
+    const auto& first = next == channel.keys.begin() ? channel.keys.front() : *std::prev(next);
+    // Exact-key and last-key branches copy authored words, including nonunit
+    // quaternions and signed zeros. Before-first interpolation still executes.
+    if (int64_t(relativeMs) == first.timeMs || channel.keys.size() == 1 ||
+        next == channel.keys.end() || interpolation == RetailAnimationInterpolation::step)
+        return {first, nullptr, 0};
+    const auto& second = next == channel.keys.begin() ? channel.keys[1] : *next;
+    const float amount = std::clamp(float(int64_t(relativeMs) - first.timeMs) /
+        float(uint64_t(second.timeMs) - first.timeMs), 0.f, 1.f);
+    return {first, &second, amount};
+}
+}
+
+RetailAnimationQuaternion retailAnimationNormalizeQuaternion(RetailAnimationQuaternion q)
+{
+    const float length = ((q[0] * q[0] + q[1] * q[1]) + q[2] * q[2]) + q[3] * q[3];
+    if (length != 1.f) {
+        const float inverse = 1.f / std::sqrt(length);
+        for (float& value : q) value *= inverse;
+    }
+    return q;
+}
+
+RetailAnimationQuaternion retailAnimationSlerp(RetailAnimationQuaternion first,
+    RetailAnimationQuaternion second, float amount)
+{
+    for (size_t i = 0; i < first.size(); ++i)
+        if (!std::isfinite(first[i]) || !std::isfinite(second[i]))
+            throw std::runtime_error("Nonfinite original quaternion input.");
+    if (!std::isfinite(amount)) throw std::runtime_error("Nonfinite quaternion interpolation amount.");
+    float angle = ((second[0] * first[0] + second[1] * first[1]) + second[2] * first[2]) +
+                  second[3] * first[3];
+    if (angle < 0.f) {
+        for (float& value : first) value = -value;
+        angle = -angle;
+    }
+    float firstWeight, secondWeight;
+    bool normalize = false;
+    if (angle + 1.f > 0.05f) {
+        if (1.f - angle >= 0.05f) {
+            const float theta = std::acos(angle);
+            const float inverse = 1.f / std::sin(theta);
+            firstWeight = inverse * std::sin(theta * (1.f - amount));
+            secondWeight = inverse * std::sin(theta * amount);
+        } else {
+            firstWeight = 1.f - amount;
+            secondWeight = amount;
+            normalize = true;
+        }
+    } else {
+        // Literal original opposite branch, reachable for unordered intermediate
+        // dot products as well. Do not manufacture an identity quaternion.
+        second = {-first[1], first[0], -first[3], first[2]};
+        firstWeight = std::sin((0.5f - amount) * 3.1415927410125732421875f);
+        secondWeight = std::sin(amount * 3.1415927410125732421875f);
+    }
+    RetailAnimationQuaternion result;
+    for (size_t i = 0; i < result.size(); ++i)
+        result[i] = firstWeight * first[i] + secondWeight * second[i];
+    return normalize ? retailAnimationNormalizeQuaternion(result) : result;
+}
+
+std::array<float, 4> sampleRetailAnimationChannel(const CityAnimationChannel& channel,
+    int32_t relativeMs, RetailAnimationInterpolation interpolation)
+{
+    const auto selected = bracket(channel, relativeMs, interpolation);
+    auto value = selected.first.value;
+    if (!selected.second) return value;
+    if (channel.transform == CityAnimationTransform::rotation)
+        return retailAnimationSlerp(value, selected.second->value, selected.amount);
+    for (size_t axis = 0; axis < components(channel.transform); ++axis)
+        value[axis] += (selected.second->value[axis] - value[axis]) * selected.amount;
+    return value;
+}
+
+void applyRetailAnimationChannel(RetailAnimationPoseTransform& pose, const CityAnimationChannel& channel,
+    int32_t relativeMs, RetailAnimationInterpolation interpolation)
+{
+    const auto value = sampleRetailAnimationChannel(channel, relativeMs, interpolation);
+    switch (channel.transform) {
+    case CityAnimationTransform::translation: pose.translation = {value[0], value[1], value[2]}; break;
+    case CityAnimationTransform::translationZ: pose.translation[2] = value[0]; break;
+    case CityAnimationTransform::rotation: pose.rotation = value; break;
+    case CityAnimationTransform::scale: pose.scale = {value[0], value[1], value[2]}; break;
+    }
 }
 
 bool retailAnimationCanBeInterrupted(int32_t animation)
@@ -98,38 +223,16 @@ bool retailAnimationLastFrame(const RetailAnimationClock& clock, float advance)
 std::array<float, 3> sampleRetailAnimationRoot(const CityAnimationChannel& channel,
     int32_t relativeMs, RetailAnimationInterpolation interpolation)
 {
-    if (channel.transform != CityAnimationTransform::translation || channel.keys.empty())
+    if (channel.transform != CityAnimationTransform::translation)
         throw std::runtime_error("An original local-translation root channel is required.");
-    if (interpolation != RetailAnimationInterpolation::step && interpolation != RetailAnimationInterpolation::linear)
-        throw std::runtime_error("Unsupported original root interpolation selector.");
-    for (size_t i = 0; i < channel.keys.size(); ++i) {
-        const auto& key = channel.keys[i];
-        if (key.timeMs > uint32_t(std::numeric_limits<int32_t>::max()) ||
-            (i && key.timeMs <= channel.keys[i-1].timeMs))
-            throw std::runtime_error("Root keys must retain the decoder's strictly increasing int32 times.");
-        for (size_t axis = 0; axis < 3; ++axis)
-            if (!std::isfinite(key.value[axis])) throw std::runtime_error("Nonfinite root key value.");
-    }
-    const auto next = std::upper_bound(channel.keys.begin(), channel.keys.end(), relativeMs,
-        [](int32_t ms, const CityAnimationKey& key) { return int64_t(ms) < key.timeMs; });
-    const auto& first = next == channel.keys.begin() ? channel.keys.front() : *std::prev(next);
-    std::array<float, 3> value{first.value[0], first.value[1], first.value[2]};
-    // Original equality dispatches a raw key copy, not lerp at weight zero/one.
-    if (int64_t(relativeMs) == first.timeMs || channel.keys.size() == 1 ||
-        next == channel.keys.end() || interpolation == RetailAnimationInterpolation::step)
-        return value;
-    const auto& second = next == channel.keys.begin() ? channel.keys[1] : *next;
-    const float amount = std::clamp(float(int64_t(relativeMs) - first.timeMs) /
-        float(uint64_t(second.timeMs) - first.timeMs), 0.f, 1.f);
-    for (size_t axis = 0; axis < value.size(); ++axis)
-        value[axis] += (second.value[axis] - value[axis]) * amount;
-    return value;
+    const auto value = sampleRetailAnimationChannel(channel, relativeMs, interpolation);
+    return {value[0], value[1], value[2]};
 }
 
 RetailAnimationStep advanceRetailAnimation(RetailAnimationClock& clock, float elapsedMs,
     const CityAnimationChannel* root, const std::array<float, 16>& absoluteMatrix,
     bool bodyPresent, std::optional<std::array<float, 2>> direction,
-    RetailAnimationInterpolation interpolation)
+    RetailAnimationInterpolation interpolation, RetailAnimationPoseEvaluator* pose)
 {
     RetailAnimationStep result;
     if (!root || clock.animation == -1) return result;
@@ -148,13 +251,19 @@ RetailAnimationStep advanceRetailAnimation(RetailAnimationClock& clock, float el
     result.lastFrame = retailAnimationLastFrame(clock, advance);
     const float cursor = clock.cursor + advance;
     const auto integer = integerCursor(cursor);
+    if (root->transform != CityAnimationTransform::translation)
+        throw std::runtime_error("An original local-translation root channel is required.");
+    validateChannel(*root, interpolation);
+    // Original0x2f34ce advances the live clock before animator callbacks.
+    if (pose) clock.cursor = cursor;
     const auto evaluate = [&](int32_t relative) {
         const int64_t absolute = int64_t(clock.startMs) + relative;
         if (absolute < std::numeric_limits<int32_t>::min() || absolute > std::numeric_limits<int32_t>::max())
             throw std::runtime_error("Animation sample exceeds the original timeline.");
         result.relativeMs = relative;
         result.absoluteMs = static_cast<int32_t>(absolute);
-        result.sampledRoot = sampleRetailAnimationRoot(*root, relative, interpolation);
+        result.sampledRoot = pose ? pose->evaluate(relative, result.absoluteMs) :
+                                   sampleRetailAnimationRoot(*root, relative, interpolation);
         result.evaluated = true;
     };
     const auto scaledDifference = [&] {

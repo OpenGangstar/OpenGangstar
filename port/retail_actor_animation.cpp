@@ -95,7 +95,7 @@ RetailAnimationSelection RetailActorAnimationBinding::select(const RetailAnimati
 }
 RetailAnimationStep RetailActorAnimationBinding::advance(float elapsed,
     const std::array<float, 16>& matrix, bool body, std::optional<std::array<float, 2>> direction,
-    RetailAnimationInterpolation interpolation) {
+    RetailAnimationInterpolation interpolation, RetailAnimationPoseEvaluator* pose) {
     return advanceRetailAnimation(clock, elapsed, clock.animation == -1 ? nullptr : &rootChannel(clock.animation),
-                                  matrix, body, direction, interpolation);
+                                  matrix, body, direction, interpolation, pose);
 }

@@ -67,7 +67,8 @@ class RetailActorAnimationBinding {
     const CityAnimationChannel& rootChannel(std::int32_t animation) const;
     RetailAnimationStep advance(float elapsedMs, const std::array<float, 16>& absoluteActorMatrix,
         bool bodyPresent, std::optional<std::array<float, 2>> direction = {},
-        RetailAnimationInterpolation = RetailAnimationInterpolation::linear);
+        RetailAnimationInterpolation = RetailAnimationInterpolation::linear,
+        RetailAnimationPoseEvaluator* pose = nullptr);
     const void* actorInstance() const { return actor; }
     const void* rootInstance() const { return root; }
     const void* shadowInstance() const { return shadow; }

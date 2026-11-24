@@ -8,6 +8,37 @@
 
 enum class RetailAnimationInterpolation { step, linear };
 
+using RetailAnimationQuaternion = std::array<float, 4>;
+// Original quaternion normalization and slerp: no implicit normalization of
+// authored keys, shortest-path sign change applies to FIRST, and only the
+// near-linear slerp branch normalizes its result.
+RetailAnimationQuaternion retailAnimationNormalizeQuaternion(RetailAnimationQuaternion);
+RetailAnimationQuaternion retailAnimationSlerp(RetailAnimationQuaternion first,
+    RetailAnimationQuaternion second, float amount);
+
+struct RetailAnimationPoseTransform {
+    std::array<float, 3> translation{};
+    RetailAnimationQuaternion rotation{0, 0, 0, 1};
+    std::array<float, 3> scale{1, 1, 1};
+};
+// Times are relative to the decoded channel's origin. The caller must retain
+// actual bracketing source keys and supply the original interpolation selector.
+// A rotation's nonzero interpolation is original quaternion slerp.
+std::array<float, 4> sampleRetailAnimationChannel(const CityAnimationChannel&,
+    int32_t relativeMs, RetailAnimationInterpolation = RetailAnimationInterpolation::linear);
+void applyRetailAnimationChannel(RetailAnimationPoseTransform&, const CityAnimationChannel&,
+    int32_t relativeMs, RetailAnimationInterpolation = RetailAnimationInterpolation::linear);
+
+// Genuine live-pose operations, supplied by an owning actor runtime. evaluate
+// applies the whole bound animator at the selected time and reads its live root.
+// The caller applies body/wake intents before the final visualRootTranslation
+// setter, as in the existing controller. No clock or body is owned here.
+class RetailAnimationPoseEvaluator {
+  public:
+    virtual ~RetailAnimationPoseEvaluator() = default;
+    virtual std::array<float, 3> evaluate(int32_t relativeMs, int32_t absoluteMs) = 0;
+};
+
 // Native state, independent of the original ARM object layout. Times are integer
 // milliseconds in the original timeline; cursor/rate deliberately remain float.
 struct RetailAnimationClock {
@@ -76,4 +107,5 @@ struct RetailAnimationStep {
 RetailAnimationStep advanceRetailAnimation(RetailAnimationClock& clock, float elapsedMs,
     const CityAnimationChannel* root, const std::array<float, 16>& absoluteMatrix,
     bool bodyPresent, std::optional<std::array<float, 2>> direction = {},
-    RetailAnimationInterpolation interpolation = RetailAnimationInterpolation::linear);
+    RetailAnimationInterpolation interpolation = RetailAnimationInterpolation::linear,
+    RetailAnimationPoseEvaluator* pose = nullptr);

@@ -96,6 +96,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_animation_pose_test tests/retail_animation_pose.cpp)
+    target_link_libraries(retail_animation_pose_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_animation_pose_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_animation_pose COMMAND retail_animation_pose_test)
+
     add_executable(retail_random_position_test tests/retail_random_position.cpp)
     target_link_libraries(retail_random_position_test PRIVATE opengangstar_physics opengangstar_assets)
     if(MSVC)
