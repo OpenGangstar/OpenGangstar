@@ -53,6 +53,7 @@ add_library(opengangstar_assets STATIC
     city_particles.cpp
     retail_animation.cpp
     retail_actor_animation.cpp
+    retail_skinning.cpp
     filesystem.cpp
     retail_audio.cpp
     retail_radio.cpp
@@ -96,6 +97,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_skinning_test tests/retail_skinning.cpp)
+    target_link_libraries(retail_skinning_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_skinning_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_skinning COMMAND retail_skinning_test)
+
     add_executable(retail_random48_test tests/retail_random48.cpp)
     target_link_libraries(retail_random48_test PRIVATE opengangstar_physics opengangstar_assets)
     if(MSVC)
@@ -271,4 +279,8 @@ endif()
 
 if(MSVC)
     set_source_files_properties(retail_actor_animation.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict;/we4302;/we4311;/we4312")
+endif()
+
+if(MSVC)
+    set_source_files_properties(retail_skinning.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict;/we4302;/we4311;/we4312")
 endif()

@@ -20,25 +20,25 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-049",
+      "assignment": "OG-056",
       "status": "IN_PROGRESS",
-      "baseline": "72345dd"
+      "baseline": "3976e52"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-052",
+      "assignment": "OG-057",
       "status": "IN_PROGRESS",
-      "baseline": "d212638"
+      "baseline": "3976e52"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-051",
+      "assignment": "OG-055",
       "status": "IN_PROGRESS",
-      "baseline": "c8bc7fa"
+      "baseline": "3976e52"
     }
   ],
   "unavailable_worker": {
@@ -2571,13 +2571,19 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "72345dd",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Two actual Player models, source/generated/controller identities, shared immutable source with independent live instances and exact first UID/scope lookup.",
         "Actual original mutable dirty/cache/frame-order and skin pointer/matrix comparisons; nonidentity/signed-zero and missing joint safety boundaries.",
         "Stable native full-width ownership and teardown; no source pointer impersonation, second BRES parser, renderer math assumptions or whole-game completion claim."
-      ]
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-049.patch",
+        "sha256": "81eeec821187b76efb313f257dde7e66c7fbacc0f45766d0914afa4a414fd4a6",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-049-report.md",
+        "report_sha256": "4dabff10fe456bf50f1964d22b954da506448627e2fa9d2bd549f2959cdfac3c"
+      }
     },
     {
       "id": "OG-050",
@@ -2621,7 +2627,8 @@
         "Complete root Release/Debug builds and all 26 CTests pass. Each native corpus matches 76800 outputs/full 48-bit states across 75 starts against its independently compiled original C configuration.",
         "Root executes 24 actual original startup/timer/gettimeofday boundary cases and confirms application state store precedes same-bit srand48; ELF-aware LLVM ARMv6 inventory independently confirms 58 lrand48 calls and one srand48 call.",
         "Root verified exact frozen native corpus hashes and actual two-controller/interleaved/fallback shared navigation composition. Startup seeding and all-consumer production integration remain explicitly pending."
-      ]
+      ],
+      "integration_commit": "3976e52"
     },
     {
       "id": "OG-051",
@@ -2648,12 +2655,26 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "c8bc7fa",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original CPU skin execution for signed/nonidentity matrices, source weight order, all branch classes and available normal/position paths.",
         "Synthetic and supplied model data via existing public typed assets; coordinate future049 seam without editing reserved city_assets files.",
         "Release/Debug tests, full-width native ownership/bounds and no fabricated identity/normalization or full-render claim."
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-3\\port\\build\\OG-051.patch",
+        "sha256": "b52cadff8881aa5117cd2480bdd7ab447a939896088b19a52dca03b129e51fa4",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-3\\port\\build\\OG-051-report.md",
+        "report_sha256": "690d8d9143b60d972851db104e1c45208a9e62227fab2cb5dbee7c80d6987a61"
+      },
+      "independent_validation": [
+        "Root reviewed frozen source/header and exact float transforms, source influence order, zero-weight skip, exact total-weight division and checked range/output contracts.",
+        "Root full Release/Debug game builds and all 27 CTests pass. The new test was formatted for readability without changing operations.",
+        "Root actual original comparisons per configuration: 55 synthetic cases, 801 finite/infinity component matches and 21 NaN classifications; six Player final-cache fixtures with 14418 exact component matches.",
+        "Root independently reran original component/pointer/stride probes and all supplied inventories: 359 BRES, 83 local skins, 21 through morph chains, all 83 position/normal declarations float32 with no unresolved source formats.",
+        "Root actual original limo zero-count ranges produce 576 NaN classifications and 6192 exact untouched finite components. Existing decoder rejects those 96 rows; OG054 tracks the correction without bind-pose substitution.",
+        "New skin test executables are AMD64 PE32+. Genuine current cache/morph state, dirty/buffer lifecycle, bounds and production renderer/actor composition remain separate."
       ]
     },
     {
@@ -2681,12 +2702,18 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "d212638",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Actual original selective copy and GetHeight execution including null source, distinct/same slots, target fields, live scene identities and aliasing reference points.",
         "Release/Debug synthetic/retail state and body lifetime tests; original query regressions remain intact."
-      ]
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-052.patch",
+        "sha256": "938cb41d7f09fa70e4be6551ec1b2b2be90887ac5d4bfe7fac9b935fd1e1cefe",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-052-report.md",
+        "report_sha256": "6d4f950cf2befa9ae6d285a90f0c3f0f9147250006cefd32775ae2f989e15ed3"
+      }
     },
     {
       "id": "OG-054",
@@ -2720,6 +2747,89 @@
         "All 83 supplied local skins decode through the one authoritative reader; 96 zero-count rows remain empty and retain source order.",
         "Actual original 96 zero-count/zero-total rows yield 576 NaN component classifications; native CPU skin preserves this without bind-pose fallback.",
         "Existing model/catalogue/scene/asset gates and Release/Debug tests; no gameplay progression."
+      ]
+    },
+    {
+      "id": "OG-055",
+      "description": "Port genuine dynamic skinned-mesh bounds and original lazy bounding-box state.",
+      "scope": "Trace and implement actual computeBoundingBox/getBoundingBox and required transforms/cache lifecycle. Use genuine source/current joint data; never label source raw boxes as complete dynamic bounds. Reuse verified arithmetic only with exact original equivalence; request shared metadata reservations if missing. No second parser or fake ActorScene bounding getter.",
+      "symbols": [
+        {
+          "signature": "CColladaSkinnedMesh::computeBoundingBox/getBoundingBox and scene-node transformed bounds",
+          "address": "0x002b2259;0x002b23b9;0x002b2565"
+        }
+      ],
+      "resources": [
+        "port/retail_skin_bounds.h",
+        "port/retail_skin_bounds.cpp",
+        "port/tests/retail_skin_bounds.cpp",
+        "port/SKIN_BOUNDS.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-035",
+        "OG-045"
+      ],
+      "blockers": [
+        "Additional shared owner/decoder extension awaits independent verification and transfer of frozen OG049; original bounds core/probes continue in the four reserved files."
+      ],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "3976e52",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original nonidentity/rotated/scaled/signed-zero and empty/degenerate source bounds with exact cache/update timing.",
+        "Real available Player/skin source data and original getter behavior, without substituting raw source or renderer bounds.",
+        "Release/Debug tests and stable full-width native ownership; explicit unavailable source metadata and CPU/actor dependencies."
+      ],
+      "pending_shared_resources": [
+        "port/city_assets.h",
+        "port/city_assets.cpp",
+        "port/retail_actor_scene.h",
+        "port/retail_actor_scene.cpp"
+      ]
+    },
+    {
+      "id": "OG-056",
+      "description": "Trace actual retained animator-set application and blend semantics before concrete actor binding.",
+      "scope": "Read-only investigation beyond OG045: actual CSceneNodeAnimatorSet/CSceneNodeAnimator apply/compute dispatch, per-track weights, getValue versus applyValue exact-key/quaternion behavior, blend flags and manual-time application after timeline detach. Reuse frozen actor ownership and verified clock/sampler; identify concrete next implementation inputs and original executable proofs. No product edits.",
+      "symbols": [],
+      "resources": [
+        "port/build/OG-056-report.md",
+        "port/build/OG-056-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "3976e52",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Precise original symbols/addresses and reproducible original-reference evidence; distinguish implemented native behavior from pending integration."
+      ]
+    },
+    {
+      "id": "OG-057",
+      "description": "Independently review frozen retained actor scene ownership and original behavior.",
+      "scope": "Read-only peer review of OG049 stable graph, exact UID/scope/controller identities, dirty/cache/identity semantics, visibility/buffer state, animator retention and two-instance ownership. Report only source-backed actionable findings; preserve declared dynamic-bounds/material/renderer boundaries. No product edits.",
+      "symbols": [],
+      "resources": [
+        "port/build/OG-057-review.md",
+        "port/build/OG-057-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "3976e52",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Precise original symbols/addresses and reproducible original-reference evidence; distinguish implemented native behavior from pending integration."
       ]
     }
   ],
