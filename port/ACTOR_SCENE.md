@@ -68,9 +68,18 @@ matrix. `absolute()` returns the actual cached matrix, including stale values.
 The relative cache follows literal 0x2738b1: inspect low mask 0x3f; if mask0x1b
 is nonzero rebuild the original quaternion/scale/TRS matrix; otherwise replace
 only cached translation. Clear only 0x38 afterward. Persistent animation masks
-1/2/4 are separate from setter bits. In particular raw animated-scale mask4 alone
-takes the original translation-only branch and retains the old basis. Replacing
-it with a setScale call would change behavior.
+are position/position-Z=4, quaternion=2 and scale=1, separate from setter bits.
+Raw animated position mask4 alone takes the translation-only branch and retains
+the old basis. Raw animated scale mask1 rebuilds the basis through mask0x1b.
+Replacing these borrowed-reference writes with ordinary setters would change
+the original flag behavior.
+
+The actual `ISceneNodeAnimator::forceBind` (0x2b3615) selects raw local
+references through position0x272a2d, rotation0x272a01 and scale0x2729fd, then
+sets the typed animation flag through `setIsAnimated` (0x2728a5). Its branches
+use literal masks4/2/1 at 0x2b3b90/0x2b3b50/0x2b3b10, respectively. Position
+and position-Z both select mask4. The ordinary const getters only return their
+actual local storage; the binding operation establishes the persistent flag.
 
 Absolute update 0x273141 recomputes if parent's flag0x40 or own mask0xbf is set,
 using the parent's current cached matrix and the current relative cache. It sets

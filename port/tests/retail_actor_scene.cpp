@@ -401,6 +401,49 @@ void repeatedResources() {
     }
   }
 }
+void typedBindingMasks(bool dump) {
+  for (unsigned type : {1u, 4u, 5u, 10u}) {
+    std::vector<int> events;
+    RetailActorScene scene(fixture());
+    auto *bone = scene.root().findUid("Bip01-node");
+    auto animator = std::make_shared<Animator>(events, 1);
+    const auto before = bone->transformFlags();
+    require(before == 0x240, "Fresh original typed binding flag baseline");
+    const unsigned expected = type == 5 ? 2u : type == 10 ? 1u : 4u;
+    if (type == 1 || type == 4) {
+      auto &position = bone->animationPosition(animator);
+      require(&position == &bone->position(), "Typed position binding borrows real local storage");
+      if (type == 1) position = {7, 8, 9};
+      else position[2] = 17;
+    } else if (type == 5) {
+      auto &rotation = bone->animationRotation(animator);
+      require(&rotation == &bone->rotation(), "Typed quaternion binding borrows real local storage");
+      rotation = {0, 0, 1, 1};
+    } else {
+      auto &scale = bone->animationScale(animator);
+      require(&scale == &bone->scale(), "Typed scale binding borrows real local storage");
+      scale = {2, 3, 4};
+    }
+    const auto bound = bone->transformFlags();
+    require(bound == (0x240 | expected), "Original typed binding masks: Position/PositionZ4 Quaternion2 Scale1");
+    require(bone->boundAnimatorCount() == 1 && bone->animatorCount() == 0,
+            "Typed binding retains once without ordinary frame dispatch");
+    bone->updateAbsolutePosition(false);
+    require(bone->transformFlags() == bound, "Typed animation mask persists after cache update");
+    if (type == 1 || type == 4)
+      require(bone->absolute()[12] == (type == 1 ? 7 : 2) && bone->absolute()[14] == (type == 1 ? 9 : 17),
+              "Original position mask4 updates translation");
+    if (type == 10)
+      require(bone->absolute()[0] == 2 && bone->absolute()[5] == 3 && bone->absolute()[10] == 4,
+              "Original scale mask1 rebuilds the raw animated basis");
+    if (dump) {
+      std::cout << "typedmask {\"type\":" << type << ",\"before\":" << before
+                << ",\"bound\":" << bound << ",\"updated\":" << bone->transformFlags() << ",\"matrix\":[";
+      for (std::size_t i=0; i<16; ++i) { if(i)std::cout<<','; std::cout<<bits(bone->absolute()[i]); }
+      std::cout << "]}\n";
+    }
+  }
+}
 void matrixControls(bool dump) {
   constexpr float epsilon = .000001f;
   for (std::size_t component : {0u, 1u, 12u})
@@ -433,16 +476,16 @@ void matrixControls(bool dump) {
     RetailActorScene scene(fixture());
     auto *bone = scene.root().findUid("Bip01-node");
     auto animator = std::make_shared<Animator>(events, 1);
-    if (mask & 1)
+    if (mask & 4)
       bone->animationPosition(animator) = {7, 8, 9};
     if (mask & 2)
       bone->animationRotation(animator) = {0, 0, 1, 1};
-    if (mask & 4)
+    if (mask & 1)
       bone->animationScale(animator) = {2, 3, 4};
     bone->updateAbsolutePosition(false);
     if (mask == 4)
       require(bone->absolute()[0] == 1 && bone->absolute()[5] == 1,
-              "Original raw animation scale mask4 alone retains cached basis");
+              "Original raw animated position mask4 alone retains cached basis");
     if (dump) {
       std::cout << "mask {\"value\":" << mask
                 << ",\"flags\":" << bone->transformFlags() << ",\"matrix\":[";
@@ -520,6 +563,7 @@ void retail(const char *directory) {
 } // namespace
 int main(int argc, char **argv) {
   try {
+    typedBindingMasks(argc == 2 && std::string(argv[1]) == "--oracle");
     synthetic(argc == 2 && std::string(argv[1]) == "--oracle");
     repeatedResources();
     matrixControls(argc == 2 && std::string(argv[1]) == "--oracle");

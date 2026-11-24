@@ -237,7 +237,7 @@ std::array<float, 3> &RetailActorSceneNode::animationPosition(
     throw std::invalid_argument(
         "Animated position requires a retained animator.");
   addBoundAnimator(std::move(a));
-  flags |= 1;
+  flags |= 4;
   return localPosition;
 }
 RetailSceneQuaternion &RetailActorSceneNode::animationRotation(
@@ -254,7 +254,7 @@ std::array<float, 3> &RetailActorSceneNode::animationScale(
   if (!a)
     throw std::invalid_argument("Animated scale requires a retained animator.");
   addBoundAnimator(std::move(a));
-  flags |= 4;
+  flags |= 1;
   return localScale;
 }
 void RetailActorSceneNode::detachAnimators() noexcept {

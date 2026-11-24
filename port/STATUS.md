@@ -1415,3 +1415,8 @@ Per-instance scene material ownership, original traversal and OG059 loader/shade
 Root independently replayed all 54 original scoped shadow graph/bind/projection/lifecycle probes. Implemented local projection from actual actor worldXY, Character floor160+3cm and live PhysicInfo.changed/normal. Shared existing exact vector/from-angle-axis/from-to math with heading; no second quaternion implementation. Root72 original full updatePosition comparisons/config match504 position/quaternion words and preserve stale caches;465 original heading regressions pass. Full Release/Debug builds and33 CTests pass; new executable PE32+ AMD64.
 
 Global shadow reparent/retention, pool-aware teardown/visibility, late world frame and genuine material/render ownership remain pending. The new local projection does not implement an empty registration host. Separately, OG062 full-pose checks discovered wrong typed position/scale masks in049; OG067 corrects them before pose integration. No manual gameplay.
+
+
+## OG067: correct typed retained animation masks
+
+Whole-pose original comparisons exposed an earlier049 mapping error. Corrected position/PositionZ to persistent mask4, quaternion remains2, scale to1. Position4 takes the existing translation-only branch; scale1 rebuilds the basis. Root actual full forceBind/getter probes prove each mapping; new native regression fails old code in both configurations and passes the fix. Typed64 matrix bits/config,800 original owner snapshots and44 live joint caches plus retention regressions match. Full Release/Debug builds and33CTests pass. No setter-bit substitution, clock change, original ARM edit or masked failure.
