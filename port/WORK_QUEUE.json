@@ -28,8 +28,8 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-013",
-      "status": "AWAITING_REVIEW",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "f5723dd"
     },
     {
@@ -787,7 +787,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "f5723dd",
-      "status": "AWAITING_REVIEW",
+      "status": "MERGED",
       "validation": [
         "Original fullfilterbranch/field evidence; native typed metadata and genuine64-bit owner identities.",
         "Allzero/mask/group/absentmetadata cases in both shape orders, exact interval touching, rooted actor intervals, stored bounds and strict rectangle edges.",
@@ -798,7 +798,15 @@
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-013.patch",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-013-report.md",
         "worker_validation": "FullReleasebuild,7CTests,Debugphysics2tests,Vulkanstartupsmoke,PE64checks pass; productionbinding remains incomplete."
-      }
+      },
+      "reservations_active": false,
+      "independent_validation": [
+        "Reviewed original-branch API and implementation: exact gates/order, native pointers, actor intervals, rectangle, vehicle early return and col2 directional callback.",
+        "Reviewed actual-body tests including disjoint-height jump dispatch, first-flag precedence and world.Refilter integration.",
+        "Integration fullx64Releasebuild and7CTests passed; DebugBox2D+retailfilter2tests passed withassertions.",
+        "Release/Debug filtertests verifiedAMD64PE32+; nativeVulkanopening smoke returned0.",
+        "Intervening queue/height documentation does not affect submitted source/buildinterfaces."
+      ]
     },
     {
       "id": "OG-014",

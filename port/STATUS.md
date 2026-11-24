@@ -70,6 +70,14 @@ mission playthroughs for discovery or verification.
   archives contain only AMD64 objects. See PHYSICS_DEPENDENCY.md for provenance,
   source-comparison limits and adaptations. Production actor/vehicle bodies,
   custom game callbacks and complete original engine parity remain unresolved.
+- [x] Reconstruct the observed original ContactFilter::ShouldCollide branches
+  with real native Box2D bodies and typed metadata: original masks/groups, live
+  s_type ownership, root/bbox/four-height intervals, strict rectangle boundaries,
+  vehicle jump gate and directional jump dispatch. Seven Release CTests and
+  both Debug physics tests pass; the native Vulkan startup smoke passes.
+  Missing mandatory jump-state handling is a fatal host-binding error, not a
+  no-op. Production filter installation, live body ownership, SetCurrentJumpShape
+  state changes, contact listeners and height/cliff lifecycle remain pending.
 - [ ] Port physics, including collision, vehicle dynamics, rigid bodies,
   and camera obstruction. Current movement uses the retail height mesh and
   approximate collision against vertical scene triangles. The vehicle wall
