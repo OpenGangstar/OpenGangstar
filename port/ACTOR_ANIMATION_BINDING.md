@@ -26,7 +26,7 @@ These observations validate available resources; runtime interval/root resolutio
 
 Character::bindAnimation 0x002f23fd performs this order:
 
-1. Construct a fresh animator from `./anim_ingame.bdae` with the game factory. A null explicit actor argument uses the Character's actual scene instance.
+1. Construct a fresh animator from `./anim_ingame.bdae` with the original DefaultFactory (GOT + 0x4940 resolves to 0x004b6460). A null explicit actor argument uses the Character's actual scene instance.
 2. If Character::s_timelineController is null, retain this animator's timeline. Initialize Character::s_fistsCombatSequence to literal IDs {144,94,92,93,95,90,91} at 0x002f252c..0x002f2560. Later bindings preserve the existing first timeline and sequence.
 3. Call animator setTimelineCtrl(NULL), onBind(actual actor subtree), then drop the local animator reference. Binding ownership remains with the real scene; detaching the timeline is not an inferred visibility or pause flag.
 4. Resolve the caller's exact root UID by getSceneNodeFromUID, and separately resolve `shadow-node`. That original lookup 0x00273021 is self-first, ordered depth-first, exact strcmp.

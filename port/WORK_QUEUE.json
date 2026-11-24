@@ -22,15 +22,15 @@
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
       "assignment": "OG-044",
       "status": "IN_PROGRESS",
-      "baseline": "9c504f0"
+      "baseline": "826b613"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-043",
+      "assignment": "OG-046",
       "status": "IN_PROGRESS",
-      "baseline": "9c504f0"
+      "baseline": "826b613"
     },
     {
       "slot": 3,
@@ -38,7 +38,7 @@
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
       "assignment": "OG-045",
       "status": "IN_PROGRESS",
-      "baseline": "9c504f0"
+      "baseline": "826b613"
     }
   ],
   "unavailable_worker": {
@@ -1958,7 +1958,8 @@
         "Root executed actual original constructors/factories and full 141-node hierarchy/type/matrix/bbox/global selection comparisons; 16 query states and 18 shared quaternion cases match.",
         "Root enumerated 12998 actual loaded-placement centroids and 17086 real native cliff body instances, maximum 12, with no range/capacity/frozen failures and complete teardown.",
         "Root reran original 23 synthetic/15 retail jump producer and child-transform/binding comparisons in both configurations. Static height binding is not a full actor or dynamic scene implementation."
-      ]
+      ],
+      "integration_commit": "826b613"
     },
     {
       "id": "OG-036",
@@ -2022,7 +2023,8 @@
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-036.patch",
         "sha256": "527ae9c92d8e32ac6b62659cd6a26f18a8e5ab3de2fef95c90ad87920f36a804",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-036-report.md"
-      }
+      },
+      "integration_commit": "826b613"
     },
     {
       "id": "OG-037",
@@ -2085,7 +2087,8 @@
         "Root reran actual original full JPEG codec and drivers imported from root libraries: 15 fixtures, 7 accepted images/199 RGB pixels, exact output and warnings, 5 matching fatal codes; 2 EOF safety adaptations documented.",
         "Root verified pinned archive hash, all 145 upstream files unchanged, all 47 C objects AMD64 in each configuration, exact supplied Windows config and full README notices beside both game executables.",
         "Root automatic .jpg/.jpeg enumeration fixture decodes 2/2 and passes audit; PNG and other format gates remain enabled. Native bounded EOF handling is not claimed as original unsafe-buffer parity."
-      ]
+      ],
+      "integration_commit": "826b613"
     },
     {
       "id": "OG-038",
@@ -2300,14 +2303,23 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "9c504f0",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original source and actual quaternion/helper execution for cardinal, opposite, degenerate, nonunit and threshold cases.",
         "Real original setter/getter order; no guessed post-set absolute matrix or duplicate native quaternion implementation without checking existing context.",
         "Release/Debug subsystem tests and relevant original comparisons; full runtime actor factory remains separately tracked by OG040."
       ],
-      "dependency_transfer": "Root transferred the independently reviewed frozen OG035 nine-file dependency and wired worker-only CMake. Root integration remains pending final original-reference and asset gates."
+      "dependency_transfer": "Root transferred the independently reviewed frozen OG035 nine-file dependency and wired worker-only CMake. Root integration remains pending final original-reference and asset gates.",
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-043.patch",
+        "sha256": "f599eec207b65df3502350760f932c4a4cc3ceca7f054c7f7062e4fe67374f9f"
+      },
+      "independent_validation": [
+        "Root checked frozen patch hash and original scalar operation/getter/setter order, cached absolute semantics, shared quaternion reuse and native ownership boundaries.",
+        "Root complete Release/Debug game builds and all 21 CTests pass. Each root native dump matches 465 actual original point/incremental cases with exact quaternion bits/booleans; independent original reference/copy mutation probes pass.",
+        "New heading test executables verified AMD64 PE32+; genuine production actor scene adapter remains unimplemented."
+      ]
     },
     {
       "id": "OG-044",
@@ -2363,6 +2375,38 @@
       "validation": [
         "Preserve original operation order and source identities; document native safety adaptations and unresolved dependencies.",
         "Provide complete reviewable changes and independent original-reference evidence; no manual gameplay."
+      ]
+    },
+    {
+      "id": "OG-046",
+      "description": "Port original random navigation-position selection needed by NPC path fallback.",
+      "scope": "Trace and implement the complete original GetNextRandomPos selection, parameters, RNG, candidate order, markers and resource coordinates using the existing native terrain/navigation state. Do not invent nearest-triangle or capped fallback semantics. Request shared terrain reservations before extending existing APIs; no second BRES parser.",
+      "symbols": [
+        {
+          "signature": "PhysicAttributes::GetNextRandomPos(int,int,vector3df)",
+          "address": "0x0031cf75"
+        }
+      ],
+      "resources": [
+        "port/retail_random_position.h",
+        "port/retail_random_position.cpp",
+        "port/tests/retail_random_position.cpp",
+        "port/RANDOM_POSITION.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-030",
+        "OG-035"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "826b613",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original execution with deterministic RNG and controlled navigation, including every meaningful branch and parameter.",
+        "Release/Debug subsystem tests, retail navigation enumeration where relevant; explicit unsupported domains rather than fabricated random navigation."
       ]
     }
   ],
