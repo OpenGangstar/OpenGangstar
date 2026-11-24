@@ -20,9 +20,9 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-061",
+      "assignment": "OG-066",
       "status": "IN_PROGRESS",
-      "baseline": "bded90a"
+      "baseline": "25f391f"
     },
     {
       "slot": 2,
@@ -2207,10 +2207,18 @@
         "OG-034",
         "OG-035",
         "OG-036",
-        "OG-039"
+        "OG-039",
+        "OG-049",
+        "OG-051",
+        "OG-055",
+        "OG-060",
+        "OG-061",
+        "OG-062",
+        "OG-063"
       ],
       "blockers": [
-        "Static height binding and original animation lifecycle/catalogue are merged. Genuine retained mutable actor pose/skin, original animator frame dispatch and production outer player/world/VM host remain unimplemented; OG043 heading and OG045 dependency investigation are active."
+        "Retained actor graph/CPU skin/full animation source/material mutation state are merged. Live retained pose and dynamic bounds are in progress; typed binding-mask discrepancy is being corrected from original execution evidence.",
+        "Genuine global scene reparent/ownership/frame dispatch, instance materials/primary rendering, full original outer player/world/VM host and deformed renderer binding remain unimplemented."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -2766,7 +2774,7 @@
         "OG-051"
       ],
       "blockers": [
-        "Current scene decoder reservation and CPU skin submission are not merged; original raw limo zero-row proof is available from OG051."
+        "OG049/051 merged. City asset decoder is exclusively reserved by OG055; zero-influence source rows must be handled after that integration without fabricated weights."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -2994,12 +3002,17 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "bded90a",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Original instruction/function evidence and targeted original execution probes where practical.",
         "Report limitations, resource plan, source identities and reviewable ignored research artifacts. No manual gameplay."
-      ]
+      ],
+      "submission": {
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-061-report.md",
+        "sha256": "4683ce4a8b6cc4b1874fc93af4a26b13424d999aa495786be2d221f120f7fe52"
+      },
+      "independent_verification": "Root independently reran all54 original scoped cases:2 graph ownership,2 whole bind,32 projection,8 destructor,10 visibility cases; all pass. No product implementation or original hardware rasterization claimed."
     },
     {
       "id": "OG-062",
@@ -3065,6 +3078,138 @@
         "Release/Debug build/tests and PE32+ AMD64; no original ARM source changes."
       ],
       "independent_verification": "Root executed actual original constructor/setFlag/SetColor/SetAlpha/setupArrays:6720 mutations,47040 exact words,13440 primary selections/config; all untouched original material bytes retained. Full Release/Debug builds and32 CTests/config pass; new executable PE32+ AMD64. Genuine scene material ownership and shader/loader correction explicitly pending."
+    },
+    {
+      "id": "OG-064",
+      "description": "Correct prepared material/primary colors and original unlit Vulkan producer.",
+      "scope": "Reuse OG063 native material state; decode original prepared colors and flags in the authoritative reader; correct primary RGBA while preserving secondary path; select vertex OR current color in real resolved draw surfaces, remove unsupported directional lighting/product, preserve verified texture combiners and independent UI/particle paths. Actual GPU readbacks and all1366 material/359scene raw-original comparisons.",
+      "symbols": [
+        "prepareMaterial0x2a0905",
+        "setupArrays0x2c72fd",
+        "setBasicRenderStates0x2c6661"
+      ],
+      "resources": [
+        "port/city_assets.h",
+        "port/city_assets.cpp",
+        "port/city_view.h",
+        "port/city_view.cpp",
+        "port/shaders/city.frag",
+        "port/vulkan.cpp",
+        "port/tests/city_collision.cpp",
+        "port/tests/retail_asset_audit.cpp",
+        "port/REMAINING_MATERIALS.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-055",
+        "OG-059",
+        "OG-063"
+      ],
+      "blockers": [
+        "OG055 owns shared asset decoder until independently verified integration."
+      ],
+      "assigned_agent": null,
+      "baseline": null,
+      "status": "BLOCKED",
+      "reservations_active": false,
+      "validation": [
+        "Exact original prepared state/vertex binding capture and actual GPU readbacks of source selection, literal lanes, alpha/modes, unchanged normals/reflection behavior and existing combiner/UI sequences.",
+        "Full Release/Debug builds/CTests and asset/startup gates; no manual gameplay."
+      ]
+    },
+    {
+      "id": "OG-065",
+      "description": "Implement genuine shadow projection and share original quaternion leaves.",
+      "scope": "Port shadow-local update portion of Character::updatePosition using caller-supplied genuine cached actor world position, Character floor160 and live PhysicInfo normal/changed state. Apply original node setters without immediate absolute refresh. Move existing exact angle-axis/from-to math from private actor heading into shared scene helpers, reuse without duplicate quaternion implementation. Global shadow root ownership/reparent and full Character update remain separate.",
+      "symbols": [
+        "Character::updatePosition0x2f42cd shadow portion0x2f434c..0x2f4418",
+        "quaternion::rotationFromTo0x2f03a1",
+        "quaternion::fromAngleAxis0x27b345"
+      ],
+      "resources": [
+        "port/retail_actor_shadow.h",
+        "port/retail_actor_shadow.cpp",
+        "port/tests/retail_actor_shadow.cpp",
+        "port/ACTOR_SHADOW.md",
+        "port/retail_scene.h",
+        "port/retail_scene.cpp",
+        "port/retail_actor_heading.cpp"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-043",
+        "OG-049",
+        "OG-061"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "25f391f",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Root32 original real-graph updatePosition probes already pass; compare new native projection bits, dirty flags and stale/live absolute cache behavior against actual original.",
+        "Full Release/Debug and465 original heading regressions after math extraction; no manual gameplay."
+      ],
+      "independent_verification": "Root72 full original Character::updatePosition comparisons/config (24synthetic+48real Player/jail),504 exact position/quaternion words, unchanged original/native absolute caches.465 original heading regressions pass after existing exact math extraction. Full R/D builds and33CTests pass, newexe PE32+ AMD64. Global root ownership/reparent/frame/material/render host explicitly pending."
+    },
+    {
+      "id": "OG-067",
+      "description": "Correct original typed animation-position and scale binding masks.",
+      "scope": "Prerequisite regression fix discovered by OG062 complete original pose: animationPosition must set persistent mask4, animationRotation mask2, animationScale mask1. Preserve existing numeric matrix branches and distinct animator lists. Correct semantic labels and add independent typed mapping regression. Submit separately from held055 bbox changes.",
+      "symbols": [
+        "RetailActorSceneNode::animationPosition/animationRotation/animationScale",
+        "Original CSceneNodeAnimator::forceBind2b3441..2b3bc1 typed masks"
+      ],
+      "resources": [
+        "port/retail_actor_scene.cpp",
+        "port/tests/retail_actor_scene.cpp",
+        "port/ACTOR_SCENE.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-049"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "25f391f",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original fresh-node typed bind/forceBind execution proves masks4/2/1 for properties1&4/5/10.",
+        "Reproduce old native typed-mask failure, focused regression and full R/D gates; unblock whole retained pose without bypass."
+      ]
+    },
+    {
+      "id": "OG-066",
+      "description": "Recover original skin/morph driver process-buffer allocation, proxy ownership and prepare lifecycle.",
+      "scope": "Read-only implementation-directed research for genuine native deformed-renderer integration after verified051/058 CPU leaves. Trace original prepareSkinBuffers/prepareMorphBuffers/proxy constructors/onPrepareBufferForRendering/driver buffer allocations, lifetime, per-buffer stages/dirty state/ranges/material and stream sharing. Separate original supported formats from unchecked unsafe domains. Supply exact native resource ownership/interface plan and executable original evidence, not a fake driver or production changes.",
+      "symbols": [
+        "CColladaSkinMesh::prepareSkinBuffers/onPrepareBufferForRendering",
+        "CColladaMorphingMesh::prepareMorphBuffers0x2a55a5/onPrepareBufferForRendering0x2a58f5",
+        "CMeshBufferProxy::CMeshBufferProxy0x2a5269/setReferences0x2a5321"
+      ],
+      "resources": [
+        "worker-1/port/build/OG-066-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-049",
+        "OG-051",
+        "OG-058"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "25f391f",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Exact original function/ownership evidence, targeted actual-original execution probes and raw retail coverage where useful.",
+        "Frozen report/complete ignored research artifacts with source identity, limitations and reserved product-resource plan; no manual gameplay."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -3080,7 +3225,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full Release/Debug builds and32 CTests/config pass after OG063. Original material mutation/selector corpus passes. Latest combined morph/library raw-original and old catalogue/root gates pass; asset audit98/111 and31 Vulkan material pixel checks plus opening smoke passed at OG058/060. No rendering code changed in OG063."
+    "native_integration": "2026-11-25: Root full Release/Debug builds and33 CTests/config pass after065;72 original shadow+465 heading comparisons/config pass. OG062 discovered existing typed binding masks require067 correction before retained pose can integrate. Last Vulkan31 material pixel checks/opening and98/111 audit passed at058/060; no rendering changes since."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

@@ -12,55 +12,6 @@ float dot(const Point& a, const Point& b) {
     return (a[0] * b[0] + a[1] * b[1]) + a[2] * b[2];
 }
 
-Point normalizeVector(Point value) {
-    // Original vector3d<float>::normalize0x20a2d1: zero is unchanged; otherwise
-    // sqrtf and single-precision inverse. No unit-length/tolerance shortcut.
-    const float squared = dot(value, value);
-    if (squared != 0.f) {
-        const float inverse = 1.f / std::sqrt(squared);
-        for (auto& component : value)
-            component *= inverse;
-    }
-    return value;
-}
-
-Quaternion angleAxis(float angle, const Point& axis) {
-    // Original fromAngleAxis0x27b345 uses a FLOAT half angle and sinf/cosf;
-    // this differs from Euler set's double-precision trig/product path.
-    const float half = angle * .5f;
-    const float sine = std::sin(half);
-    const float cosine = std::cos(half);
-    return {axis[0] * sine, axis[1] * sine, axis[2] * sine, cosine};
-}
-
-Quaternion rotationFromTo(const Point& from, const Point& to) {
-    // Literal scalar branches of original quaternion::rotationFromTo0x2f03a1.
-    // Keep this distinct from an atan2 heading or assumed normalized input.
-    const auto a = normalizeVector(from);
-    const auto b = normalizeVector(to);
-    const float cosine = dot(a, b);
-    if (cosine >= 1.f)
-        return {0, 0, 0, 1};
-    if (cosine <= -1.f) {
-        // Original uses the unnormalized FROM in its two axis candidates and
-        // retains the additions/multiplications by signed zero.
-        Point axis{from[2] * -0.f + from[1] * 0.f,
-                   from[2] + from[0] * -0.f,
-                   -from[1] + from[0] * 0.f};
-        if (dot(axis, axis) == 0.f)
-            axis = {-from[2] + from[1] * 0.f,
-                    from[2] * 0.f + from[0] * -0.f,
-                    from[0] + from[1] * -0.f};
-        return angleAxis(3.14159265358979323846f, normalizeVector(axis));
-    }
-    const float plusOne = cosine + 1.f;
-    const float scale = std::sqrt(plusOne + plusOne);
-    const float inverse = 1.f / scale;
-    return {inverse * (a[1] * b[2] - a[2] * b[1]),
-            inverse * (a[2] * b[0] - a[0] * b[2]),
-            inverse * (a[0] * b[1] - a[1] * b[0]), scale * .5f};
-}
-
 Quaternion multiply(const Quaternion& a, const Quaternion& b) {
     // Original operator*0x24eb35's reversed cross orientation and f32 order.
     // Do not replace with a conventional quaternion library's a*b convention.
@@ -76,11 +27,11 @@ void retailActorTurnTowardPoint(RetailActorHeadingHost& scene, const Point& poin
     const auto position = scene.getPosition();
     const float x = point[0] - position[0];
     const float y = point[1] - position[1];
-    const auto direction = normalizeVector({x, y, 0});
+    const auto direction = retailSceneNormalizeVector({x, y, 0});
     // Original constant-axis dot emits a sign-bit negation for its Y term.
     const float cosine = ((-direction[0]) * 0.f + (-direction[1])) + direction[2] * 0.f;
-    const auto rotation = cosine <= -1.f ? angleAxis(3.14159265358979323846f, {0, 0, 1})
-                                       : rotationFromTo({0, -1, 0}, {-x, y, 0});
+    const auto rotation = cosine <= -1.f ? retailSceneAngleAxisQuaternion(3.14159265358979323846f, {0, 0, 1})
+                                       : retailSceneRotationFromTo({0, -1, 0}, {-x, y, 0});
     scene.setRotation(retailSceneNormalizeQuaternion(rotation));
 }
 

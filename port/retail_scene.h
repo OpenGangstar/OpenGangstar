@@ -23,6 +23,13 @@ RetailSceneMatrix retailSceneMultiply(const RetailSceneMatrix&, const RetailScen
 // These are explicit actor/jump operations, never implicit raw SNode normalization.
 RetailSceneQuaternion retailSceneNormalizeQuaternion(RetailSceneQuaternion);
 RetailSceneQuaternion retailSceneYawQuaternion(float angleRadians);
+// Shared original vector normalize0x20a2d1, float fromAngleAxis0x27b345
+// and rotationFromTo0x2f03a1. Keep the raw/signed-zero arithmetic and zero
+// vector behavior; fromAngleAxis deliberately differs from Euler yaw above.
+std::array<float, 3> retailSceneNormalizeVector(std::array<float, 3>);
+RetailSceneQuaternion retailSceneAngleAxisQuaternion(float angleRadians, const std::array<float, 3>& axis);
+RetailSceneQuaternion retailSceneRotationFromTo(const std::array<float, 3>& from,
+                                               const std::array<float, 3>& to);
 // CColladaMeshSceneNode::getType uses the actual database path, not mesh/SNode UID
 // or game-object category tables. Applies only to this ordinary mesh factory.
 uint32_t retailSceneMeshRuntimeType(const std::string& databasePath);

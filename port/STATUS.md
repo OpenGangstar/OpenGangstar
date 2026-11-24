@@ -1408,3 +1408,10 @@ All checked executables are PE32+ AMD64. Asset audit remains 98 decoded images a
 Implemented native fixed32 material color/flag/dirty state and exact requested-primary selector. Public flag4 changes word0 mask1, not stored flags40 mask4. Shared tracking derivation and current-color mutation eliminate repeated native logic across flag/color/alpha leaves. Root actual-original comparisons pass for 6,720 mutations, 47,040 exact state words and 13,440 GL primary selections per configuration, including unchanged material bytes. Full Release/Debug builds and 32 CTests pass; the new test executable is PE32+ AMD64.
 
 Per-instance scene material ownership, original traversal and OG059 loader/shader correction remain pending. Existing renderer has not been switched by this scalar-state change. No original ARM edits or manual gameplay.
+
+
+## OG061 / OG065: original shadow lifecycle evidence and local projection
+
+Root independently replayed all 54 original scoped shadow graph/bind/projection/lifecycle probes. Implemented local projection from actual actor worldXY, Character floor160+3cm and live PhysicInfo.changed/normal. Shared existing exact vector/from-angle-axis/from-to math with heading; no second quaternion implementation. Root72 original full updatePosition comparisons/config match504 position/quaternion words and preserve stale caches;465 original heading regressions pass. Full Release/Debug builds and33 CTests pass; new executable PE32+ AMD64.
+
+Global shadow reparent/retention, pool-aware teardown/visibility, late world frame and genuine material/render ownership remain pending. The new local projection does not implement an empty registration host. Separately, OG062 full-pose checks discovered wrong typed position/scale masks in049; OG067 corrects them before pose integration. No manual gameplay.
