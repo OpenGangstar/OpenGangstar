@@ -110,6 +110,29 @@ mission playthroughs for discovery or verification.
   Missing native metadata, insufficient/unmatched polygon geometry and original
   zero-margin degenerate queries fail explicitly. This component does not own
   actor movement or establish production controller binding. See STEERING.md.
+- [x] Implement original animation selection, integer clock, sampled root
+  displacement and translation-key interpolation as a native component.
+  All 213 supplied roots and 444 profile checks pass in both configurations.
+  Independent original ARM comparisons pass 840 selection, 560 clock and
+  72 sampler cases. A separate signed-zero regression fails before correction
+  and passes after preserving initial-tail assignment versus later addition.
+  Returned body/weapon intents still require original host ordering; reload
+  must precede accepted clock commit. Production actor/skeleton binding and
+  duplicate-time/reverse-playback domains remain incomplete. See ROOT_MOTION.md.
+- [x] Implement the original contact-listener Add/Persist/Remove policy with
+  real native Box2D callbacks and mandatory live game bindings. Rocket/sensor,
+  character/vehicle, NPC retarget, damage-direction and event ordering have
+  native fixtures and 21 original ARM oracle cases. The callback-category
+  mutation regression preserves dispatch history and live later arguments.
+  Production AI, weapon, damage, audio and event hosts remain unbound.
+  See CONTACT_LISTENER.md.
+- [x] Implement jump-surface value snapshots, original quad inclusion/ABC plane,
+  live counter and successful-core-only terrain-wrapper selection. Native
+  lifetime/filter tests and independent original 148-case comparisons pass in
+  Release and Debug. Additional peer fixtures cover 300 cases per configuration;
+  NaN payload parity is not claimed. Authored jump-body creation, owner routing,
+  IsPositionOnJump and complete actor/vehicle jump behavior remain incomplete.
+  See JUMP_PHYSICS.md.
 - [ ] Port physics, including collision, vehicle dynamics, rigid bodies,
   and camera obstruction. Current movement uses the retail height mesh and
   approximate collision against vertical scene triangles. The vehicle wall

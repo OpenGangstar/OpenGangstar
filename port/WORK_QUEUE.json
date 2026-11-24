@@ -20,25 +20,25 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-018",
-      "status": "AWAITING_REVIEW",
-      "baseline": "0479baa"
+      "assignment": "OG-027",
+      "status": "IN_PROGRESS",
+      "baseline": "141928a"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-021",
+      "assignment": "OG-026",
       "status": "AWAITING_REVIEW",
-      "baseline": "99e110e"
+      "baseline": "141928a"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-020",
-      "status": "IN_PROGRESS",
-      "baseline": "80705a2"
+      "assignment": "OG-025",
+      "status": "AWAITING_REVIEW",
+      "baseline": "141928a"
     }
   ],
   "unavailable_worker": {
@@ -471,11 +471,14 @@
         "OG-014",
         "OG-015",
         "OG-017",
-        "OG-018"
+        "OG-018",
+        "OG-020",
+        "OG-021",
+        "OG-025"
       ],
       "blockers": [
-        "Verify original terrain, steering and root-motion backends, then bind live actor/world state and independent actor advancement.",
-        "Production contact-listener effects, player/NPC differences and exact host update ownership must be implemented or explicitly accounted for; no empty terrain/steering/contact adapters."
+        "Verify and integrate the real on-foot actor body backend OG025, then implement live actor/world and independent advancement with the completed native clock/steering/height/jump/contact components.",
+        "Production host operations and original actor update/animation selection/scene ownership must be implemented; no empty adapters or average-speed cancellation."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -1103,14 +1106,50 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "0479baa",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Exact original time units/frame cursor math, sampler and cache data contracts before implementing.",
         "Independent original evidence/fixtures for zero advance, start/end boundaries, one wrap, exact full-cycle and large delta, nonloop end, repeated same animation, interruption and cache initialization.",
         "Real supplied clip/channel sampling and root transform/worldcm-to-bodym conversion without double translation.",
         "Release/Debug focused tests using ignored harness while CMake owned byOG015; request additional reservations before touching shared files.",
         "Preserve ARM project; no manual gameplay."
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-018.patch",
+        "sha256": "d6ca69cce34da2650119839bcb2e20acd7ee70838876e7e260df06d3bf2182e8",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-018-report.md"
+      },
+      "review_findings": [
+        "OG024 executable originalARM proof: initial last-frame tail scaled difference must be assigned, not added into +0. All-axis -0 roots currently produce native+0velocity vs original-0. Correct exact floatorder and add independent signedzero regression/oracle."
+      ],
+      "initial_submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-018.patch",
+        "sha256": "0eb5c362301e2be841d4536152741c79758a49e7c2d30f9e44ae982c5ac0676a",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-018-report.md",
+        "files": [
+          "port/retail_animation.h",
+          "port/retail_animation.cpp",
+          "port/tests/retail_animation.cpp",
+          "port/ROOT_MOTION.md"
+        ],
+        "superseded": true,
+        "source_backup": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-018-submitted/port",
+        "patch_path_reused_by_revision": true
+      },
+      "revisions": [
+        {
+          "reason": "Preserve direct initial tail assignment and subsequent head/ordinary additions, including negative zero.",
+          "independent_pre_fix_regression": "Root rebuilt revised signedzero fixture against initial integration assets library; exit1 with originalsignbit failure."
+        }
+      ],
+      "independent_validation": [
+        "Root full Release+Debug builds and thirteen CTests perconfiguration pass; new test executables AMD64PE32+.",
+        "Original2969trackedARM hashes unchanged; no source/layout/compiler changes in matching project.",
+        "Reviewed final corrected selector/cache/sampler/clock arithmetic and explicit body/weapon intent boundaries.",
+        "Root independently reran original840selection560clock72sampler comparisons against drivers linked to the actual integration assets library, with return-sentinel assertions.",
+        "PeerOG024 reproduced signedzero defect; root independently rebuilt revisedfixture against initial source(exit1), then final source(pass).",
+        "Supplied213clips/444profiles pass in Release+Debug. Reload ordering and original duplicate-time behavior remain explicit external/compatibility boundaries."
       ]
     },
     {
@@ -1181,13 +1220,26 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "80705a2",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Literal original branch/math/shape transform/quad heights/lifetime evidence; native64-bit identities and ordinary terrain interaction.",
         "Independent actual nativeBox2D geometric fixtures including entry/direction/edges/height/cache/state transitions and callback deletion safety.",
         "Original oracle where useful, clearly research-only; do not route native runtime through originalARM.",
         "Release/Debug subsystem tests, supplied resource enumeration and explicit remaining host/vehicle/jump limitations."
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-020.patch",
+        "sha256": "910ac5e7fb517fc8c5ebd58ad44e2ce18e691a8720b3bcfe2d048a2e3506dc7d",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-020-report.md"
+      },
+      "independent_validation": [
+        "Root full Release+Debug builds and thirteen CTests perconfiguration pass; new test executables AMD64PE32+.",
+        "Original2969trackedARM hashes unchanged; no source/layout/compiler changes in matching project.",
+        "Reviewed native value-only snapshot, copied opaque byte, strict radius/quad/ABC math, counter wrap and exact terrain-success/cache/slot ordering.",
+        "Root independently reran135snapshot/query+12fullwrapper+1cache-mutatingmiss original comparisons in each configuration; nativeexports identical.",
+        "PeerOG026 found no actionable issue; additional300cases perconfiguration covered signedzero/subnormal/NaN/radius boundaries, with eight NaN results compared byclass only.",
+        "Ordinary12998heightbits/identities and254range diagnostics unchanged from OG015 in both configurations; production body producers/binding remain unimplemented."
       ]
     },
     {
@@ -1224,15 +1276,52 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "99e110e",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Complete literal original category/owner/sensor/player/NPC/vehicle branch and state ownership map before code.",
         "Actual nativeBox2D contact fixtures and independent golden cases; Release/Debug with assertions.",
         "Use original research oracle for subtle scalar predicates where practical; runtime remains native.",
         "Missing mandatory game dispatch must report fatal host binding failure; never manufacture NPC path, damage, jump or movement behavior.",
         "Shared headers/build configuration remain unreserved; no edit until root grants. Original ARM remains read-only."
-      ]
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-021-revised.patch",
+        "sha256": "b808916316a4170979475864c60e9af9b5e0622a4c185684f915df785f95ebf6",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-021-revised-report.md",
+        "reason": "Preserve original first-collision dispatch history through live category mutation.",
+        "independent_pre_fix_regression": "Root copied final newfixture and rebuilt it against frozen initial source; exit1 with specific lostdispatchhistory diagnostic."
+      },
+      "review_findings": [
+        "OG023 actualARM/native callback mutation proof: first vehicle collision dispatch is remembered in originalregisterflag; native rechecks first.levelCategory and can wrongly suppress EvPlayer22/4 after first callback changes3to5. Retain dispatch flag for pair-event eligibility while keeping live othercategory."
+      ],
+      "revisions": [
+        {
+          "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-021-revised.patch",
+          "sha256": "b808916316a4170979475864c60e9af9b5e0622a4c185684f915df785f95ebf6",
+          "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-021-revised-report.md",
+          "reason": "Preserve original first-collision dispatch history through live category mutation.",
+          "independent_pre_fix_regression": "Root copied final newfixture and rebuilt it against frozen initial source; exit1 with specific lostdispatchhistory diagnostic."
+        }
+      ],
+      "independent_validation": [
+        "Root full Release+Debug builds and thirteen CTests perconfiguration pass; new test executables AMD64PE32+.",
+        "Original2969trackedARM hashes unchanged; no source/layout/compiler changes in matching project.",
+        "Reviewed complete native callback dispatch/typed mandatory host, genuine identities and live versus remembered state ordering.",
+        "PeerOG023 proved first-collision category mutation bug. Root rebuilt revised regression against originalsource(exit1) then finalsource(pass).",
+        "Root independently reran21actual original Add/Persist/Remove oracle cases including the mutation case; mandatory host bindings remain absent from production."
+      ],
+      "initial_submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-021.patch",
+        "sha256": "d781a9166a5ac4b7fe106fd8515172087d2f6cbcb52cd6ac3a8e50a7dee8e8a2",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-021-report.md",
+        "files": [
+          "port/retail_contacts.h",
+          "port/retail_contacts.cpp",
+          "port/tests/retail_contacts.cpp",
+          "port/CONTACT_LISTENER.md"
+        ]
+      }
     },
     {
       "id": "OG-022",
@@ -1271,6 +1360,179 @@
         "New focused regression executable failed with0x80000003 before sourcepatch, passed afterward; borrowedstorage/EOF/seek/size/no-copy semantics and ownedwrite/read behavior verified.",
         "Guarded GameSWF sourcepatch adds constcursor overload and selects it only inreadcallback; noassertions suppressed or read-only storage copied.",
         "Full nativeRelease+Debug builds, ten CTests perconfiguration, and both openingGPU/menu smokes pass."
+      ],
+      "integration_commit": "141928a"
+    },
+    {
+      "id": "OG-023",
+      "description": "Independently review native contact listener fidelity, live-state ownership and callback ordering.",
+      "scope": "Read-only peer review of frozen submission and original evidence. Write only own ignored build/review artifacts; no product/CMake edits, commits or integration. Orchestrator retains final verification responsibility.",
+      "symbols": [],
+      "resources": [],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "141928a",
+      "status": "MERGED",
+      "reservations_active": false,
+      "review_target": "OG-021",
+      "validation": [
+        "Concrete actionable source/behavior findings with original evidence and native source locations; no speculative redesign.",
+        "Check x64 ownership, unsupported boundaries, mandatory sideeffects and independence/coverage of golden tests and original oracles.",
+        "Do not execute research scripts in another workspace if they write artifacts; copy to own ignored folder as needed."
+      ],
+      "findings_forwarded_to": "OG-021"
+    },
+    {
+      "id": "OG-024",
+      "description": "Independently review native animation selection, root clock and exact-key sampling fidelity.",
+      "scope": "Read-only peer review of frozen submission and original evidence. Write only own ignored build/review artifacts; no product/CMake edits, commits or integration. Orchestrator retains final verification responsibility.",
+      "symbols": [],
+      "resources": [],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "141928a",
+      "status": "MERGED",
+      "reservations_active": false,
+      "review_target": "OG-018",
+      "validation": [
+        "Concrete actionable source/behavior findings with original evidence and native source locations; no speculative redesign.",
+        "Check x64 ownership, unsupported boundaries, mandatory sideeffects and independence/coverage of golden tests and original oracles.",
+        "Do not execute research scripts in another workspace if they write artifacts; copy to own ignored folder as needed."
+      ],
+      "findings_forwarded_to": "OG-018"
+    },
+    {
+      "id": "OG-025",
+      "description": "Implement original native on-foot actor body creation, metadata lifetime and transform/refilter operations.",
+      "scope": "Bounded real body backend, not movement/controller completion. Reconstruct Character::initPhysic and SetPosition using exact original BodyDef/circle/mass/filter/owner/bbox behavior. Reuse the real shared terrain pool/group identity. Keep supplied-body vs later actor-body semantics and destruction callback lifetime correct; no approximate motion or invented terrain callbacks. Shared headers and CMake remain read-only unless separately granted.",
+      "symbols": [
+        {
+          "signature": "Character::initPhysic()",
+          "address": "0x002f4465"
+        },
+        {
+          "signature": "Character::SetPosition(vector3df const&)",
+          "address": "0x002f2c61"
+        },
+        {
+          "signature": "Character::removeCollisions()",
+          "address": "0x002f2b69"
+        },
+        {
+          "signature": "Character::resetCollisions()",
+          "address": "0x002f3091"
+        },
+        {
+          "signature": "Character::cleanPhysic()",
+          "address": "0x002f2fe1"
+        }
+      ],
+      "resources": [
+        "port/retail_actor_physics.h",
+        "port/retail_actor_physics.cpp",
+        "port/tests/retail_actor_physics.cpp",
+        "port/ACTOR_BODY.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-011",
+        "OG-012",
+        "OG-013",
+        "OG-015"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "141928a",
+      "status": "AWAITING_REVIEW",
+      "reservations_active": true,
+      "validation": [
+        "Exact source-derived worldcm/bodym conversion, circle0.5m/density1/friction0.3/restitution0, original awake/sleep/rotation settings and shape group/filter behavior.",
+        "Real native body mass/transform/velocity/refilter/contact tests for genuine player and NPC identities, metadata lifecycle and sharedpool ownership.",
+        "Failure cleanup, callback lifetime and suppliedbody distinction; fullheight/jump/controller/VM binding remains explicit outside this body slice.",
+        "Release/Debug with assertions; root owns CMake wiring. Original ARM remains unchanged; no manual gameplay."
+      ],
+      "findings": [
+        "Critical published-audit correction: originalradius0.5m/friction0.3, not0.3m/0.2. Root independently verified literalwords and stackstores; originalARM5argumentcaptures confirmactualCircleDef. ACTOR_COLLISION.md corrected before backend integration."
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-025.patch",
+        "sha256": "585df8c875813361a9d01b9b5889df7002f977d93d05f08bf94a1f23dcc35d3a",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-025-report.md"
+      }
+    },
+    {
+      "id": "OG-026",
+      "description": "Independently review jump snapshots, plane math and terrain-wrapper state composition.",
+      "scope": "Read-only peer review of frozen OG020 and original code. No product, shared header, CMake or other-workspace writes; own ignored review artifacts only.",
+      "symbols": [
+        {
+          "signature": "PhysicAttributes::SetCurrentJumpShape(b2Shape*)",
+          "address": "0x0031ccf1"
+        },
+        {
+          "signature": "PhysicAttributes::GetJumpHeight(vector3df const&,int)",
+          "address": "0x0031a6fd"
+        },
+        {
+          "signature": "PhysicAttributes::GetHeight(vector3df const&,int,bool)",
+          "address": "0x0031ff49"
+        }
+      ],
+      "resources": [],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "141928a",
+      "status": "MERGED",
+      "reservations_active": false,
+      "review_target": "OG-020",
+      "validation": [
+        "Literal branch/math/NaN/signedzero/counter/cache/slot/metadata/lifetime fidelity with exact source evidence for findings.",
+        "Verify actual native test and original oracle independence/coverage and production binding limits.",
+        "Report concrete actionable source locations; do not redesign or edit the submission."
+      ],
+      "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-026-review.md",
+      "report_sha256": "97f15e0df8277a7e3abfe7f983ab88baa1a5d731a650e5ac71643d3ecff5ef7f",
+      "findings": []
+    },
+    {
+      "id": "OG-027",
+      "description": "Reconstruct and implement remaining original lightmap/reflection material modes3/12/17.",
+      "scope": "Begin with complete original texture-stage/state/coordinate equations and actual native vertex/texture availability. Do not infer modes from textures or silently reuse solid rendering. After an evidence-backed implementation plan, request exact source reservations and implement native Vulkan pipelines/shaders/fixtures. Custom GL_DECAL remains separate unless genuine selection is proved.",
+      "symbols": [
+        {
+          "signature": "Original material renderers for lightmap3,reflection12,transparentReflection17",
+          "address": null
+        }
+      ],
+      "resources": [
+        "port/REMAINING_MATERIALS.md"
+      ],
+      "priority": 4,
+      "complexity": "high",
+      "dependencies": [
+        "OG-004",
+        "OG-009"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "141928a",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original selector and complete texture-combiner/UV/reflection/lighting/alpha/depth/blend contracts with original addresses.",
+        "Identify existing decoded primary/auxiliaryUV/normals/texture resources; consolidate genuine shared paths, no fabricated lighting or customrenderer routing.",
+        "Request source/header/shader/test reservations before edits; CMake remains root-owned.",
+        "Independent synthetic selection/assets and actual Vulkan pixel fixtures; fullregression and suppliedassets audit. No fabricated retail occurrence of modesabsent from suppliedcatalog."
       ]
     }
   ],
@@ -1280,14 +1542,15 @@
     "port/STATUS.md",
     "port/CINEMATIC_SCHEDULER.md",
     "port/README.md",
-    "port/CMakeLists.txt"
+    "port/CMakeLists.txt",
+    "port/ACTOR_COLLISION.md"
   ],
   "validation": {
-    "original_arm_preservation": "2969 tracked files retain their pre-migration SHA256 values; pre-existing local submodule changes preserved. Independently checked2026-11-25.",
+    "original_arm_preservation": "2969trackedfiles retain pre-migrationSHA256; pre-existing local submodule changes preserved. Independently checked2026-11-25 after actorfoundation integration.",
     "original_decompilation_gates": "2026-11-24:83 Python unittests passed;check_repository.py passed;progress.py --check passed. No full ARM matching rebuild claimed."
   },
   "integration_notes": [
-    "OG017 integrated with root-owned CMake wiring; worker2 continues independent OG021 from verified99e110e.",
-    "OG020 exclusively owns sharedretail_physics.h and retail_height.h/.cpp; root owns allCMake wiring, including development wiring in workerworktrees."
+    "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
+    "Root owns CMake and integration. Worker1 owns only remaining-material evidence document until additional source reservations; OG025 remains frozen for independentreview."
   ]
 }

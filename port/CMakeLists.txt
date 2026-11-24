@@ -40,7 +40,7 @@ include(cmake/GameSWF.cmake)
 include(cmake/Vorbis.cmake)
 include(cmake/Box2D.cmake)
 
-add_library(opengangstar_physics STATIC retail_physics.cpp retail_height.cpp retail_steering.cpp)
+add_library(opengangstar_physics STATIC retail_physics.cpp retail_height.cpp retail_steering.cpp retail_contacts.cpp retail_jump.cpp)
 target_include_directories(opengangstar_physics PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(opengangstar_physics PUBLIC opengangstar_box2d)
 if(MSVC)
@@ -50,6 +50,7 @@ endif()
 add_library(opengangstar_assets STATIC
     city_assets.cpp
     city_particles.cpp
+    retail_animation.cpp
     filesystem.cpp
     retail_audio.cpp
     retail_radio.cpp
@@ -91,6 +92,27 @@ target_link_libraries(gangstar-wch PRIVATE gdi32 mfplat mfreadwrite mfuuid ole32
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_jump_test tests/retail_jump.cpp)
+    target_link_libraries(retail_jump_test PRIVATE opengangstar_physics opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_jump_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_jump COMMAND retail_jump_test)
+
+    add_executable(retail_animation_test tests/retail_animation.cpp)
+    target_link_libraries(retail_animation_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_animation_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_animation COMMAND retail_animation_test)
+
+    add_executable(retail_contacts_test tests/retail_contacts.cpp)
+    target_link_libraries(retail_contacts_test PRIVATE opengangstar_physics)
+    if(MSVC)
+        target_compile_options(retail_contacts_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_contacts COMMAND retail_contacts_test)
+
     add_executable(gameswf_memory_test tests/gameswf_memory.cpp)
     target_link_libraries(gameswf_memory_test PRIVATE gameswf_core)
     add_test(NAME gameswf_memory COMMAND gameswf_memory_test)
@@ -146,6 +168,7 @@ if(BUILD_TESTING)
 endif()
 
 if(MSVC)
+    set_source_files_properties(retail_animation.cpp PROPERTIES COMPILE_OPTIONS /fp:strict)
     foreach(target opengangstar_assets gangstar-wch gameswf_core)
         target_compile_options(${target} PRIVATE /we4302 /we4311 /we4312)
     endforeach()

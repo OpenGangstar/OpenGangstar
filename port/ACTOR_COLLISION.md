@@ -89,18 +89,27 @@ shared ground body. Stock Box2D defaults alone do not implement these callbacks.
 The independently investigated dependency is Box2D 2.0.1; upstream provenance and
 solver parity belong to the separate physics dependency investigation.
 
-Character::initPhysic creates a one-slot PhysicAttributes object when absent,
-then creates the actor body if absent. Its BodyDef has zero initial body velocity,
-angle, damping and explicit mass data; position is scene XY divided by 100.
+Character::initPhysic returns immediately when the actor body already exists.
+Otherwise it creates a one-slot PhysicAttributes object with supplied body NULL
+when attributes are absent, then creates the body. The new body starts with
+zero velocity; BodyDef angle, damping and explicit mass data are zero.
+Position is scene XY divided by 100.
 The final actor BodyDef disables sleeping: the initial true default at
 0x002f44b6 is overwritten at 0x002f4502 before CreateBody. Fixed rotation, bullet
 and initial sleeping flags are false. World-level sleep permission and actor
 sleep permission must not be conflated. The circle has local centre (0,0),
-radius 0.3 metres, density 1,
-friction 0.2, restitution 0, and is not a sensor. CreateShape is followed by
-SetMassFromShapes; do not leave a mass-zero static body or replace it with a
-kinematic transform. The final circle radius is 0.3, although construction first
-writes the CircleDef default radius 0.5.
+radius 0.5 metres, density 1, friction 0.3, restitution 0, and is not a sensor.
+CreateShape is followed by SetMassFromShapes; do not leave a mass-zero static
+body or replace it with a kinematic transform.
+
+Correction verified during OG-025 on 2026-11-25: the earlier 0.3-radius and
+0.2-friction inference misidentified stack fields. Original initPhysic stores
+the 0.5 literal (0x3f000000 at 0x2f461c) to CircleDef radius at sp+40 in
+0x2f4552; 0.3 (0x3e99999a at 0x2f4624) goes to friction at sp+12 in
+0x2f4562. Five independent original ARM argument captures cover player/NPC,
+existing/new attributes and existing-body early return. Native shape definitions
+must use their real fields, not these ARM offsets. Generic smaller-circle
+collision fixtures are not actor-definition evidence.
 
 The player category bits are 2; other characters receive 4. The mask is 0xffff,
 and signed group is PhysicAttributes.index + 1. Character saves those filter
@@ -258,8 +267,9 @@ still necessary. The wrapper alone cannot supply a faithful terrain adapter.
 
 The three-output canGoToPoint computes an XY Box2D AABB enclosing current and
 requested positions, in metres. Its margin is 0.5 m for categories 5/8, 1.5 m
-for category 3, and zero for the other inspected path. This margin is distinct
-from the actor circle's 0.3 m radius. Query requests at most 100 shapes and uses
+for category 3, and zero for the other inspected path. Query margin and circle
+radius are separate parameters; the actor circle also has radius 0.5 m.
+Query requests at most 100 shapes and uses
 a zeroed 100-pointer buffer. It normalizes the full requested-minus-current 3D
 vector and builds two oppositely offset XY segments from the resulting XY
 components. A native 2D normalization would differ when destination Z differs.
@@ -337,7 +347,7 @@ outside this first slice. Their absence must stay visible in status and dispatch
 
 These are required implementation acceptance cases, not tests executed here:
 
-- Body initialization: player/other category bits 2/4; radius 0.3, mass from
+- Body initialization: player/other category bits 2/4; radius 0.5, friction 0.3, mass from
   density, friction/restitution, metre conversion, correct non-sensor group,
   disabled actor sleeping and
   independent actor pool allocation. Destroy/reset must release local metadata.

@@ -1,4 +1,5 @@
 #include "retail_height.h"
+#include "retail_jump.h"
 #include "Common/b2BlockAllocator.h"
 #include <sstream>
 
@@ -198,8 +199,8 @@ bool RetailHeightTerrain::firstSeed(RetailHeightState& s, const Point& p) const 
 }
 
 RetailHeightController::RetailHeightController(RetailHeightTerrain& terrain, b2World& world, size_t slots,
-                                               b2Body* suppliedBody)
-    : terrain(terrain), world(world), suppliedBody(suppliedBody), states(slots), owned(slots) {
+                                               b2Body* suppliedBody, RetailJumpController* jump)
+    : terrain(terrain), world(world), suppliedBody(suppliedBody), jump(jump), states(slots), owned(slots) {
     if (!slots)
         throw std::invalid_argument("Retail height requires a slot.");
     for (size_t i = 0; i < terrain.pool.size(); ++i)
@@ -260,7 +261,7 @@ float RetailHeightController::height(const Point& point, size_t slot, bool detai
     const float result = core(slot, point, true, detailed);
     if (result != noHeight) {
         s.cached = point;
-        s.cached[2] = result;
+        s.cached[2] = jump ? jump->selectSuccessfulTerrainHeight(point, result, slot) : result;
     }
     return s.cached[2];
 }

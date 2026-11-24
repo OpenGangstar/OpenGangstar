@@ -7,6 +7,8 @@
 #include <memory>
 #include <vector>
 
+class RetailJumpController;
+
 using RetailHeightPoint = std::array<float, 3>;
 
 struct RetailHeightState {
@@ -50,7 +52,11 @@ class RetailHeightTerrain {
     bool firstSeed(RetailHeightState&, const RetailHeightPoint&) const;
 };
 
-// Ordinary terrain only: no jump quads, steering, actor clock or VM binding.
+// Original terrain query with optional typed jump composition. Steering, actor
+// clock and VM binding remain outside this component. A null jump pointer is
+// ordinary-only; a host that dispatches jump surfaces through its contact filter
+// must pass that same actor's live jump controller here. Attachment does not
+// construct a jump controller or reset its owner's current jump state.
 // World and terrain must outlive this object; destroy outside world.Step.
 // suppliedBody is exactly the constructor-supplied PhysicAttributes body. A
 // later actor body is not implicitly substituted. Its lifetime is the caller's.
@@ -65,7 +71,7 @@ class RetailHeightController {
   public:
     static constexpr float noHeight = 999999.f;
     RetailHeightController(RetailHeightTerrain&, b2World&, std::size_t slots = 1,
-                           b2Body* suppliedBody = nullptr);
+                           b2Body* suppliedBody = nullptr, RetailJumpController* jump = nullptr);
     ~RetailHeightController();
     RetailHeightController(const RetailHeightController&) = delete;
     RetailHeightController& operator=(const RetailHeightController&) = delete;
@@ -87,6 +93,8 @@ class RetailHeightController {
     RetailHeightTerrain& terrain;
     b2World& world;
     b2Body* const suppliedBody;
+    // Optional original jump composition; it must outlive this controller.
+    RetailJumpController* const jump;
     std::vector<RetailHeightState> states;
     std::vector<Owned> owned;
     int poolIndex = -1;

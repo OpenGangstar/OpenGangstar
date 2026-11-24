@@ -32,6 +32,8 @@ struct RetailPhysicsBodyData {
     std::optional<RetailPhysicsZBounds> nodeBounds;
     std::array<float, 4> heightsCm;
     bool jumpSurface;
+    // Original metadata byte +25, copied to jump state +113; meaning unproven.
+    std::uint8_t opaqueJumpFlag = 0;
 };
 
 // Native reconstruction of ContactFilter::ShouldCollide at retail 0x0031dc7d.
