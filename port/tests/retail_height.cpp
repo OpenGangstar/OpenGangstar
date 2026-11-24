@@ -7,7 +7,9 @@
 #endif
 
 #include <cmath>
+#include <algorithm>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -41,6 +43,208 @@ struct Fixture {
         nav.cliffVertexKeys.resize(mesh.positions.size() * 2);
     }
 };
+RetailHeightSceneNode sceneNode(const CityMesh& mesh, RetailHeightPoint translation = {},
+                               uint32_t type = 0x6d656164) {
+    RetailHeightSceneNode node;
+    node.type = type;
+    node.mesh = &mesh;
+    node.absoluteTranslationCm = translation;
+    node.boundsCm = {mesh.positions.front(), mesh.positions.front()};
+    for (const auto& p : mesh.positions)
+        for (size_t k = 0; k < 3; ++k) {
+            node.boundsCm[0][k] = std::min(node.boundsCm[0][k], p[k]);
+            node.boundsCm[1][k] = std::max(node.boundsCm[1][k], p[k]);
+        }
+    return node;
+}
+void sceneInitialization() {
+    Fixture far({{200, 0, 0}, {300, 0, 0}, {200, 100, 0}}, {0, 1, 2});
+    Fixture near({{0, 0, 10}, {100, 0, 30}, {0, 100, 50}}, {0, 1, 2});
+    auto a = sceneNode(near.mesh, {0, 0, 10});
+    auto b = sceneNode(near.mesh, {0, 0, 100}, 0x73656164);
+    auto miss = sceneNode(far.mesh);
+    auto root = sceneNode(far.mesh);
+    root.children = {&a, &b, &miss};
+    RetailHeightTerrain terrain(root, far.nav);
+    b2World world(bounds(), b2Vec2(0, 0), true);
+    RetailHeightController height(terrain, world, 2);
+    close(height.height({25, 25, 987}, 1), 987, "Nonempty scene does not lazily seed absent wrapper node");
+    require(!height.state(1).hasHeightmap && !height.state(1).selectedNode && terrain.generation() == 0,
+            "Absent selected node bypasses scene traversal/core generation");
+    for (float z : {-999.f, 10.f, 100.f, 999.f}) {
+        height.initializeFromScene(1, {25, 25, z});
+        require(height.state(1).selectedNode == &b && height.state(1).vertices[0][2] == 110 &&
+                    height.state(1).cached == RetailHeightPoint{25, 25, z} && height.state(1).changed,
+                "Last successful sibling wins independently of query Z; later miss preserves it");
+    }
+    require(height.bodies(1).empty() && terrain.generation() == 0,
+            "Scene helper does not create cliffs or advance query generations");
+    close(height.height({25, 25, -900}, 1), 125, "Selected child geometry feeds actual wrapper/core");
+    auto parent = sceneNode(near.mesh);
+    parent.children = {&b};
+    height.initializeFromNode(1, parent, {25, 25, 999});
+    require(height.state(1).selectedNode == &parent, "Successful parent returns before its children");
+    RetailHeightSceneNode container;
+    container.children = {&a, &b};
+    height.initializeFromNode(1, container, {25, 25, 999});
+    require(height.state(1).selectedNode == &b, "Nonmesh container visits ordered children");
+    const auto before = height.state(1);
+    bool failed = false;
+    container.children = {&container};
+    try { height.initializeFromNode(1, container, {25, 25, 999}); }
+    catch (const std::invalid_argument&) { failed = true; }
+    require(failed && height.state(1).cached == before.cached && height.state(1).selectedNode == &b,
+            "Cyclic scene binding rejects before mutating selected state");
+    container.children = {nullptr};
+    failed = false;
+    try { height.initializeFromNode(1, container, {25, 25, 999}); }
+    catch (const std::invalid_argument&) { failed = true; }
+    require(failed, "Missing scene child is explicit unsupported binding");
+    container.children.clear();container.type = 0x6d656164;
+    failed = false;
+    try { height.initializeFromNode(1, container, {25, 25, 999}); }
+    catch (const std::invalid_argument&) { failed = true; }
+    require(failed, "Recognized node requires actual mesh metadata");
+}
+void liveSceneBoundsAndClassification() {
+    Fixture f({{0, 0, 10}, {100, 0, 30}, {0, 100, 50}}, {0, 1, 2});
+    auto node = sceneNode(f.mesh, {1000, 0, 0});
+    RetailHeightTerrain terrain(node, f.nav);
+    b2World world(bounds(), b2Vec2(0, 0), true);
+    RetailHeightController height(terrain, world, 2);
+    height.initializeFromScene(1, {1025, 25, 999});
+    require(!height.state(1).hasHeightmap, "Raw bbox rejects point contained by translated triangle");
+    node.boundsCm[0][0] += 1000;node.boundsCm[1][0] += 1000;
+    height.initializeFromScene(1, {1025, 25, 999});
+    require(height.state(1).selectedNode == &node && height.state(1).vertices[0][0] == 1000,
+            "Raw bbox updates are read between queries rather than frozen at construction");
+    node.absoluteTranslationCm[2] = 500;
+    height.initializeFromScene(1, {1025, 25, std::numeric_limits<float>::quiet_NaN()});
+    require(height.state(1).vertices[0][2] == 510 && std::isnan(height.state(1).cached[2]),
+            "Live absolute translation is refreshed; query Z is copied but never ranks scene matches");
+    const auto before = height.state(1).vertices;
+    node.boundsCm[0][2] = std::numeric_limits<float>::max() * .5f;
+    node.boundsCm[1][2] = std::numeric_limits<float>::max();
+    node.absoluteTranslationCm[2] = 900;
+    height.initializeFromScene(1, {1025, 25, 0});
+    require(height.state(1).vertices == before, "Overflowing box-own midpoint rejects without replacing old geometry");
+    node.boundsCm[0][2] = std::numeric_limits<float>::quiet_NaN();
+    height.initializeFromScene(1, {1025, 25, 0});
+    require(height.state(1).vertices == before, "Unordered raw box midpoint follows failed-node branch");
+    for (uint16_t excluded : {1, 2}) {
+        Fixture stacked({{0, 0, 10}, {100, 0, 10}, {0, 100, 10},
+                         {0, 0, 100}, {100, 0, 100}, {0, 100, 100}}, {0, 1, 2, 3, 4, 5});
+        stacked.nav.buffers[0].neighbors[7] = {excluded, 0xfffb};
+        RetailHeightTerrain classified(stacked.mesh, stacked.nav);
+        RetailHeightController selected(classified, world, 2);
+        selected.initializeFromScene(1, {25, 25, -999});
+        require(selected.state(1).triangle.indexOffset == 3 && selected.state(1).vertices[0][2] == 100 &&
+                    classified.visitWords()[0][1] == 0xfffb && classified.generation() == 0,
+                "Scene skips low class1/2, accepts class3 despite upper generation bits, and does not mark visits");
+    }
+}
+void pointHeightAttributes() {
+    const std::vector<RetailHeightPoint> vertices{{0, 0, 10}, {100, 0, 30}, {0, 100, 50},
+                                                {200, 0, 100}, {300, 0, 300}, {200, 100, 500}};
+    for (const auto point : {RetailHeightPoint{225, 25, 555}, RetailHeightPoint{25, 25, 555}}) {
+        Fixture f(vertices, {0, 1, 2, 3, 4, 5});f.nav.buffers[0].overlaps[0] = {{0, 3}};
+        RetailHeightTerrain terrain(f.mesh, f.nav);b2World world(bounds(), b2Vec2(0, 0), true);
+        RetailHeightController height(terrain, world, 2);height.initializeSelected(1, {0, 0}, point);
+        close(height.setHeightAttributesFromPoint(1, point), point[0] == 225 ? 250.f : -150.f,
+              "Full point overlap includes final pair and accepts outside extrapolation without a crossing");
+        require(height.state(1).triangle.indexOffset == 3 && height.state(1).cached == point &&
+                    height.state(1).selectedNode == &terrain.heightmapNode() && terrain.generation() == 0,
+                "Point helper commits canonical identity/geometry and preserves cache/generation");
+    }
+    for (bool destinationEmpty : {false, true}) {
+        Fixture f(vertices, {0, 1, 2, 3, 4, 5});f.nav.buffers[0].overlaps[0] = {{0, 3}};
+        if (!destinationEmpty) f.nav.buffers[0].overlaps[1] = {{0, 0}};
+        RetailHeightTerrain terrain(f.mesh, f.nav);b2World world(bounds(), b2Vec2(0, 0), true);
+        RetailHeightController height(terrain, world, 2);height.initializeSelected(1, {0, 0}, {225, 25, 77});
+        const auto before = height.state(1);
+        const auto result = height.setHeightAttributesFromPoint(1, {25, 25, 555});
+        close(result, destinationEmpty ? 999999.f : 25.f, "Point crossing restarts destination's full overlap list");
+        require(height.state(1).cached == before.cached &&
+                    height.state(1).triangle.indexOffset == (destinationEmpty ? 3 : 0),
+                "Recursive point transition preserves cache and exact successful/failed identity");
+        if (destinationEmpty)
+            require(height.state(1).vertices == before.vertices && height.state(1).normal == before.normal,
+                    "Recursive point miss leaves old geometry alongside new identity");
+    }
+    for (uint16_t excluded : {1, 2}) {
+        Fixture f(vertices, {0, 1, 2, 3, 4, 5});f.nav.buffers[0].overlaps[0] = {{0, 3}};
+        f.nav.buffers[0].neighbors[7][1] = excluded;
+        RetailHeightTerrain terrain(f.mesh, f.nav);b2World world(bounds(), b2Vec2(0, 0), true);
+        RetailHeightController height(terrain, world, 2);height.initializeSelected(1, {0, 0}, {25, 25, 77});
+        close(height.setHeightAttributesFromPoint(1, {225, 25, 555}), 999999,
+              "Point classification-exhausted list returns sentinel");
+        require(height.state(1).triangle.indexOffset == 0, "Rejected point candidate does not mutate identity");
+    }
+    Fixture cycle({{200, 0, 100}, {300, 0, 300}, {200, 100, 500}}, {0, 1, 2});
+    cycle.nav.buffers[0].overlaps[0] = {{0, 0}};
+    RetailHeightTerrain terrain(cycle.mesh, cycle.nav);b2World world(bounds(), b2Vec2(0, 0), true);
+    RetailHeightController height(terrain, world, 2);height.initializeSelected(1, {0, 0}, {225, 25, 77});
+    bool failed = false;
+    try { height.setHeightAttributesFromPoint(1, {25, 25, 555}); }
+    catch (const std::runtime_error& e) { failed = std::string(e.what()).find("Nonterminating") != std::string::npos; }
+    require(failed && height.state(1).cached == RetailHeightPoint{225, 25, 77},
+            "Repeated original recursion state reports explicit error without a finite fallback or arbitrary cap");
+}
+void mixedSceneSources() {
+    Fixture f({{0, 0, 10}, {100, 0, 10}, {0, 100, 10}, {100, 100, 20}}, {0, 1, 2, 1, 3, 2});
+    f.nav.buffers[0].neighbors[1][0] = 3;f.nav.buffers[0].neighbors[4][0] = 0;
+    auto root = sceneNode(f.mesh, {0, 0, 50});
+    auto alternate = f.mesh;for (auto& p : alternate.positions) p[2] = 1000;
+    auto child = sceneNode(alternate, {0, 0, 200});
+    RetailHeightTerrain terrain(root, f.nav);b2World world(bounds(), b2Vec2(0, 0), true);
+    RetailHeightController height(terrain, world, 2);height.initializeFromNode(1, child, {25, 25, 77});
+    close(height.height({75, 75, 999}, 1), 215, "Neighbor fetch uses global mesh plus OLD selected-node translation");
+    require(height.state(1).selectedNode == &root && height.state(1).vertices[0][2] == 210 &&
+                height.state(1).vertices[1][2] == 220 && height.state(1).vertices[2][2] == 210,
+            "Neighbor switches identity while retaining captured translation, rather than new global translation50");
+    height.initializeFromNode(1, child, {25, 25, 77});
+    child.absoluteTranslationCm[2] = 300;
+    close(height.height({75, 75, 999}, 1), 315,
+          "Outside-edge search reads changed selected-node translation at query time");
+    require(height.state(1).vertices[0][2] == 310 && height.state(1).vertices[1][2] == 320,
+            "Stored old geometry does not freeze later host absolute-translation reads");
+    Fixture overlap({{0, 0, 10}, {100, 0, 10}, {0, 100, 10},
+                     {200, 0, 100}, {300, 0, 100}, {200, 100, 100}}, {0, 1, 2, 3, 4, 5});
+    overlap.nav.buffers[0].overlaps[0] = {{0, 3}, {0, 0}};
+    auto localMesh = overlap.mesh;
+    for (size_t i = 0; i < localMesh.positions.size(); ++i) localMesh.positions[i][2] = i < 3 ? 1000.f : 2000.f;
+    auto localNode = sceneNode(localMesh, {0, 0, 200});
+    RetailHeightTerrain overlapTerrain(overlap.mesh, overlap.nav);RetailHeightController local(overlapTerrain, world, 2);
+    local.initializeFromNode(1, localNode, {25, 25, 77});
+    close(local.height({225, 25, 999}, 1), 2200, "Core local overlap reads selected-node mesh and translation");
+    require(local.state(1).selectedNode == &localNode && local.state(1).triangle.indexOffset == 3,
+            "Local overlap does not silently switch to global mesh/node");
+    Fixture seed({{0, 0, 10}, {100, 0, 30}, {0, 100, 50}}, {0, 1, 2});
+    Fixture a({{200, 0, 100}, {300, 0, 100}, {200, 100, 100}}, {0, 1, 2});
+    Fixture b({{200, 0, 200}, {300, 0, 200}, {200, 100, 200}}, {0, 1, 2});
+    auto first = sceneNode(a.mesh), last = sceneNode(b.mesh), global = sceneNode(seed.mesh);
+    global.children = {&first, &last};RetailHeightTerrain reseed(global, seed.nav);
+    RetailHeightController mixed(reseed, world);mixed.initializeSelected(0, {0, 0}, {25, 25, 77});
+    close(mixed.height({225, 25, 400}), 215, "Scene reseed retains old interpolation deltas after last sibling commits");
+    require(mixed.state(0).selectedNode == &last && mixed.state(0).vertices[0][2] == 200 &&
+                mixed.state(0).cached == RetailHeightPoint{225, 25, 215},
+            "Complete wrapper/core records last child geometry and original mixed result");
+}
+void sceneSeedBodyBoundary() {
+    Fixture f({{100, 0, 0}, {0, 0, 0}, {100, 0, 100}}, {0, 1, 2});
+    f.nav.cliffVertexKeys = {0, 1, 1, 1, 2, 1};
+    f.nav.cliffTriangles = {0, 0, 0};
+    RetailHeightTerrain terrain(f.mesh, f.nav);
+    b2World world(bounds(), b2Vec2(0, 0), true);
+    RetailHeightController height(terrain, world);
+    height.initializeFromScene(0, {50, 0, 0});
+    require(height.state(0).hasHeightmap && height.state(0).onGround && height.bodies(0).empty() &&
+                world.GetBodyCount() == 1 && world.GetProxyCount() == 0,
+            "Grounded scene helper does not implicitly create eligible local-cliff bodies");
+    height.updateEdges(0);
+    require(height.bodies(0).size() == 1 && world.GetProxyCount() == 1,
+            "Explicit original edge-refresh boundary creates the actual eligible native cliff");
+}
 void basicHeight() {
     Fixture f({{0, 0, 10}, {100, 0, 30}, {0, 100, 50}}, {0, 1, 2});
     RetailHeightTerrain terrain(f.mesh, f.nav);
@@ -338,7 +542,7 @@ void contactLifetime() {
     height.reset();
     require(listener.removed > 0, "DestroyBody emits removal with live metadata");
 }
-void retailAssets(const std::filesystem::path& root, bool dump) {
+void retailAssets(const std::filesystem::path& root, bool dump, bool initializationDump) {
     ResourceFileSystem resources(root);
     const auto city = loadCityAssets(resources);
     const auto opening = loadCityOpening(resources, city);
@@ -379,6 +583,119 @@ void retailAssets(const std::filesystem::path& root, bool dump) {
         }
     require(checked > 10000, "Enumerated complete eligible retail height triangles");
     std::cout << checked << " retail triangle centroid checks passed.\n";
+    {
+        const auto bits = [](float value) { uint32_t b; std::memcpy(&b, &value, 4); return b; };
+        RetailHeightController point(terrain, world, 2);
+        size_t pointChecks = 0, accepted = 0, finalPairs = 0;
+        const auto generation = terrain.generation();
+        for (size_t b = 0; b < mesh.buffers.size(); ++b)
+            for (size_t off = 0; off < mesh.buffers[b].indices.size(); off += 3) {
+                const auto& ids = mesh.buffers[b].indices;
+                RetailHeightPoint p;
+                for (size_t k = 0; k < 3; ++k)
+                    p[k] = ((mesh.positions[ids[off]][k] + mesh.positions[ids[off + 1]][k]) +
+                            mesh.positions[ids[off + 2]][k]) / 3.f;
+                const CityNavigation::TriangleRef source{static_cast<uint16_t>(b), static_cast<uint16_t>(off)};
+                point.initializeSelected(1, source, p);
+                const auto before = point.state(1);
+                const auto result = point.setHeightAttributesFromPoint(1, p);
+                const auto& state = point.state(1);
+                require(state.cached == p && terrain.generation() == generation,
+                        "Every retail point record preserves cache/query generation");
+                const auto& candidates = opening.navigation.buffers[b].overlaps[off / 3];
+                std::optional<CityNavigation::TriangleRef> first;
+                size_t chosen = 0;
+                for (size_t i = 0; i < candidates.size(); ++i) {
+                    const auto candidate = candidates[i];
+                    const auto low = terrain.visitWords()[candidate.buffer][candidate.indexOffset / 3] & 3;
+                    if (low != 1 && low != 2) { first = candidate; chosen = i; break; }
+                }
+                if (first) {
+                    require(state.triangle.buffer == first->buffer && state.triangle.indexOffset == first->indexOffset &&
+                                state.selectedNode == &terrain.heightmapNode() && std::isfinite(result),
+                            "Every retail full-overlap record selects its first class-eligible candidate");
+                    ++accepted;
+                    if (chosen + 1 == candidates.size()) ++finalPairs;
+                } else {
+                    require(result == RetailHeightController::noHeight && state.triangle.buffer == source.buffer &&
+                                state.triangle.indexOffset == source.indexOffset && state.vertices == before.vertices,
+                            "Every empty/class-exhausted retail overlap list preserves old geometry and identity");
+                }
+                if (initializationDump) {
+                    std::cout << "point " << b << ' ' << off;
+                    for (float x : p) std::cout << ' ' << bits(x);
+                    std::cout << ' ' << bits(result) << ' ' << state.triangle.buffer << ' ' << state.triangle.indexOffset
+                              << ' ' << int(state.changed);
+                    for (float x : state.normal) std::cout << ' ' << bits(x);
+                    for (float x : state.cached) std::cout << ' ' << bits(x);
+                    std::cout << '\n';
+                }
+                ++pointChecks;
+            }
+        require(pointChecks > 14000 && accepted > 0 && finalPairs > 0,
+                "Complete retail overlap corpus exercises final-pair acceptance as well as misses");
+        std::cout << "Retail point attributes: " << pointChecks << " records, " << accepted << " accepted, "
+                  << finalPairs << " accepted final pairs.\n";
+        // Read actual serialized SMesh bounds from the retained BRES bytes. This
+        // test proves their equality with the old vertex-extrema-only boundary;
+        // the production decoder is not extended or replaced by this test.
+        const auto& bytes = opening.heightMap.bytes;
+        const auto word = [&](size_t at) {
+            require(at + 4 <= bytes.size(), "Retained BRES metadata range");
+            uint32_t value; std::memcpy(&value, bytes.data() + at, 4); return value;
+        };
+        auto actualNode = sceneNode(mesh);
+        size_t meshes = 0;
+        for (size_t i = 0; i < word(opening.heightMap.rootOffset + 76); ++i) {
+            const auto geometry = word(opening.heightMap.rootOffset + 80) + i * 16;
+            if (word(geometry + 8) != 0) continue;
+            const auto storedMesh = word(geometry + 12);
+            for (size_t k = 0; k < 6; ++k)
+                require(word(storedMesh + 20 + k * 4) == bits(actualNode.boundsCm[k / 3][k % 3]),
+                        "Actual serialized height bbox equals decoded vertex extrema bit-for-bit");
+            ++meshes;
+        }
+        require(meshes == 1, "One actual serialized height mesh");
+        size_t sourceInstances = 0;
+        for (const auto& node : opening.heightMap.nodes)
+            for (const auto& geometry : node.geometry)
+                if (geometry.sourcePath.empty() && geometry.meshName == mesh.name) {
+                    require(node.parent == -1 && node.rotation == std::array<float, 4>{0, 0, 0, 1} &&
+                                node.scale == RetailHeightPoint{1, 1, 1},
+                            "Explicit source-height placement has no unimplemented parent/matrix composition");
+                    actualNode.absoluteTranslationCm = node.translation;
+                    ++sourceInstances;
+                }
+        require(sourceInstances == 1, "One actual source-height node instance");
+        // This fixture supplies the source placement explicitly. It does not
+        // claim that GS3DStuff's complete scene-loading hierarchy is bound.
+        RetailHeightTerrain sourceScene(actualNode, opening.navigation);
+        size_t sceneChecks = 0;
+        for (size_t b = 0; b < mesh.buffers.size(); ++b)
+            for (size_t off : {size_t(0), mesh.buffers[b].indices.size() - 3}) {
+                const auto& ids = mesh.buffers[b].indices;
+                RetailHeightPoint p;
+                for (size_t k = 0; k < 3; ++k)
+                    p[k] = (((mesh.positions[ids[off]][k] + mesh.positions[ids[off + 1]][k]) +
+                             mesh.positions[ids[off + 2]][k]) / 3.f) + actualNode.absoluteTranslationCm[k];
+                RetailHeightController scene(sourceScene, world, 2);
+                scene.initializeFromScene(1, p);
+                if (initializationDump) {
+                    const auto& s = scene.state(1);
+                    std::cout << "scene " << b << ' ' << off;
+                    for (float x : p) std::cout << ' ' << bits(x);
+                    std::cout << ' ' << int(s.hasHeightmap) << ' ' << s.triangle.buffer << ' ' << s.triangle.indexOffset
+                              << ' ' << int(s.changed);
+                    for (float x : s.normal) std::cout << ' ' << bits(x);
+                    for (float x : s.cached) std::cout << ' ' << bits(x);
+                    std::cout << '\n';
+                }
+                require(sourceScene.generation() == 0 && scene.bodies(1).empty(),
+                        "Actual source-scene initialization preserves generation/body ownership");
+                ++sceneChecks;
+            }
+        std::cout << "Retail scene attributes: " << sceneChecks << " source-placement queries and exact stored bbox.\n";
+    }
     RetailHeightController colliders(terrain, world);
     size_t shapes = 0, maximum = 0, capacityFailures = 0, rangeFailures = 0, frozen = 0;
     std::string firstRangeFailure;
@@ -569,6 +886,11 @@ int wmain(int argc, wchar_t** argv) {
     try {
         const auto baseline = b2_byteCount;
         basicHeight();
+        sceneInitialization();
+        liveSceneBoundsAndClassification();
+        pointHeightAttributes();
+        mixedSceneSources();
+        sceneSeedBodyBoundary();
         neighborAndCache();
         overlapAndMixedReseed();
         originalOracleCases();
@@ -582,7 +904,8 @@ int wmain(int argc, wchar_t** argv) {
         outsideWorld();
         translationAndPool();
         if (argc >= 2)
-            retailAssets(argv[1], argc == 3 && std::wstring(argv[2]) == L"--oracle-dump");
+            retailAssets(argv[1], argc == 3 && std::wstring(argv[2]) == L"--oracle-dump",
+                         argc == 3 && std::wstring(argv[2]) == L"--initialization-oracle-dump");
         require(b2_byteCount == baseline,
                 "Terrain queries, probes and body ownership release all physics allocations");
         std::cout << "Retail height and actual cliff body fixtures passed.\n";

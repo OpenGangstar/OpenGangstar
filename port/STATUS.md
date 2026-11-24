@@ -1295,3 +1295,7 @@ saved achievement and stat indices against the catalog.
 ## OG-025: native on-foot actor body backend
 
 Implemented original body/circle/mass/filter creation, body placement/refilter and saved-filter operations using the shared Box2D world and terrain pool. Original circle radius is 0.5m, friction 0.3. Metadata survives destruction callbacks; the body pointer is cleared before owned-height teardown. Root reproduced the former stale-pointer regression in Release and Debug, then verified the correction, all14 CTests in both configurations, original initialization/placement/cleanup captures, and AMD64 PE32+ body tests. See ACTOR_BODY.md. Full scene, controller, vehicle and production actor binding remain incomplete.
+
+## OG-030: original height initialization
+
+Implemented distinct point-overlap and ordered scene-node initialization helpers, including live raw bounds/translations, last-successful-sibling selection, full overlap traversal, recursive partial-state behavior and core mixed node/mesh sources. Root Release/Debug builds and combined15CTest gates pass. Original executable comparisons cover19returning synthetic fixtures plus a separately stopped cycle probe and all14576point/16scene asset records, with zero differences. Release/Debug corpus bits agree. Existing12998ordinary heights and16330actual cliff proxies/254explicit original-world range errors remain verified; test-only expanded world17085proxies. See HEIGHT_INITIALIZATION.md. Production loaded-scene identities/types/raw boxes/transforms and actor-host composition remain prerequisites.

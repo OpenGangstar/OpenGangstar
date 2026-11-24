@@ -1484,7 +1484,8 @@
         "Full integration Release and Debug builds and all14 CTests passed after cleanup revision.",
         "Root reran original five-case initPhysic captures, placement/filter and cleanup-order oracle successfully; both body tests are genuine PE32+ AMD64.",
         "Intervening main changes do not alter submitted body implementation; metadata remains valid during DestroyBody, pointer cleared before owned-height teardown."
-      ]
+      ],
+      "integration_commit": "381a4e9"
     },
     {
       "id": "OG-026",
@@ -1564,7 +1565,11 @@
         "Identify existing decoded primary/auxiliaryUV/normals/texture resources; consolidate genuine shared paths, no fabricated lighting or customrenderer routing.",
         "Request source/header/shader/test reservations before edits; CMake remains root-owned.",
         "Independent synthetic selection/assets and actual Vulkan pixel fixtures; fullregression and suppliedassets audit. No fabricated retail occurrence of modesabsent from suppliedcatalog."
-      ]
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-027.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-027-report.md"
+      }
     },
     {
       "id": "OG-028",
@@ -1651,7 +1656,11 @@
       ],
       "findings": [
         "Metadata byte25 is a wrapping uint8 producer ID fromstaticELF0x4b6a8c, postincremented perJump. Two rawJump meshes among359BRES:jump_00_01 andjump_01_01. Preserve current-node/body matrix versus placement-node linear transform andworldheightZ; activation creates staticbodywithoutSetMassFromShapes."
-      ]
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029-report.md"
+      }
     },
     {
       "id": "OG-030",
@@ -1687,8 +1696,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "330d2de",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Exact seed/classification/overlap/ordered scene-node/box/translation/cache semantics and native input ownership from original code.",
         "Reuse verified native height identities/core rather than duplicate triangle search or fabricated generic terrain callback.",
@@ -1697,6 +1706,19 @@
       ],
       "findings": [
         "Original executable16cases prove wrapperno-lazy-selection, real nonemptychildlistlastsuccesswins, full pointoverlap includingfinalpair/extrapolation/recursive-retarget, and globalneighbor mesh with savedold-node translation. Canonical AddCollision remainsglobal."
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-030.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-030-report.md"
+      },
+      "independent_validation": [
+        "Root inspected original helper distinctions and exact source changes; no other physics source duplication introduced.",
+        "Root full Release/Debug builds and15CTest each pass with actual body backend and authored jump producer.",
+        "Root supplied-data enumeration:12998ordinary heights,16330actual proxies/max12/254explicit range errors; expanded testworld17085proxies.",
+        "Root Release/Debug14592initialization records bit-identical SHA25660f6bba0d21377847d2213eddf2c041fe9c6a8c02e6e01f6e7cdd923ec0c9ac8.",
+        "Root reran original19returning synthetic fixtures plus separately stoppedcycle;14576point+16scene records zero differences against root-built dumps.",
+        "OG031 independent peer review completed with no actionable findings; native tests and19original returning fixtures independently rerun.",
+        "Production scene factory/loaded transforms/bbox/runtime tags and actor-loop host remain incomplete. Intervening actor body commit changes no submitted height sources."
       ]
     },
     {
@@ -1713,11 +1735,15 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "330d2de",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Source-backed findings with precise location and reproducible evidence; distinguish implemented component from unbound production behavior."
-      ]
+      ],
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-031-review.md",
+        "sha256": "bc4fe568a2a166d75085bc36491955d41c8e8da2cd94d9468c878e99dc5546a1"
+      }
     },
     {
       "id": "OG-032",

@@ -11,6 +11,23 @@ class RetailJumpController;
 
 using RetailHeightPoint = std::array<float, 3>;
 
+// A native host view, not an ARM scene-node layout. type is the actual runtime
+// node tag; the two original mesh tags are 0x6d656164 and 0x73656164. Other types
+// traverse children without inspecting mesh/bounds. A recognized type needs mesh.
+// Supply the node's raw bbox and actual absolute translation, not a transformed
+// bbox or a guessed scene-matrix conversion. Query Z does not rank candidates.
+// Nodes, child pointers and meshes outlive their terrain/controllers. Type, mesh
+// and child topology stay fixed; bounds and absolute translation may be updated
+// by the host between serial queries, and are read afresh at original query sites.
+// The complete view is read-only during each query.
+struct RetailHeightSceneNode {
+    std::uint32_t type = 0;
+    const CityMesh* mesh = nullptr;
+    std::array<RetailHeightPoint, 2> boundsCm{};
+    RetailHeightPoint absoluteTranslationCm{};
+    std::vector<const RetailHeightSceneNode*> children;
+};
+
 struct RetailHeightState {
     CityNavigation::TriangleRef triangle{UINT16_MAX, UINT16_MAX};
     bool hasHeightmap = false;
@@ -20,9 +37,11 @@ struct RetailHeightState {
     RetailHeightPoint cached{0, 0, 999999.f};
     bool onGround = true;
     bool wasOnGround = true;
+    const RetailHeightSceneNode* selectedNode = nullptr;
 };
 
-// Immutable decoded inputs must outlive this shared terrain context. Visitation
+// Immutable decoded mesh/navigation inputs outlive this shared terrain context.
+// Native node views are borrowed with the live-property contract above. Visitation
 // words are copied from lane 7; neither asset bytes nor roadFlags are mutated.
 // Queries are serial, as in the original shared terrain generation protocol.
 // The caller must use exactly one shared terrain context per native world and
@@ -31,24 +50,33 @@ struct RetailHeightState {
 class RetailHeightTerrain {
   public:
     RetailHeightTerrain(const CityMesh&, const CityNavigation&, RetailHeightPoint translation = {});
+    // The global heightmap is the genuine first recognized mesh node selected
+    // by original CreateNeighborTris. It may itself have ordered children.
+    RetailHeightTerrain(const RetailHeightSceneNode& globalHeightmap, const CityNavigation&);
     RetailHeightTerrain(const RetailHeightTerrain&) = delete;
     RetailHeightTerrain& operator=(const RetailHeightTerrain&) = delete;
     std::uint16_t generation() const { return currentUsed; }
     const std::vector<std::vector<std::uint16_t>>& visitWords() const { return visits; }
+    const RetailHeightSceneNode& heightmapNode() const { return *globalNode; }
 
   private:
     friend class RetailHeightController;
     const CityMesh& mesh;
     const CityNavigation& navigation;
-    RetailHeightPoint translation;
-    std::array<RetailHeightPoint, 2> bounds;
+    RetailHeightSceneNode defaultNode;
+    const RetailHeightSceneNode* globalNode = nullptr;
     std::vector<std::vector<std::uint16_t>> visits;
     std::array<bool, 50> pool{};
     std::uint16_t currentUsed = 0;
     void validate(CityNavigation::TriangleRef) const;
     std::array<std::uint16_t, 3> indices(CityNavigation::TriangleRef) const;
     std::array<RetailHeightPoint, 3> vertices(CityNavigation::TriangleRef) const;
-    void loadGeometry(RetailHeightState&, bool normalAndMarker) const;
+    std::array<RetailHeightPoint, 3> vertices(const CityMesh&, CityNavigation::TriangleRef,
+                                           const RetailHeightPoint&) const;
+    void loadGeometry(RetailHeightState&, bool normalAndMarker, const CityMesh&,
+                      const RetailHeightPoint&) const;
+    void validateScene(const RetailHeightSceneNode&) const;
+    bool firstSeedNode(RetailHeightState&, const RetailHeightPoint&, const RetailHeightSceneNode&) const;
     bool firstSeed(RetailHeightState&, const RetailHeightPoint&) const;
 };
 
@@ -77,6 +105,17 @@ class RetailHeightController {
     RetailHeightController& operator=(const RetailHeightController&) = delete;
     // Explicit selected-triangle initialization; this is not a full actor Init.
     void initializeSelected(std::size_t slot, CityNavigation::TriangleRef, const RetailHeightPoint&);
+    // Exact node-taking helper: commits the last successful sibling and does not
+    // refresh local cliff bodies. Explicit invocation is required; height() does
+    // not lazily select a scene when the selected-node record is absent.
+    void initializeFromScene(std::size_t slot, const RetailHeightPoint&);
+    // An additional start node is exclusively borrowed with the same lifetime
+    // and immutable topology contract. It need not be the global heightmap.
+    void initializeFromNode(std::size_t slot, const RetailHeightSceneNode&, const RetailHeightPoint&);
+    // Distinct original point overload. Reads the full overlap list, can accept
+    // extrapolation, preserves cache and may leave partial identity on failure.
+    // Repeated recursive states throw explicitly instead of an invented height.
+    float setHeightAttributesFromPoint(std::size_t slot, const RetailHeightPoint&);
     float height(const RetailHeightPoint&, std::size_t slot = 0, bool detailed = true);
     void setGroundState(std::size_t slot, bool value);
     void updateEdges(std::size_t slot);

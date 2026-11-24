@@ -5,11 +5,28 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <set>
 #include <stdexcept>
 
 namespace {
 using Point = RetailHeightPoint;
 using Ref = CityNavigation::TriangleRef;
+bool heightMeshType(std::uint32_t type) {
+    return type == 0x6d656164 || type == 0x73656164;
+}
+const CityMesh& globalHeightMesh(const RetailHeightSceneNode& node) {
+    if (!heightMeshType(node.type) || !node.mesh)
+        throw std::invalid_argument("Global retail heightmap requires a recognized mesh node.");
+    return *node.mesh;
+}
+bool inHeightBox(const Point& point, const std::array<Point, 2>& box) {
+    if (!(point[0] >= box[0][0] && point[0] <= box[1][0] &&
+          point[1] >= box[0][1] && point[1] <= box[1][1]))
+        return false;
+    const float middleZ = (box[0][2] + box[1][2]) * .5f;
+    return middleZ >= box[0][2] && middleZ <= box[1][2];
+}
 // The historical API hides standalone construction. This access shim creates a
 // real native polygon solely to ask its exact OBB-based ComputeAABB, with no
 // body, contact callbacks, or broad-phase insertion.
@@ -91,11 +108,11 @@ bool rejected(std::uint16_t word, std::uint16_t generation) {
 
 RetailHeightTerrain::RetailHeightTerrain(const CityMesh& mesh, const CityNavigation& navigation,
                                          Point translation)
-    : mesh(mesh), navigation(navigation), translation(translation) {
+    : mesh(mesh), navigation(navigation) {
     if (mesh.positions.empty() || mesh.positions.size() > size_t(UINT16_MAX) + 1 ||
         mesh.buffers.size() > size_t(UINT16_MAX) + 1 || mesh.buffers.size() != navigation.buffers.size())
         throw std::invalid_argument("Retail height mesh/navigation mismatch.");
-    bounds = {mesh.positions.front(), mesh.positions.front()};
+    std::array<Point, 2> bounds{mesh.positions.front(), mesh.positions.front()};
     for (const auto& p : mesh.positions)
         for (size_t k = 0; k < 3; ++k) {
             if (!std::isfinite(p[k]) || !std::isfinite(translation[k]))
@@ -147,6 +164,51 @@ RetailHeightTerrain::RetailHeightTerrain(const CityMesh& mesh, const CityNavigat
                 throw std::invalid_argument("Cliff key absent from face.");
         }
     }
+    defaultNode.type = 0x6d656164;
+    defaultNode.mesh = &mesh;
+    defaultNode.boundsCm = bounds;
+    defaultNode.absoluteTranslationCm = translation;
+    globalNode = &defaultNode;
+}
+RetailHeightTerrain::RetailHeightTerrain(const RetailHeightSceneNode& node,
+                                         const CityNavigation& navigation)
+    : RetailHeightTerrain(globalHeightMesh(node), navigation, node.absoluteTranslationCm) {
+    validateScene(node);
+    globalNode = &node;
+}
+void RetailHeightTerrain::validateScene(const RetailHeightSceneNode& root) const {
+    std::set<const RetailHeightSceneNode*> active, complete;
+    std::function<void(const RetailHeightSceneNode&)> validateNode = [&](const auto& node) {
+        if (active.count(&node))
+            throw std::invalid_argument("Cyclic retail height scene binding.");
+        if (complete.count(&node))
+            return;
+        active.insert(&node);
+        if (heightMeshType(node.type)) {
+            if (!node.mesh || node.mesh->buffers.size() > visits.size())
+                throw std::invalid_argument("Retail height scene mesh/navigation mismatch.");
+            for (const auto& p : node.mesh->positions)
+                for (float value : p)
+                    if (!std::isfinite(value))
+                        throw std::invalid_argument("Nonfinite retail height scene vertex.");
+            for (size_t b = 0; b < node.mesh->buffers.size(); ++b) {
+                const auto& indices = node.mesh->buffers[b].indices;
+                if (indices.size() % 3 || indices.size() > 65535 || indices.size() / 3 > visits[b].size())
+                    throw std::invalid_argument("Retail height scene indices/navigation mismatch.");
+                for (auto index : indices)
+                    if (index >= node.mesh->positions.size())
+                        throw std::invalid_argument("Invalid retail height scene vertex identity.");
+            }
+        }
+        for (const auto* child : node.children) {
+            if (!child)
+                throw std::invalid_argument("Null retail height scene child.");
+            validateNode(*child);
+        }
+        active.erase(&node);
+        complete.insert(&node);
+    };
+    validateNode(root);
 }
 void RetailHeightTerrain::validate(Ref ref) const {
     if (ref.buffer >= mesh.buffers.size() || ref.indexOffset % 3 ||
@@ -159,43 +221,61 @@ std::array<uint16_t, 3> RetailHeightTerrain::indices(Ref ref) const {
     return {v[ref.indexOffset], v[ref.indexOffset + 1], v[ref.indexOffset + 2]};
 }
 std::array<Point, 3> RetailHeightTerrain::vertices(Ref ref) const {
-    const auto ids = indices(ref);
+    return vertices(mesh, ref, globalNode->absoluteTranslationCm);
+}
+std::array<Point, 3> RetailHeightTerrain::vertices(const CityMesh& source, Ref ref, const Point& offset) const {
+    validate(ref);
+    if (ref.buffer >= source.buffers.size() ||
+        size_t(ref.indexOffset) + 2 >= source.buffers[ref.buffer].indices.size())
+        throw std::invalid_argument("Retail height selected-node triangle is unavailable.");
+    const auto& ids = source.buffers[ref.buffer].indices;
     std::array<Point, 3> result;
     for (size_t i = 0; i < 3; ++i)
         for (size_t k = 0; k < 3; ++k)
-            result[i][k] = mesh.positions[ids[i]][k] + translation[k];
+            result[i][k] = source.positions.at(ids[ref.indexOffset + i])[k] + offset[k];
     return result;
 }
-void RetailHeightTerrain::loadGeometry(RetailHeightState& s, bool normalAndMarker) const {
-    s.vertices = vertices(s.triangle);
+void RetailHeightTerrain::loadGeometry(RetailHeightState& s, bool normalAndMarker,
+                                      const CityMesh& source, const Point& offset) const {
+    s.vertices = vertices(source, s.triangle, offset);
     if (normalAndMarker) {
         s.normal = triangleNormal(s.vertices);
         s.changed = true;
     }
 }
 bool RetailHeightTerrain::firstSeed(RetailHeightState& s, const Point& p) const {
-    // Original node bbox is untransformed. Supplied BRES bounds equal vertex extrema.
-    if (!(p[0] >= bounds[0][0] && p[0] <= bounds[1][0] && p[1] >= bounds[0][1] && p[1] <= bounds[1][1]))
-        return false;
-    for (size_t b = 0; b < mesh.buffers.size(); ++b)
-        for (size_t offset = 0; offset < mesh.buffers[b].indices.size(); offset += 3) {
-            if ((visits[b][offset / 3] & 3) == 1 || (visits[b][offset / 3] & 3) == 2)
-                continue;
-            RetailHeightState candidate;
-            candidate.triangle = {static_cast<uint16_t>(b), static_cast<uint16_t>(offset)};
-            loadGeometry(candidate, false);
-            const Math m(candidate, p);
-            if (m.side(0) < 0.f || m.side(1) < 0.f || m.side(2) < 0.f)
-                continue;
-            s.triangle = candidate.triangle;
-            s.hasHeightmap = true;
-            s.vertices = candidate.vertices;
-            s.normal = triangleNormal(s.vertices);
-            s.changed = true;
-            s.cached = p;
-            return true;
+    return firstSeedNode(s, p, *globalNode);
+}
+bool RetailHeightTerrain::firstSeedNode(RetailHeightState& s, const Point& p,
+                                       const RetailHeightSceneNode& node) const {
+    if (heightMeshType(node.type) && inHeightBox(p, node.boundsCm)) {
+        for (size_t b = 0; b < node.mesh->buffers.size(); ++b) {
+            // Original reads this node's absolute translation for each buffer scan.
+            const auto offsetCm = node.absoluteTranslationCm;
+            for (size_t offset = 0; offset < node.mesh->buffers[b].indices.size(); offset += 3) {
+                if ((visits[b][offset / 3] & 3) == 1 || (visits[b][offset / 3] & 3) == 2)
+                    continue;
+                RetailHeightState candidate;
+                candidate.triangle = {static_cast<uint16_t>(b), static_cast<uint16_t>(offset)};
+                loadGeometry(candidate, false, *node.mesh, offsetCm);
+                const Math m(candidate, p);
+                if (m.side(0) < 0.f || m.side(1) < 0.f || m.side(2) < 0.f)
+                    continue;
+                s.triangle = candidate.triangle;
+                s.hasHeightmap = true;
+                s.selectedNode = &node;
+                s.vertices = candidate.vertices;
+                s.normal = triangleNormal(s.vertices);
+                s.changed = true;
+                s.cached = p;
+                return true;
+            }
         }
-    return false;
+    }
+    bool found = false;
+    for (const auto* child : node.children)
+        found = firstSeedNode(s, p, *child) || found;
+    return found;
 }
 
 RetailHeightController::RetailHeightController(RetailHeightTerrain& terrain, b2World& world, size_t slots,
@@ -241,9 +321,73 @@ void RetailHeightController::initializeSelected(size_t slot, Ref ref, const Poin
     terrain.validate(ref);
     s.triangle = ref;
     s.hasHeightmap = true;
-    terrain.loadGeometry(s, true);
+    s.selectedNode = terrain.globalNode;
+    terrain.loadGeometry(s, true, terrain.mesh, terrain.globalNode->absoluteTranslationCm);
     s.cached = point;
     updateEdges(slot);
+}
+void RetailHeightController::initializeFromScene(size_t slot, const Point& point) {
+    terrain.firstSeed(states.at(slot), point);
+}
+void RetailHeightController::initializeFromNode(size_t slot, const RetailHeightSceneNode& node,
+                                               const Point& point) {
+    terrain.validateScene(node);
+    terrain.firstSeedNode(states.at(slot), point, node);
+}
+float RetailHeightController::setHeightAttributesFromPoint(size_t slot, const Point& point) {
+    auto& s = states.at(slot);
+    std::set<std::pair<uint16_t, uint16_t>> entries;
+    for (;;) {
+        terrain.validate(s.triangle);
+        if (!entries.emplace(s.triangle.buffer, s.triangle.indexOffset).second)
+            throw std::runtime_error("Nonterminating original retail height overlap recursion.");
+        const auto offset = terrain.globalNode->absoluteTranslationCm;
+        const auto& overlaps =
+            terrain.navigation.buffers[s.triangle.buffer].overlaps[s.triangle.indexOffset / 3];
+        bool restart = false;
+        for (const auto candidate : overlaps) {
+            const auto classification = terrain.visits[candidate.buffer][candidate.indexOffset / 3] & 3;
+            if (classification == 1 || classification == 2)
+                continue;
+            RetailHeightState geometry;
+            geometry.triangle = candidate;
+            terrain.loadGeometry(geometry, false, terrain.mesh, offset);
+            for (size_t edge = 0; edge < 3; ++edge) {
+                const auto& a = geometry.vertices[edge];
+                const auto& b = geometry.vertices[(edge + 1) % 3];
+                const float side = (point[1] - a[1]) * (b[0] - a[0]) -
+                                   (point[0] - a[0]) * (b[1] - a[1]);
+                if (side < 0.f && intersects(s.cached, point, a, b)) {
+                    s.triangle = candidate;
+                    s.hasHeightmap = true;
+                    s.selectedNode = terrain.globalNode;
+                    restart = true;
+                    break;
+                }
+            }
+            if (restart)
+                break;
+            const auto& a = geometry.vertices[0];
+            const auto& b = geometry.vertices[1];
+            const auto& c = geometry.vertices[2];
+            const float inverse =
+                1.f / ((b[0] - a[0]) * (-(a[1] - c[1])) + (b[1] - a[1]) * (a[0] - c[0]));
+            const float wb =
+                ((point[0] - c[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (point[1] - c[1])) * inverse;
+            s.triangle = candidate;
+            s.hasHeightmap = true;
+            s.selectedNode = terrain.globalNode;
+            s.vertices = geometry.vertices;
+            s.normal = triangleNormal(s.vertices);
+            s.changed = true;
+            const float base = (b[2] - a[2]) * wb + a[2];
+            const float wa =
+                ((point[0] - b[0]) * (b[1] - c[1]) - (b[0] - c[0]) * (point[1] - b[1])) * inverse;
+            return base - (a[2] - c[2]) * ((1.f - wb) - wa);
+        }
+        if (!restart)
+            return noHeight;
+    }
 }
 void RetailHeightController::setGroundState(size_t slot, bool value) {
     auto& s = states.at(slot);
@@ -281,13 +425,20 @@ float RetailHeightController::core(size_t slot, const Point& p, bool crossing, b
             if (crossing && !intersects(s.cached, p, s.vertices[edge], s.vertices[(edge + 1) % 3]))
                 continue;
             const auto source = s.triangle;
+            if (!s.selectedNode || !s.selectedNode->mesh)
+                throw std::logic_error("Retail height core requires a live selected mesh node.");
+            const auto* sourceNode = s.selectedNode;
+            const auto sourceTranslation = sourceNode->absoluteTranslationCm;
             const auto& data = terrain.navigation.buffers[source.buffer];
             const size_t t = source.indexOffset / 3;
             const auto offset = data.neighbors[edge][t], buffer = data.neighbors[edge + 3][t];
             if (offset != UINT16_MAX && !rejected(terrain.visits[buffer][offset / 3], terrain.currentUsed)) {
                 s.triangle = {buffer, offset};
                 s.hasHeightmap = true;
-                terrain.loadGeometry(s, true);
+                s.selectedNode = terrain.globalNode;
+                // Original switches identity/mesh but retains the old node's
+                // translation captured before evaluating this edge's neighbor.
+                terrain.loadGeometry(s, true, terrain.mesh, sourceTranslation);
                 detailed = false;
                 restart = true;
                 break;
@@ -299,7 +450,7 @@ float RetailHeightController::core(size_t slot, const Point& p, bool crossing, b
                 if (rejected(terrain.visits[s.triangle.buffer][s.triangle.indexOffset / 3],
                              terrain.currentUsed))
                     continue;
-                terrain.loadGeometry(s, false);
+                terrain.loadGeometry(s, false, *sourceNode->mesh, sourceTranslation);
                 math = Math(s, p);
                 bool segmentCrosses = false;
                 for (size_t e = 0; e < 3; ++e)
