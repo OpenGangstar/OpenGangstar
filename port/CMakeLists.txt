@@ -38,6 +38,7 @@ FetchContent_Declare(zlib
 FetchContent_MakeAvailable(zlib)
 include(cmake/GameSWF.cmake)
 include(cmake/Vorbis.cmake)
+include(cmake/Box2D.cmake)
 
 add_library(opengangstar_assets STATIC
     city_assets.cpp
@@ -79,10 +80,14 @@ target_compile_definitions(gangstar-wch PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX VK_
 target_include_directories(gangstar-wch PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "${VULKAN_HEADERS}" "${WIN32_GAME_SOURCE}/ai"
     "${WIN32_GAME_SOURCE}/input" "${WCH_SOURCE}/persistence")
 target_link_libraries(gangstar-wch PRIVATE gdi32 mfplat mfreadwrite mfuuid ole32 user32 winmm xinput9_1_0
-    ZLIB::ZLIBSTATIC gameswf_core opengangstar_assets)
+    ZLIB::ZLIBSTATIC gameswf_core opengangstar_assets opengangstar_box2d)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(box2d_test tests/box2d.cpp)
+    target_link_libraries(box2d_test PRIVATE opengangstar_box2d)
+    add_test(NAME box2d COMMAND box2d_test)
+
     add_executable(win32_input_test tests/win32_input.cpp win32_touch.cpp
         "${WIN32_GAME_SOURCE}/input/TouchScreenBase.cpp")
     target_compile_features(win32_input_test PRIVATE cxx_std_17)

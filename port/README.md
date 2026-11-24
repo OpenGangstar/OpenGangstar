@@ -56,8 +56,11 @@ Later checkpoints and resuming arbitrary retail saves are still pending.
 The port builds without the Android APK or ARM toolchain.
 CMake applies the Win32 compatibility patches to copies of the state-machine
 and touch sources in the build directory.
-CMake downloads and verifies pinned zlib, GameSWF, libogg, and libvorbis
+CMake downloads and verifies pinned zlib, GameSWF, libogg, libvorbis, and
+historical Box2D 2.0.1
 source archives on the first build. The Win32 build uses static libraries.
+The [physics dependency report](PHYSICS_DEPENDENCY.md) records the engine tests
+and the production actor/body integration that remains pending.
 
 To inspect a texture from the HTC asset set, append
 `--texture 00906_exp.tga`. These files contain DDS images with ATC explicit

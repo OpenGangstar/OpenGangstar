@@ -28,8 +28,8 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-011",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "89e4015"
     },
     {
@@ -637,20 +637,35 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "89e4015",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Original version/configuration and API evidence; primary upstream source provenance/hash/license.",
         "No ARM submodule changes and no raw original-layout pointer casts.",
         "If implemented, x64 static library and meaningful independent collision/stepping/contact tests; preserve original float units/settings.",
         "Keep runtime world binding and unverified original divergences explicit; do not claim physics complete from compile success."
       ],
-      "submission": null,
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-011.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-011-report.md",
+        "worker_validation": "Fullx64Releasebuild+6CTests,DebugphysicsCTest,Vulkanopening smoke,AMD64PE/staticCOFF checks pass.",
+        "limitations": "No production actor/vehicle body binding;37 non-relocation source-comparison discrepancies remain; no exact full-engine match claim."
+      },
       "findings": [
         "Original b2_version at0x4b6068 independently verified as{2,0,1}; source compatibility still under investigation.",
         "Recovered InitWorld config:AABB\u00b12000m,zero gravity,allowSleep true,positionCorrection true,continuousPhysics false,custom contact listener/filter.",
         "Official Google Code2.0.1 archive verified:866019bytes,SHA1 27a1a0bd08c81bbf661fa008645ee5c538bb2767,SHA256 62857048aa089b558561074154430883cee491eedd71247f75f488cba859e21f; historical zlib-style license.",
         "Native alignment adaptations required:4-byte allocation prefix and unaligned stack storage cannot be reused on x64.",
         "SolveTOI comparison difference resolved by original-finline-limit=40; retail maxProxies1024/maxPairs8192 verified. All36World methods match sizes/non-relocation bytes except alignment-padding candidates; whole-engine exact parity not claimed."
+      ],
+      "reservations_active": false,
+      "independent_validation": [
+        "Official Google Code metadata and downloaded866019-byte archive verified independently against SHA1 and pinnedSHA256.",
+        "All31 fetched upstreamcppfiles byte-identical to archive; native changes occur only in separate copiedtree.",
+        "Reviewed alignment prefix/arena/offset adaptations, original capacity and strictFP compiler options.",
+        "Full integration x64Releasebuild and6CTests passed; Debugphysics build/CTest passed with assertions.",
+        "BothRelease/Debug staticarchives contain exactly31AMD64COFFobjects; game/physicstests AMD64PE32+.",
+        "Automated native Vulkan opening smoke returned0 with temporary assets/saves.",
+        "Intervening original-category correction/docs do not overlap submitted build/testfiles."
       ]
     },
     {
@@ -720,7 +735,8 @@
     "port/WORK_QUEUE.json",
     "port/WORK_SCHEDULING.md",
     "port/STATUS.md",
-    "port/CINEMATIC_SCHEDULER.md"
+    "port/CINEMATIC_SCHEDULER.md",
+    "port/README.md"
   ],
   "validation": {
     "original_arm_preservation": "2969 tracked files retain their pre-migration SHA-256 values; pre-existing local submodule changes preserved. Checked 2026-11-24.",

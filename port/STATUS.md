@@ -61,6 +61,15 @@ mission playthroughs for discovery or verification.
   skin controllers. The payphone checkpoint arrow uses the retail rigid
   node animation with Z translation, quaternion rotation, and vector scale.
   Vehicle morphs and interactions remain incomplete.
+- [x] Build the pinned historical Box2D 2.0.1 dependency for native x86-64:
+  all 31 engine translation units, verified retail 1024-proxy/8192-pair tuning,
+  native allocator/arena alignment, strict floating point, and retained Debug
+  checks. Independent Release and Debug physics tests cover allocation cleanup,
+  stepping, contacts, filters, capacity, continuous collision and a joint.
+  All six Release CTests and the native opening smoke pass. Both physics
+  archives contain only AMD64 objects. See PHYSICS_DEPENDENCY.md for provenance,
+  source-comparison limits and adaptations. Production actor/vehicle bodies,
+  custom game callbacks and complete original engine parity remain unresolved.
 - [ ] Port physics, including collision, vehicle dynamics, rigid bodies,
   and camera obstruction. Current movement uses the retail height mesh and
   approximate collision against vertical scene triangles. The vehicle wall
