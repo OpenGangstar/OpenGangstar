@@ -58,8 +58,14 @@ public:
   // forces genuine cache preparation even clean; palette-first can leave an
   // older cached box visible. Ordinary meshes retain their actual raw box.
   const RetailSkinBoundingBox &boundingBox();
+  // Proxy setReferences borrows skin+64 directly, without invoking its lazy getter.
+  const RetailSkinBoundingBox &cachedBoundingBox() const noexcept { return cachedBox; }
   void computeBoundingBox();
   bool skinCacheDirty() const { return dirty; }
+  bool skinningEnabled() const { return enabled; }
+  // Original byte37/40 state only. The process owner separately handles its
+  // byte36-dependent current-stream restoration/clear after this operation.
+  void setSkinningEnabled(bool);
   // Original buffer byte9 is not initialized by the mesh-buffer constructors.
   // A renderer may establish its actual byte. Hiding a mesh writes zero even
   // on repeated hide. Unknown is explicit; do not invent an initial value.
@@ -86,7 +92,7 @@ private:
   std::vector<std::optional<std::uint8_t>> bufferState;
   // Required raw source geometry seeds this once during construction.
   RetailSkinBoundingBox cachedBox{};
-  bool dirty = true, bindIdentity = false;
+  bool dirty = true, bindIdentity = false, enabled = true;
 };
 
 class RetailActorSceneNode {

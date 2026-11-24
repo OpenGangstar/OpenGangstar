@@ -37,9 +37,18 @@ const std::vector<RetailSceneMatrix> &RetailActorSceneMesh::skinMatrices() {
     prepareSkinMatrices();
   return matrices;
 }
+void RetailActorSceneMesh::setSkinningEnabled(bool value) {
+  if (!sourceSkin)
+    throw std::logic_error("Ordinary actor mesh has no skinning-enabled state.");
+  dirty = !enabled && value;
+  enabled = value;
+}
 void RetailActorSceneMesh::prepareSkinMatrices() {
-  // Default-enabled original owner domain: no setIsSkinningEnabled toggle
-  // is exposed. Original disabled preparation returns without clearing dirty.
+  // The previous default-enabled original owner domain exposed no toggle.
+  // Original disabled preparation returns without clearing shared dirty or
+  // changing the existing palette; the live enabled flag now preserves that.
+  if (!enabled)
+    return;
   for (std::size_t i = 0; i < matrices.size(); ++i) {
     // Original collada CMatrix4*SMatrix uses rowMatrixProduct34. Live
     // cached node matrices have false identity hints, including numeric
@@ -56,8 +65,10 @@ const RetailSkinBoundingBox &RetailActorSceneMesh::boundingBox() {
   // including after palette preparation or a failed explicit compute.
   if (sourceSkin && !sourceSkin->jointBoundsCm)
     throw std::runtime_error("Missing authoritative original joint bounding boxes.");
-  if (sourceSkin && dirty)
+  if (sourceSkin && dirty) {
     computeBoundingBox();
+    dirty = false; // Getter clears after compute even when disabled preparation did not.
+  }
   return cachedBox;
 }
 void RetailActorSceneMesh::computeBoundingBox() {

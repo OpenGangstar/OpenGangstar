@@ -1482,7 +1482,8 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
         CitySkin skin{};
         skin.controllerUid = bres.string(bres.word(controller + 4));
         skin.controllerIndex = i;
-        skin.meshName = readFragment(bres, bres.word(data));
+        skin.sourceUid = readFragment(bres, bres.word(data));
+        skin.meshName = skin.sourceUid;
         // Vehicle skins can target a morph controller rather than a base mesh.
         // Follow the controller to the mesh used for bind-pose geometry.
         for (uint32_t remaining = count; remaining > 0; --remaining) {

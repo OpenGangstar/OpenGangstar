@@ -353,6 +353,18 @@ void decoderCases() {
     require(decoded.size() == 1 && decoded[0].jointBoundsCm &&
                 decoded[0].jointBoundsCm->at(0) == Box{{{3, 2, 1}, {-3, -2, -1}}},
             "Authoritative decoder preserves ordered/inverted authored boxes");
+    require(decoded[0].sourceUid == "body" && decoded[0].meshName == "body",
+            "Direct source fragment remains distinct metadata");
+    word(84, 2);
+    word(140, 1);
+    word(144, append("body-morph"));
+    const auto morph = allocate(4);
+    word(148, morph);
+    word(morph, append("#body"));
+    word(160, append("#body-morph"));
+    decoded = loadCityActorSkins(model);
+    require(decoded[0].sourceUid == "body-morph" && decoded[0].meshName == "body",
+            "Morph source identity survives existing bind-geometry flattening");
     word(268, 0);
     word(272, 0);
     decoded = loadCityActorSkins(model);
@@ -391,6 +403,69 @@ void liveRow(const std::string &name, unsigned phase, RetailActorSceneNode &node
         words(*skin.jointMatrices()[i]);
     }
     std::cout << "]}\n";
+}
+void toggleCases(std::shared_ptr<const RetailActorSceneSource> source, const std::string &name, bool dump) {
+    RetailActorScene scene(source), other(source);
+    auto &node = *scene.root().findMesh();
+    auto &skin = *node.mesh();
+    auto &otherSkin = *other.root().findMesh()->mesh();
+    require(skin.skinningEnabled() && skin.skinCacheDirty(), "Original enabled/dirty construction");
+    const auto *borrowedBox = &skin.cachedBoundingBox();
+    require(skin.skinCacheDirty(), "Borrowing proxy bbox does not prepare palette or clear dirty");
+    const auto &palette = skin.skinMatrices();
+    const auto initialPalette = palette;
+    const auto record = [&](unsigned phase) {
+        require(&skin.cachedBoundingBox() == borrowedBox, "Proxy bbox storage remains stable");
+        if (!dump) return;
+        std::cout << "skintoggle {\"model\":" << std::quoted(name) << ",\"phase\":" << phase
+                  << ",\"enabled\":" << skin.skinningEnabled() << ",\"dirty\":" << skin.skinCacheDirty()
+                  << ",\"box\":[";
+        words((*borrowedBox)[0]); std::cout << ','; words((*borrowedBox)[1]);
+        std::cout << "],\"palette\":[";
+        for (size_t i = 0; i < palette.size(); ++i) {
+            if (i) std::cout << ',';
+            words(palette[i]);
+        }
+        std::cout << "],\"jointAbs\":[";
+        for (size_t i = 0; i < skin.jointMatrices().size(); ++i) {
+            if (i) std::cout << ',';
+            words(*skin.jointMatrices()[i]);
+        }
+        std::cout << "]}\n";
+    };
+    record(0);
+    skin.setSkinningEnabled(false); record(1);
+    scene.root().setPosition({100, 200, 300}); scene.root().onAnimate(2); record(2);
+    skin.skinMatrices();
+    require(skin.skinCacheDirty() && palette == initialPalette, "Disabled prepare preserves dirty and palette");
+    record(3);
+    skin.computeBoundingBox();
+    require(skin.skinCacheDirty() && palette == initialPalette, "Disabled explicit compute uses live joints without clearing dirty");
+    record(4);
+    skin.boundingBox();
+    require(!skin.skinCacheDirty() && palette == initialPalette, "Disabled lazy getter clears dirty after compute");
+    record(5);
+    scene.root().setPosition({-50, 60, 70}); scene.root().updateAbsolutePosition(true);
+    skin.computeBoundingBox(); record(6);
+    skin.setSkinningEnabled(false); record(7);
+    node.onAnimate(8); record(8);
+    skin.setSkinningEnabled(false);
+    require(!skin.skinCacheDirty(), "Repeated disable overwrites shared dirty with false"); record(9);
+    skin.setSkinningEnabled(true);
+    require(skin.skinCacheDirty(), "False-to-true transition marks shared dirty"); record(10);
+    skin.setSkinningEnabled(true);
+    require(!skin.skinCacheDirty() && palette == initialPalette, "Repeated enable clears dirty without refreshing palette");
+    record(11);
+    node.onAnimate(12); record(12);
+    skin.skinMatrices(); record(13);
+    require(!skin.skinCacheDirty() && palette != initialPalette, "Re-enabled dirty prepare refreshes actual palette");
+    skin.setSkinningEnabled(false); record(14);
+    scene.root().setPosition({7, 8, 9}); scene.root().onAnimate(15); record(15);
+    skin.setSkinningEnabled(true); record(16);
+    skin.boundingBox(); record(17);
+    skin.setSkinningEnabled(true); record(18);
+    require(otherSkin.skinningEnabled() && otherSkin.skinCacheDirty(), "Enabled state never leaks across constructed owners");
+    rejects([&] { skin.baseMesh().setSkinningEnabled(false); });
 }
 void retail(const std::filesystem::path &directory, bool dump) {
     ResourceFileSystem assets(directory);
@@ -445,6 +520,7 @@ void retail(const std::filesystem::path &directory, bool dump) {
                 "Actual separate Player instance bounds/cache unchanged");
         for (const auto &n : scene.nodes())
             require(!n->absoluteIdentityHint(), "Actual full actor constructor/update hint domain");
+        toggleCases(source, name, dump);
     }
 }
 void metadata(const std::filesystem::path &directory, const std::string &path) {
@@ -453,7 +529,9 @@ void metadata(const std::filesystem::path &directory, const std::string &path) {
     for (const auto &skin : loadCityActorSkins(model)) {
         require(skin.jointBoundsCm.has_value(), "Decoded metadata is authoritative known table");
         std::cout << "jointboxes {\"path\":" << std::quoted(path)
-                  << ",\"controller\":" << std::quoted(skin.controllerUid) << ",\"boxes\":[";
+                  << ",\"controller\":" << std::quoted(skin.controllerUid)
+                  << ",\"source\":" << std::quoted(skin.sourceUid)
+                  << ",\"geometry\":" << std::quoted(skin.meshName) << ",\"boxes\":[";
         for (size_t i = 0; i < skin.jointBoundsCm->size(); ++i) {
             if (i)
                 std::cout << ',';
@@ -475,6 +553,7 @@ int main(int argc, char **argv) {
         }
         cases(argc > 1 && std::string(argv[1]) == "--dump");
         ownerCases();
+        toggleCases(actorFixture(), "synthetic", false);
         decoderCases();
         if (argc > 1 && std::string(argv[1]) != "--dump")
             retail(argv[1], argc > 2 && std::string(argv[2]) == "--dump");

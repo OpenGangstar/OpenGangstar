@@ -1466,3 +1466,6 @@ Root Release/Debug4original positioning and6actual reset/gate cases match54coord
 
 
 2026-11-25 OG068: genuine global retained graph, literal parenting/manager/collection/ordinary animator/frame behavior and independent moved shadow ownership. Root Release/Debug40CTests each;44064actual original node-state words/config plus cached collection order match, original cleanup/frame probes pass. Pooled shadow no longer retains destroyed actor or pose graph. Full pool policy/material/render/outer actor host remain separate.
+
+
+2026-11-25 OG077: original enabled state and single dirty/cache transitions, disabled palette versus explicit/lazy bounds behavior, stable direct proxy bbox borrowing; original unflattened skin source UID retained beside resolved bind geometry. Root R/D40CTests each,27056original state/component words/config exact and all83rawsourceUIDs including21morph links match. Process-owner output36/proxy toggle effects remain074.

@@ -129,6 +129,7 @@ struct CitySkin {
     // Original SSkin+108/+112 ordered joint boxes. Unknown hand-built metadata
     // differs from an authored empty table (the joint-translation branch).
     std::optional<std::vector<std::array<std::array<float, 3>, 2>>> jointBoundsCm;
+    std::string sourceUid; // Original SSkin+0 fragment before following any morph controller.
 };
 
 enum class CityParticleParameter : uint32_t {

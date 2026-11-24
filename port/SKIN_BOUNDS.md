@@ -124,18 +124,23 @@ palette, cleared dirty flag and prior box. That failure is not a resumable
 transaction. Repeated unknown metadata getters continue to fail. Proper known
 tables retain the original raw-seed and palette-first stale-box behavior.
 
-The owner remains explicitly default-enabled, matching its existing scope.
-Original preparation checks skin byte37: disabled preparation returns without
-refreshing the palette or clearing dirty, while explicit bounds still use live
-joint pointers; the lazy getter subsequently clears dirty itself. Reference
-execution validates this branch, but no native skin-enable toggle is exposed
-or claimed by this component.
+The actual owner starts enabled and exposes `skinningEnabled()` and
+`setSkinningEnabled(bool)`. The original setter overwrites shared dirty with
+`!oldEnabled && newEnabled`, including repeated calls that clear an already
+dirty state without refreshing the palette. Disabled preparation returns without
+refreshing the palette or clearing dirty. Explicit bounds still use live joint
+pointers; the lazy getter subsequently clears dirty itself. `cachedBoundingBox()`
+borrows the same stable box storage without invoking any lazy getter, matching
+the proxy's direct skin+64 reference. The separate process owner must perform
+the original output-byte36-dependent stream restoration/clear after the setter;
+this cache operation does not pretend to own proxy streams.
 
-Native metadata enumeration returns 81 of 83 supplied controllers, with 5,640
-authored box float bits matching the independent raw inventory. The existing
-zero-influence weight rejection aborts the entire `car_limo.bdae` library,
-withholding both `interior-mesh-skin` and `car_body-mesh-morpher-skin`; it is a
-separate decoder limitation. All 83 raw metadata tables are accounted for.
+After the OG054 empty-influence-row correction, native metadata enumeration
+returns all 83 supplied controllers, with 5,676 authored box float bits matching
+the independent raw inventory, including both `car_limo.bdae` skins. Each
+`CitySkin::sourceUid` also preserves the original SSkin+0 fragment before the
+existing `meshName` traversal resolves bind-pose geometry. The 21 skin-through-
+morph identities remain distinguishable from direct geometry sources.
 
 Both supplied Player owners are tested through ten original scene/cache phases
 each: raw seed, lazy compute, clean stale state, forced refresh, palette-first
@@ -144,5 +149,12 @@ transformed getter identity. Actual original scene construction/update/attach,
 cache preparation and bounds/getters match 14,200 float component bits per
 configuration, including live joint matrices and final palettes. The standalone
 core also matches 108 bits across 18 original cases. No gameplay progression,
-renderer integration, disabled-skin implementation or whole-game completion
+renderer integration, process-buffer toggle integration or whole-game completion
 is claimed.
+
+OG077 additionally compares both actual Player owners across 19 enabled/cache/box
+phases each: 27,056 exact state and component words per configuration. Repeated
+enable/disable calls, disabled preparation, explicit versus lazy bounds, live
+frame dirtying and stale palettes match actual original execution. Full Release
+and Debug builds pass all 40 integration tests. All 83 raw source fragments and
+21 through-morph distinctions match the authoritative reader output.
