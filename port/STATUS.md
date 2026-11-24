@@ -157,6 +157,10 @@ mission playthroughs for discovery or verification.
   blocking, resume order, skip, missing bindings, malformed records, and floating
   edge cases. All 151 retail StopObject records across 41 scripts validate.
   This command waits; it does not cancel movement.
+  Category 5 is NPC (flags356 bit 0x4000), not vehicle; category 3 uses the
+  vehicle speed predicate. The prior inference that inherited NPC GetSpeed()==0
+  makes NPC waits pass was incorrect. The numeric predicate did not change;
+  production NPC completion-state binding remains unresolved.
   Original actor movement commands now share a typed decoder across catalog
   validation, compiled motion parsing and the VM. Opcodes 25/26 dispatch walk/run
   destinations; 34/35 dispatch run/walk paths. Skipped destinations reuse the

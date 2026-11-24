@@ -87,7 +87,8 @@
         "limitations": "Production compiled cinematics do not yet bind objectMotion or wait on opcode5."
       },
       "findings": [
-        "Vehicle spawn category 5 completes when flag 0x4000 is SET; player/category 1 completes when flags & 0xfe == 0; categories 2/3 compare GetSpeed exactly to zero."
+        "NPC category5 completes when flags356 bit0x4000 is SET; player/category1 completes when flags&0xfe==0; categories2/3 compare GetSpeed exactly to zero.",
+        "Prior category5 vehicle label and inference that NPC waits always pass were incorrect; numeric predicate implementation is unchanged."
       ],
       "reservations_active": false,
       "independent_validation": [
@@ -247,8 +248,8 @@
     },
     {
       "id": "OG-005",
-      "description": "Implement faithful StopObject waiting in production compiled cinematics where original movement state can be represented, without cancelling movement or inventing NPC waits.",
-      "scope": "Resolve compiled timeline ordering and player motion completion using original opcode-5 predicates; do not treat inherited NPC zero speed as unfinished motion. Preserve dynamic actor-relative motions, dialogue and camera ordering.",
+      "description": "Implement faithful StopObject waiting in production compiled cinematics using real category-specific completion state, without cancelling movement.",
+      "scope": "Preserve ordered commands and independent actor advancement. Category5 NPC waits require flags356 bit0x4000; category3 vehicle waits use GetSpeed. Do not infer NPC readiness from its inherited zero-speed accessor or estimate completion from compiled duration.",
       "symbols": [
         {
           "signature": "Script::executeCommand(Structs::ScriptCommand const*, int, int)",
@@ -648,8 +649,8 @@
         "Original b2_version at0x4b6068 independently verified as{2,0,1}; source compatibility still under investigation.",
         "Recovered InitWorld config:AABB\u00b12000m,zero gravity,allowSleep true,positionCorrection true,continuousPhysics false,custom contact listener/filter.",
         "Official Google Code2.0.1 archive verified:866019bytes,SHA1 27a1a0bd08c81bbf661fa008645ee5c538bb2767,SHA256 62857048aa089b558561074154430883cee491eedd71247f75f488cba859e21f; historical zlib-style license.",
-        "Representative original-toolchain comparisons support core Solve/Query/Step, but SolveTOI diverges and full fork parity remains unresolved.",
-        "Native alignment adaptations required:4-byte allocation prefix and unaligned stack storage cannot be reused on x64."
+        "Native alignment adaptations required:4-byte allocation prefix and unaligned stack storage cannot be reused on x64.",
+        "SolveTOI comparison difference resolved by original-finline-limit=40; retail maxProxies1024/maxPairs8192 verified. All36World methods match sizes/non-relocation bytes except alignment-padding candidates; whole-engine exact parity not claimed."
       ]
     },
     {
@@ -700,7 +701,19 @@
         "Provide concrete positive/negative collision cases and source-derived thresholds; no fabricated placeholder adapters.",
         "Keep original ARM layouts read-only and document unresolved branches; no gameplay."
       ],
-      "submission": null
+      "submission": null,
+      "findings": [
+        "Critical correction: original s_type category5 is NPC, category3 is vehicle; category5 StopObject queriesNPCflags356 bit0x4000, so inherited NPC GetSpeed()==0 does not imply immediate readiness.",
+        "ContactListener::Persist explicitly checks category5 then callsNPC::getPathToFollow; original contact sensor handling classifies vehicles as3."
+      ],
+      "partial_submissions": [
+        {
+          "description": "Correct prior NPC/vehicle s_type labels and readiness inference in ACTOR_MOVEMENT.md.",
+          "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-012-category-correction.patch",
+          "status": "VERIFIED",
+          "independent_review": "ContactListener::Persist category5 test followed by directNPC::getPathToFollow confirmed in ARM;NPCarrival flag0x4000 write and matchedmovement helpers inspected. Numeric generic VM predicate unchanged."
+        }
+      ]
     }
   ],
   "orchestrator_resources": [

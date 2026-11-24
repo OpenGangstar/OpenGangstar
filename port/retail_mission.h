@@ -54,7 +54,7 @@ private:
 // Values supplied by the native world, never a view of an original ARM object.
 struct RetailScriptObjectMotion {
     int32_t category; // LevelObject::s_type[objectType], not getSpawnType().
-    // PlayerTest +240, category-1 object +236, or category-5 vehicle +356.
+    // PlayerTest +240, category-1 object +236, or category-5 NPC state +356.
     uint32_t flags;
     float speed; // The result of virtual GetSpeed(), used only by categories 2 and 3.
     bool player;

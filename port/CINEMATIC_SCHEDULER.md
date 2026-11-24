@@ -52,13 +52,15 @@ The implementation sequence is:
 The StopObject predicates already implemented in the shared VM come from
 `Script::executeCommand` at 0x00339cb9, opcode-5 branch 0x0033b6be. Player/category-1
 movement flags masked by 0xfe must be zero; categories 2/3 require virtual
-GetSpeed() to equal zero; category 5 requires flag 0x4000 to be set. Original NPC
-and Character vtables inherit the zero-speed accessor. Do not substitute a wait
-for their compiled path duration.
+GetSpeed() to equal zero; category 5 is NPC and requires flags356 bit 0x4000 to be
+set. Category 3 is vehicle. Although NPC/Character vtables inherit a zero-speed
+accessor, that accessor does not govern category-5 NPC waits. The earlier inference
+that NPC StopObject calls always pass was incorrect. Query the actual category's
+predicate; do not substitute a compiled path duration or body velocity.
 
 Acceptance must cover movement during held dialogue, a stop followed by a
 same-tick placement, actor-specific placement behavior, consecutive moves with a
-stop, original NPC zero-speed behavior, vehicle readiness and skip, and dynamic
+stop, original NPC completion flags, vehicle zero-speed readiness and skip, and dynamic
 actor-relative destinations. Camera, fade, audio, and animation timing also need
 original-state evidence. This dependency investigation made no production change;
 the compiled cinematic defect remains unresolved. No manual progression was used.

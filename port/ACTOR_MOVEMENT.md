@@ -92,9 +92,21 @@ running sets bit 1, and their matched helpers clear selected other bits includin
 NPC::Update arrival branch at 0x00300504..0x0030056a also compares horizontal
 distance squared strictly against the stored limit and clears those bits, but
 subsequent path, vehicle, target and AI branches differ from the player. This
-investigation did not reconstruct the whole NPC update. NPC/Character vtables
-inherit LevelObject::GetSpeed() == 0. That original accessor, not actual body
-velocity or NPC path duration, is what StopObject queries for categories 2/3.
+investigation did not reconstruct the whole NPC update. StopObject uses the NPC
+word at offset 356: category 5 is NPC, and its predicate requires bit 0x4000 to
+be set. It must not be inferred from LevelObject::GetSpeed() == 0. The matched
+walk/run helpers clear 0x4000; the arrival continuation at 0x00300674 tests bit
+0x2000, and its ordinary non-vehicle branch sets 0x4000 at 0x00300848. NPC::Stop
+only clears bits 0/1; it does not independently set arrival readiness.
+
+The category proof is direct: ContactListener::Persist checks category 5 at
+0x0031d7ee before calling NPC::getPathToFollow at 0x0031d806. Category 3 is Vehicle:
+ContactListener::Add checks 3 at 0x003203d2 before its vehicle sensor branch at
+0x003206a8, and matched GameObjectList::Update applies the category-3 test to
+Vehicle state. StopObject categories 2 and 3 use GetSpeed() == 0; category 2 is
+left unnamed here. NPC/Character inheriting a zero base speed accessor does not
+put NPCs in either of these numeric branches. LevelObject::s_type is populated
+from loaded object metadata, so its initial ELF contents are not a class map.
 
 ## Root motion and frame ordering
 
@@ -242,9 +254,10 @@ of every mission.
   body/filter and destination-adjustment behavior before accepting that case.
 - Preserve player teleport reset separately from non-player placement retaining
   destination state. Verify dead/down guards and upper flag preservation.
-- Preserve the original NPC zero-speed StopObject result even when the body is
-  moving. Test NPC paths/arrival separately; do not replace this predicate with a
-  new duration or distance test.
+- For category-5 NPCs, verify walk/run clears 0x4000, Stop does not manufacture
+  arrival, and the ordinary destination-arrival continuation sets 0x4000.
+  Test path/vehicle branches separately. Categories 2/3 retain the original
+  GetSpeed() == 0 predicate; do not substitute body speed or an elapsed duration.
 
 This investigation inspected the recovered C++, original ARM function branches,
 ELF strings/vtables/constants, and the current native movement/sampling code. It
