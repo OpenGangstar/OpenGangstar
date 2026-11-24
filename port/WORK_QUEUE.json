@@ -20,22 +20,25 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": null,
-      "status": "AVAILABLE"
+      "assignment": "OG-004",
+      "status": "IN_PROGRESS",
+      "baseline": "feb6317"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": null,
-      "status": "AVAILABLE"
+      "assignment": "OG-005",
+      "status": "IN_PROGRESS",
+      "baseline": "feb6317"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": null,
-      "status": "AVAILABLE"
+      "assignment": "OG-006",
+      "status": "IN_PROGRESS",
+      "baseline": "feb6317"
     }
   ],
   "unavailable_worker": {
@@ -143,7 +146,8 @@
         "Integration x64 Release game rebuild passed.",
         "Independent native Vulkan opening smoke returned0 using temporary assets/saves.",
         "All5 integration CTests passed immediately before this isolated Vulkan-only edit; pixel parity remains unverified."
-      ]
+      ],
+      "integration_commit": "feb6317"
     },
     {
       "id": "OG-003",
@@ -189,6 +193,124 @@
       ],
       "reservations_active": false,
       "integration_commit": "31a160f"
+    },
+    {
+      "id": "OG-004",
+      "description": "Reconstruct original VERTEX_COLOR_ALPHA selection and applicability before any native shader implementation.",
+      "scope": "Read-only original binary/source investigation; maintain an exact evidence document. Do not infer selection from vertex alpha or introduce a shader-only approximation.",
+      "symbols": [
+        {
+          "signature": "Application::Init(...)",
+          "address": "0x002d5591"
+        },
+        {
+          "signature": "CCustomMaterialRenderer_VERTEX_COLOR_ALPHA::onSetMaterial(...)",
+          "address": "0x002d6af1"
+        },
+        {
+          "signature": "CCustomMaterialRenderer_VERTEX_COLOR_ALPHA::onUnsetMaterial()",
+          "address": "0x002d6bcd"
+        }
+      ],
+      "resources": [
+        "port/MATERIAL_MODES.md"
+      ],
+      "priority": 4,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-002"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "feb6317",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Trace s_materialRenderer references and concrete setMaterialType/use sites using original relocations and disassembly.",
+        "Account for original RGB versus RGBA texture base formats and GL_DECAL equations.",
+        "Provide exact selection evidence, occurrence counts if provable, and bounded implementation dependencies."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-005",
+      "description": "Implement faithful StopObject waiting in production compiled cinematics where original movement state can be represented, without cancelling movement or inventing NPC waits.",
+      "scope": "Resolve compiled timeline ordering and player motion completion using original opcode-5 predicates; do not treat inherited NPC zero speed as unfinished motion. Preserve dynamic actor-relative motions, dialogue and camera ordering.",
+      "symbols": [
+        {
+          "signature": "Script::executeCommand(Structs::ScriptCommand const*, int, int)",
+          "address": "0x00339cb9",
+          "branch": "opcode5 at0x0033b6be"
+        },
+        {
+          "signature": "readCinematic / bindMotions / CityPayphonePlayback::advance",
+          "address": null
+        }
+      ],
+      "resources": [
+        "port/city_assets.cpp",
+        "port/city_assets.h",
+        "port/city_view.cpp",
+        "port/city_view.h",
+        "port/vulkan.cpp",
+        "port/tests/city_collision.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-001",
+        "OG-002"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "feb6317",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Focused timeline tests for ordering at equal timestamps, completion, skip and actor reset/disable precedence.",
+        "Retail scripts32,33,36 resource validation; preserve NPC semantics and scripted player movement.",
+        "x64 build and appropriate automated startup/checkpoint smoke; no manual progression.",
+        "If architecture prevents faithful bounded implementation, report exact blocker rather than a fabricated duration or partial silent workaround."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-006",
+      "description": "Port missing original BMP palette and RLE loading paths in native texture decoder.",
+      "scope": "Support original evidenced indexed/16-bit BMP and RLE4/RLE8 variants while preserving current24/32-bit behavior, alpha option and fixed file layouts. Do not add unrelated formats.",
+      "symbols": [
+        {
+          "signature": "irr::video::CImageLoaderBMP::loadImage(irr::io::IReadFile*) const",
+          "address": "0x002bc95d"
+        },
+        {
+          "signature": "irr::video::CImageLoaderBMP::decompress4BitRLE(unsigned char*&, int, int, int, int) const",
+          "address": "0x002bc675"
+        },
+        {
+          "signature": "irr::video::CImageLoaderBMP::decompress8BitRLE(unsigned char*&, int, int, int, int) const",
+          "address": "0x002bc81d"
+        }
+      ],
+      "resources": [
+        "port/texture.cpp",
+        "port/texture.h",
+        "port/tests/texture_png.cpp"
+      ],
+      "priority": 5,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-003"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "feb6317",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Original code/binary evidence for supported bit depths, palette, orientation and compression.",
+        "Independent expected-pixel fixtures for palettes, RLE encoded/absolute/delta/end escapes, odd row padding, truncation and malformed bounds.",
+        "Existing texture CTest and full retail texture audit must preserve decoded images and missing-reference failures.",
+        "x64 native build; no original ARM changes."
+      ],
+      "submission": null
     }
   ],
   "orchestrator_resources": [
