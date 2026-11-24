@@ -4327,12 +4327,13 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "cf7d176",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "All196original records and37788source bytes retained,193names/3invalidslots/source lengths preserved with full payloads.",
         "Original full GetMetatypeFromName plus actual BufferStream/DataStream methods execute; native exact index/case/prefix/tie/NUL-length and malformed bounds checks.",
-        "Existing spawn/weapon/asset whole-corpus behavior unchanged, R/D full builds/tests and source pointer-width safety."
+        "Existing spawn/weapon/asset whole-corpus behavior unchanged, R/D full builds/tests and source pointer-width safety.",
+        "Root independently rebuilt Release/Debug:52CTest/config pass; native AMD64 PE32+ binaries;196raw records/37000payload bytes and740fresh actual original lookup results/config plus8original synthetic controls match. Whole city retains19groups/45spawn types/11weapons;98images decode, exact111missing paths and strict audit exit1 preserved. Logs: port/build/reviews/OG-095."
       ]
     },
     {
@@ -4410,7 +4411,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after091:2969original baseline file sizes/SHA256 unchanged; original submodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and6userlocaledit/untracked paths preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root Release/Debug50CTest/config after087genuine Character factory/timeline/boundPose/material/shadow host and real root finalizer phase. Whole source bind/finalizer/legacy pose exact.092factory research advances to implementation next;094/095frozenreview and096/097active."
+    "native_integration": "2026-11-25: Root Release/Debug52CTest/config after094Character reload and095complete metatype catalogue. Fresh4408reload traces and740lookup results/config exact;196raw records retained and full asset regression unchanged.092nested default factory,096canonical target and097intrusive lists active. Full040outer entity/world/VM and Vulkan submission remain pending."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

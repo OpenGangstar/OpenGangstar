@@ -100,6 +100,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_metatypes_test tests/retail_metatypes.cpp)
+    target_link_libraries(retail_metatypes_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_metatypes_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_metatypes COMMAND retail_metatypes_test)
+
     add_executable(retail_character_reload_test tests/retail_character_reload.cpp)
     target_link_libraries(retail_character_reload_test PRIVATE opengangstar_physics opengangstar_assets)
     if(MSVC)

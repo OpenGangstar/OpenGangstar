@@ -438,26 +438,17 @@ std::vector<CitySpawnPoint> readSpawnPoints(const std::string& path, const std::
 void bindSpawnGroups(FileSystemBase& assets, CityAssets& city)
 {
     const std::string path = "metatypes.gmap";
-    const auto bytes = readAsset(assets, path, 64 * 1024 * 1024);
-    CityDataReader map(path, bytes);
-    const auto count = map.integer();
-    if (count == 0 || count > 256) throw std::runtime_error("Invalid retail spawn metatype count.");
-    std::vector<std::string> names(count);
+    city.metatypes = loadCityMetatypeCatalog(assets);
+    if (city.metatypes.records.empty()) throw std::runtime_error("Invalid retail spawn metatype count.");
     std::map<uint8_t, CitySpawnMetatype> definitions;
-    const auto lowerAscii = [](std::string value) {
-        for (auto& letter : value)
-            if (letter >= 'A' && letter <= 'Z') letter += 'a' - 'A';
-        return value;
-    };
-    for (uint32_t id = 0; id < count; ++id) {
-        auto record = map.record();
+    for (size_t id = 0; id < city.metatypes.records.size(); ++id) {
+        CityDataReader record(path, city.metatypes.records[id].encoded);
         const auto type = record.signedInteger();
         if (type == -1) continue;
         if (type == 3 || type == 5) {
             CitySpawnMetatype definition{};
             definition.objectType = type;
             readBasicObject(record, definition);
-            names[id] = lowerAscii(definition.name);
             definitions.emplace(static_cast<uint8_t>(id), std::move(definition));
         } else if (type == 4) {
             CitySpawnMetatype basic{};
@@ -474,10 +465,7 @@ void bindSpawnGroups(FileSystemBase& assets, CityAssets& city)
             weapon.shootFrequency = record.signedInteger();
             weapon.weaponType = record.signedInteger();
             record.finish();
-            names[id] = lowerAscii(basic.name);
             city.weaponMetatypes.emplace(id, std::move(weapon));
-        } else {
-            names[id] = lowerAscii(record.string());
         }
     }
     const auto bindMetatype = [&](int32_t id, int32_t type) {
@@ -490,15 +478,9 @@ void bindSpawnGroups(FileSystemBase& assets, CityAssets& city)
     };
     for (auto& district : city.districts) {
         for (auto& point : district.spawnPoints) {
-            const auto name = lowerAscii(point.name);
-            size_t longest = 0;
-            for (size_t index = 0; index < names.size(); ++index) {
-                const auto& prefix = names[index];
-                if (prefix.size() <= longest || name.compare(0, prefix.size(), prefix) != 0) continue;
-                longest = prefix.size();
-                point.group = static_cast<uint8_t>(index);
-            }
-            if (!longest) throw std::runtime_error("Unknown retail spawn group: " + point.name);
+            const auto metatype = city.metatypes.find(point.name);
+            if (metatype < 0) throw std::runtime_error("Unknown retail spawn group: " + point.name);
+            point.group = static_cast<uint8_t>(metatype);
             // SpawnPoint::Load initializes each group's table on its first occurrence.
             const auto [group, inserted] = city.spawnGroups.try_emplace(point.group, CitySpawnGroup{
                 point.objectType, {}
@@ -507,7 +489,8 @@ void bindSpawnGroups(FileSystemBase& assets, CityAssets& city)
             if (point.values.empty() || point.values.size() > UINT8_MAX)
                 throw std::runtime_error("Invalid metatype list for retail spawn group: " + point.name);
             for (const auto metatype : point.values) {
-                if (metatype < 0 || static_cast<size_t>(metatype) >= names.size() || names[metatype].empty())
+                if (metatype < 0 || static_cast<size_t>(metatype) >= city.metatypes.records.size() ||
+                    city.metatypes.records[metatype].type == -1 || city.metatypes.records[metatype].name.empty())
                     throw std::runtime_error("Unknown metatype in retail spawn group: " + point.name);
                 const auto entityType = point.objectType == 3 || point.objectType == 11 ? 3 : 5;
                 bindMetatype(metatype, entityType);
@@ -1574,6 +1557,63 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
     }
     return skins;
 }
+}
+
+CityMetatypeCatalog loadCityMetatypeCatalog(FileSystemBase& assets)
+{
+    const std::string path = "metatypes.gmap";
+    const auto bytes = readAsset(assets, path, 64 * 1024 * 1024);
+    CityDataReader map(path, bytes);
+    const auto count = map.integer();
+    if (count > 256) throw std::runtime_error("Retail metatype catalog exceeds its 8-bit index domain.");
+    CityMetatypeCatalog result;
+    result.records.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        auto record = map.record();
+        CityMetatypeRecord decoded;
+        decoded.encoded = record.remainingBytes(); // Include type/name and all opaque object fields.
+        decoded.type = record.signedInteger();
+        if (decoded.type != -1) {
+            const auto before = record.position();
+            decoded.name = record.string();
+            decoded.sourceNameLength = static_cast<uint32_t>(record.position() - before - 4);
+        }
+        result.records.push_back(std::move(decoded));
+    }
+    // Original stores each bounded payload and does not require outer EOF.
+    return result;
+}
+
+int32_t CityMetatypeCatalog::find(std::string_view query) const
+{
+    if (records.size() > 256 || query.find('\0') != std::string_view::npos)
+        throw std::runtime_error("Invalid native metatype catalog/query domain.");
+    const auto fold = [](unsigned char value) {
+        return value >= 'A' && value <= 'Z' ? static_cast<unsigned char>(value + ('a' - 'A')) : value;
+    };
+    uint32_t longest = 0;
+    int32_t found = -1;
+    for (size_t i = 0; i < records.size(); ++i) {
+        const auto& record = records[i];
+        if (record.type == -1) continue;
+        const auto length = record.sourceNameLength;
+        if (record.name.find('\0') != std::string::npos ||
+            (length != record.name.size() && length != record.name.size() + 1))
+            throw std::runtime_error("Inconsistent native metatype name length.");
+        if (length <= longest || record.name.size() > query.size()) continue;
+        if (length > record.name.size() && query.size() != record.name.size()) continue;
+        bool matches = true;
+        for (size_t letter = 0; letter < record.name.size(); ++letter)
+            if (fold(static_cast<unsigned char>(record.name[letter])) != fold(static_cast<unsigned char>(query[letter]))) {
+                matches = false;
+                break;
+            }
+        if (matches) {
+            longest = length;
+            found = static_cast<int32_t>(i);
+        }
+    }
+    return found;
 }
 
 void validateBresContainer(FileSystemBase& assets, const std::string& path)

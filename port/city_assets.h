@@ -313,6 +313,27 @@ struct CityWeaponMetatype {
     int32_t range, shootFrequency, weaponType;
 };
 
+// Original indexed metatypeData/metatypeSizes backing. Keep every encoded
+// record, including unimplemented object kinds and invalid type -1 slots.
+// name omits an optional final NUL; sourceNameLength keeps its original count.
+struct CityMetatypeRecord {
+    int32_t type = -1;
+    std::string name;
+    uint32_t sourceNameLength = 0;
+    std::vector<unsigned char> encoded;
+};
+struct CityMetatypeCatalog {
+    std::vector<CityMetatypeRecord> records;
+    // Original longest case-insensitive byte prefix; first equal-length match
+    // survives. A serialized NUL participates in the original comparison.
+    // Embedded-NUL queries and inconsistent manually built metadata reject;
+    // names are bytes with ASCII-only folding, not locale/Unicode identifiers.
+    int32_t find(std::string_view name) const;
+};
+// Empty standalone catalogs are valid. Uses the existing bounded DataStream
+// reader, retains every payload and ignores outer trailing data like original.
+CityMetatypeCatalog loadCityMetatypeCatalog(FileSystemBase&);
+
 struct CityAssets {
     std::vector<CityDistrict> districts;
     std::map<std::string, CityScene> geometryLibraries;
@@ -320,6 +341,7 @@ struct CityAssets {
     std::map<uint8_t, CitySpawnGroup> spawnGroups;
     std::map<uint8_t, CitySpawnMetatype> spawnMetatypes;
     std::map<uint32_t, CityWeaponMetatype> weaponMetatypes;
+    CityMetatypeCatalog metatypes;
 };
 
 struct CityCamera {
