@@ -10,6 +10,9 @@
 
 class RetailActorScene;
 class RetailActorSceneNode;
+class RetailActorGraph;
+class RetailActorSubtree;
+struct RetailActorGraphState;
 
 // Ordinary frame dispatch and target-retention are separate original lists.
 // onUnbind must invalidate this node's target references before they can die.
@@ -70,6 +73,7 @@ public:
 private:
   friend class RetailActorScene;
   friend class RetailActorSceneNode;
+  friend class RetailActorSubtree;
   RetailActorSceneMesh() = default;
   void prepareSkinMatrices();
   std::string identity;
@@ -124,6 +128,9 @@ public:
   bool locallyVisible() const { return localVisible; }
   bool parentVisible() const { return inheritedVisible; }
   void setVisible(bool);
+  RetailActorGraph *sceneManager() const;
+  std::int32_t renderingLayer() const { return layer; }
+  void setRenderingLayer(std::int32_t value) { layer = value; }
   void onAnimate(std::uint32_t timeMs);
   RetailActorSceneNode *findUid(std::string_view);
   RetailActorSceneNode *findScope(std::string_view);
@@ -131,6 +138,7 @@ public:
   void addAnimator(std::shared_ptr<RetailActorSceneAnimator>);
   void addBoundAnimator(std::shared_ptr<RetailActorSceneAnimator>);
   void removeAnimator(RetailActorSceneAnimator &);
+  void removeAnimators(); // Ordinary list only; original always notifies a live manager.
   void removeBoundAnimator(RetailActorSceneAnimator &);
   std::size_t animatorCount() const { return animators.size(); }
   std::size_t boundAnimatorCount() const { return boundAnimators.size(); }
@@ -145,9 +153,12 @@ public:
 
 private:
   friend class RetailActorScene;
+  friend class RetailActorGraph;
+  friend class RetailActorSubtree;
   RetailActorSceneNode() = default;
   void notifyVisibilityChanged(bool);
   void detachAnimators() noexcept;
+  void clearOrdinaryAnimators(bool destroying);
   std::string identity, scopeIdentity, displayName;
   std::uint32_t runtimeType = 0, flags = 0x240, options = 0;
   std::size_t liveIndex = 0;
@@ -155,6 +166,9 @@ private:
   RetailActorSceneNode *parentNode = nullptr;
   std::vector<RetailActorSceneNode *> childNodes;
   RetailActorSceneMesh *runtimeMesh = nullptr;
+  RetailActorGraph *manager = nullptr;
+  std::weak_ptr<RetailActorGraphState> managerState;
+  std::int32_t layer = 0;
   std::array<float, 3> localPosition{}, localScale{1, 1, 1};
   RetailSceneQuaternion localRotation{0, 0, 0, 1};
   RetailSceneMatrix cachedRelative = retailSceneIdentity,
@@ -186,6 +200,8 @@ public:
   }
 
 private:
+  friend class RetailActorGraph;
+  std::unique_ptr<RetailActorSubtree> extractOrdinarySubtree(RetailActorSceneNode &);
   RetailActorSceneNode &add(std::uint32_t, RetailActorSceneNode *,
                             std::string uid = {}, std::string scope = {},
                             std::string name = {});

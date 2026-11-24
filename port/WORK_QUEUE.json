@@ -3274,13 +3274,14 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "9d748c1",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original54 ownership/lifecycle/projection cases and additional manager propagation/hierarchy flag/lifetime cases compared against real Player/jail native graphs.",
         "Pool reuse/unpooled teardown, independent visibility, unchanged local/cache bits on reparent, original child order/UID lookup/layer and late cache update. Native destruction/invalidation must occur at genuine record ownership boundaries.",
         "Full R/D builds/CTests and pose/skin/source regressions; no manual gameplay."
-      ]
+      ],
+      "independent_verification": "Root fresh full R/D40CTests/config. Both actual Player graphs18phases/model/config:44064native/original state words, cached collection entries/order/dirty exact. Actual original parenting, ordinary animator remove-all/drop and lateframe probes independently replayed. Native lifetime/pool/weakpose tests pass, PE32+AMD64. Detached ordinary shadows physically own only moved records/source, not whole actor. Full renderer/poolpolicy/material/outerhost remains separate."
     },
     {
       "id": "OG-069",
@@ -3582,7 +3583,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root R/D39CTests each after064+070. All1366original materials, raw359scene colors, original skin/morph chains exact;48actualGPUchecks/config and opening smoke pass. Missing111source textures remain explicit.068globalgraph awaitingreview;074/075/076 active."
+    "native_integration": "2026-11-25: Root full R/D40CTests/config after068;44064original graph words/config exact, independent original hierarchy/animator/framecontrols pass.06448GPUchecks/config passed;074deformation,075livecollision,076materialownership active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

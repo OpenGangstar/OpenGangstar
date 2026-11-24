@@ -1,8 +1,10 @@
 #include "retail_actor_scene.h"
+#include "retail_actor_graph.h"
 
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <set>
 #include <stdexcept>
 #include <utility>
 
@@ -81,6 +83,11 @@ const RetailSkinBoundingBox &RetailActorSceneNode::transformedBoundingBox() {
     throw std::logic_error("Non-skin transformed actor bounds are not "
                            "implemented by the skin getter.");
   return boundingBox();
+}
+RetailActorGraph *RetailActorSceneNode::sceneManager() const {
+  if (manager && managerState.expired())
+    throw std::logic_error("Expired borrowed original actor scene manager.");
+  return manager;
 }
 
 void RetailActorSceneNode::setPosition(const std::array<float, 3> &value) {
@@ -226,6 +233,8 @@ void RetailActorSceneNode::addAnimator(
   animators.push_back(
       std::move(animator)); // Ordinary list intentionally allows duplicates.
   retained->onBind(*this);
+  if (auto *current = sceneManager())
+    current->notifyHierarchyChanged();
 }
 void RetailActorSceneNode::addBoundAnimator(
     std::shared_ptr<RetailActorSceneAnimator> animator) {
@@ -251,6 +260,8 @@ void RetailActorSceneNode::removeAnimator(RetailActorSceneAnimator &animator) {
     (*found)->onUnbind(*this);
     detaching = false;
     animators.erase(found);
+    if (auto *current = sceneManager())
+      current->notifyHierarchyChanged();
   }
 }
 void RetailActorSceneNode::removeBoundAnimator(
@@ -267,6 +278,31 @@ void RetailActorSceneNode::removeBoundAnimator(
     detaching = false;
     boundAnimators.erase(found);
   }
+}
+void RetailActorSceneNode::clearOrdinaryAnimators(bool destroying) {
+  for (auto &entry : animators) {
+    auto retained = std::move(entry);
+    retained->onUnbind(*this);
+    retained.reset(); // Original drops each animator before clearing list records.
+  }
+  animators.clear();
+  if (destroying && manager && managerState.expired())
+    return;
+  if (auto *current = sceneManager())
+    current->notifyHierarchyChanged();
+}
+void RetailActorSceneNode::removeAnimators() {
+  if (dispatching || detaching)
+    throw std::logic_error(
+        "Clearing actor animators during dispatch/unbind is unsupported.");
+  detaching = true;
+  try {
+    clearOrdinaryAnimators(false);
+  } catch (...) {
+    detaching = false;
+    throw;
+  }
+  detaching = false;
 }
 std::array<float, 3> &RetailActorSceneNode::animationPosition(
     std::shared_ptr<RetailActorSceneAnimator> a) {
@@ -296,9 +332,7 @@ std::array<float, 3> &RetailActorSceneNode::animationScale(
 }
 void RetailActorSceneNode::detachAnimators() noexcept {
   detaching = true;
-  for (const auto &animator : animators)
-    animator->onUnbind(*this);
-  animators.clear();
+  clearOrdinaryAnimators(true);
   for (const auto &animator : boundAnimators)
     animator->onUnbind(*this);
   boundAnimators.clear();
@@ -475,9 +509,66 @@ RetailActorScene::RetailActorScene(
   }
 }
 RetailActorScene::~RetailActorScene() {
+  RetailActorGraph::detachOwnedRoot(*rootNode);
   for (auto &node : liveNodes)
     node->detachAnimators();
   // All target invalidation is complete while every matrix/record is alive.
   liveMeshes.clear();
   liveNodes.clear();
+}
+
+std::unique_ptr<RetailActorSubtree>
+RetailActorScene::extractOrdinarySubtree(RetailActorSceneNode &root) {
+  if (&root == rootNode)
+    throw std::logic_error("Actor root is not an ordinary detachable subtree.");
+  std::set<RetailActorSceneNode *> nodes;
+  std::set<RetailActorSceneMesh *> meshes;
+  std::function<void(RetailActorSceneNode &)> visit = [&](auto &node) {
+    if (!nodes.insert(&node).second)
+      throw std::logic_error("Cyclic or repeated borrowed actor subtree.");
+    if (std::none_of(liveNodes.begin(), liveNodes.end(),
+                     [&](const auto &owned) { return owned.get() == &node; }))
+      throw std::logic_error("External borrowed subtree ownership is unsupported.");
+    if (!node.animators.empty() || !node.boundAnimators.empty())
+      throw std::logic_error(
+          "Animator-bound subtree ownership requires a proved target transfer.");
+    if (node.runtimeMesh) {
+      if (node.runtimeMesh->sourceSkin || node.runtimeMesh->base)
+        throw std::logic_error(
+            "Skinned subtree ownership requires its external joint dependencies.");
+      meshes.insert(node.runtimeMesh);
+    }
+    for (auto *child : node.childNodes)
+      visit(*child);
+  };
+  visit(root);
+  for (const auto &mesh : liveMeshes)
+    for (auto *joint : mesh->jointNodes)
+      if (nodes.count(joint))
+        throw std::logic_error(
+            "Detached ordinary subtree is still borrowed by a live skin cache.");
+  for (const auto &node : liveNodes)
+    if (!nodes.count(node.get()) && meshes.count(node->runtimeMesh))
+      throw std::logic_error(
+          "Mutable ordinary mesh is shared outside the detached subtree.");
+  auto result = std::unique_ptr<RetailActorSubtree>(new RetailActorSubtree);
+  result->decoded = decoded;
+  result->liveNodes.reserve(nodes.size());
+  result->liveMeshes.reserve(meshes.size());
+  result->rootNode = &root;
+  for (auto it = liveNodes.begin(); it != liveNodes.end();)
+    if (nodes.count(it->get())) {
+      result->liveNodes.push_back(std::move(*it));
+      it = liveNodes.erase(it);
+    } else
+      ++it;
+  for (auto it = liveMeshes.begin(); it != liveMeshes.end();)
+    if (meshes.count(it->get())) {
+      result->liveMeshes.push_back(std::move(*it));
+      it = liveMeshes.erase(it);
+    } else
+      ++it;
+  // Allocation IDs are never renumbered; owner vectors remain dense iteration
+  // views. Moved node/mesh/matrix addresses and source indices are unchanged.
+  return result;
 }
