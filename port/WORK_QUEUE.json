@@ -28,9 +28,9 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-082",
-      "status": "AWAITING_REVIEW",
-      "baseline": "445e143"
+      "assignment": "OG-087",
+      "status": "IN_PROGRESS",
+      "baseline": "90e3eeb"
     },
     {
       "slot": 3,
@@ -3862,12 +3862,22 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "445e143",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "All213original getters and15profiles74updates match original definedstate/callbackorder in R/D; additional meaningful malformed/lifetime/floatwrapcontrols.",
         "Oneactualshared immutable library+one mutabletimeline/object, native callback/userdata fullpointerwidth, no ARMoverlay or Characterclockconflation.",
         "Full R/D build/tests PE32+AMD64, no original edits/manualgameplay."
+      ],
+      "submission": {
+        "patch": "../OpenGangstar-workers/worker-2/port/build/OG-082.patch",
+        "sha256": "0db6056ae9104aa33c3bc517f1be006408626dd4f2c7fe8382ddd65da2b2cd20"
+      },
+      "independent_validation": [
+        "Root reviewed all source/API against original080state-machine contract and intervening079/085/074. No shared production interfaces conflicted; separate native timeline is not Character detached clock.",
+        "Full Release/Debug game builds and44CTest/config pass. Full-width callback/userdata and AMD64PE32+ timeline test verified.",
+        "Fresh original factory/postload/timeline execution:114updates over25profiles,94public before/after traces,20persistent boundary results,213actual indexed/name/start/end/length getters exact against native and raw BRES.",
+        "Aliased immutable backing/lifetime, callback mutation, late conversion, overflow/subtraction, zero/reversed/negative ranges and invalid domains pass. No renderer/outerhost completeness claim."
       ]
     },
     {
@@ -3935,6 +3945,42 @@
         "Release/Debug focused and retail nonzero factory cases; distinguish leaf domain from missing full entity owner.",
         "Full-width callbacks/pointers; reuse normalization and actual post-position implementation."
       ]
+    },
+    {
+      "id": "OG-087",
+      "description": "Compose the genuine Character plain animation factory, retained mutable timeline and bound pose lifecycle.",
+      "scope": "Design/research only until independent082integration and shared API/resource reservation. No empty host or detached-clock substitution; preserve actual24track/source order, first-timeline retention and release behavior.",
+      "symbols": [
+        "Character::bindAnimation0x2f2516",
+        "static plain animator factory0x298069",
+        "const animator factory0x297c51",
+        "default plain animator constructor0x2af7c9",
+        "Character animation shared cleanup0x2f14c1"
+      ],
+      "resources": [
+        "port/build/OG-087-* (worker-2 ignored research only)"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-062",
+        "OG-079",
+        "OG-080",
+        "OG-082",
+        "OG-085"
+      ],
+      "blockers": [
+        "Original bind precedes shadow extraction; current blanket animator-bound transfer rejection requires narrow lifetime-safe implementation and API/resource review."
+      ],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "90e3eeb",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Reuse original080completed nonzero scenes and whole bind traces.",
+        "One authoritative timeline/pose/material/graph state; demonstrate lifetimes, first timeline retain, subsequent local drops and shared cleanup.",
+        "Public production host must implement real owned operations, not no-op callbacks."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -3950,7 +3996,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after078:2969original tracked sizes/SHA256 unchanged vs pre-migration baseline; originalsubmodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and userlocaledits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root R/D42CTests/config after085explicitcaller-retainedshadowregistrationbeforeactorattach.12240new+44064legacyoriginalgraphwords/config exact.079materials/48GPUchecks verified.074deformation frozenreview;082timelineactive;084targetresearchfrozen."
+    "native_integration": "2026-11-25: Root full Release/Debug44CTests/config after082timeline and074deformation. Original114timelineupdates/213getters and56deformation snapshots/config exact. Production actor animation host087 and source-sharing/nested factory083 remain active prerequisites."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
