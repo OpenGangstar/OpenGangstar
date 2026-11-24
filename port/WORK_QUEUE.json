@@ -36,9 +36,9 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "4d849da"
+      "assignment": "OG-012",
+      "status": "IN_PROGRESS",
+      "baseline": "670e056"
     }
   ],
   "unavailable_worker": {
@@ -464,7 +464,8 @@
       "dependencies": [
         "OG-007",
         "OG-010",
-        "OG-011"
+        "OG-011",
+        "OG-012"
       ],
       "blockers": [
         "Ordered original movement dispatch must be integrated first.",
@@ -548,7 +549,8 @@
         "Independently inspected PlayerTest strict floating comparison and zeroZ term in ARM instructions at0x30513a..30519a.",
         "Independently verified Step call at0x2e0954..95a uses10iterations and1/60 constant0x3c888889;250ms clamp visible in original update.",
         "Documentation-only prerequisite; no runtime implementation or matching rebuild claim."
-      ]
+      ],
+      "integration_commit": "670e056"
     },
     {
       "id": "OG-009",
@@ -644,8 +646,61 @@
       "submission": null,
       "findings": [
         "Original b2_version at0x4b6068 independently verified as{2,0,1}; source compatibility still under investigation.",
-        "Recovered InitWorld config:AABB\u00b12000m,zero gravity,allowSleep true,positionCorrection true,continuousPhysics false,custom contact listener/filter."
+        "Recovered InitWorld config:AABB\u00b12000m,zero gravity,allowSleep true,positionCorrection true,continuousPhysics false,custom contact listener/filter.",
+        "Official Google Code2.0.1 archive verified:866019bytes,SHA1 27a1a0bd08c81bbf661fa008645ee5c538bb2767,SHA256 62857048aa089b558561074154430883cee491eedd71247f75f488cba859e21f; historical zlib-style license.",
+        "Representative original-toolchain comparisons support core Solve/Query/Step, but SolveTOI diverges and full fork parity remains unresolved.",
+        "Native alignment adaptations required:4-byte allocation prefix and unaligned stack storage cannot be reused on x64."
       ]
+    },
+    {
+      "id": "OG-012",
+      "description": "Reconstruct original contact filtering, height and destination-adjustment dependencies for the native actor controller.",
+      "scope": "Evidence-backed collision/body/height contract; distinguish genuine original base no-ops from required game overrides. No substitute wall-slide/height adapter or fabricated collision behavior.",
+      "symbols": [
+        {
+          "signature": "ContactFilter::ShouldCollide(b2Shape*,b2Shape*)",
+          "address": "0x0031dc7d"
+        },
+        {
+          "signature": "ContactListener::Add(b2ContactPoint const*)",
+          "address": "0x00320351"
+        },
+        {
+          "signature": "ContactListener::Persist(b2ContactPoint const*)",
+          "address": "0x0031d7a1"
+        },
+        {
+          "signature": "ContactListener::Remove(b2ContactPoint const*)",
+          "address": "0x0031a5ed"
+        },
+        {
+          "signature": "LevelObject::canGoToPoint(...)",
+          "address": "0x00317fb5"
+        },
+        {
+          "signature": "PhysicAttributes::GetHeight(...)",
+          "address": "0x0031ff49"
+        }
+      ],
+      "resources": [
+        "port/ACTOR_COLLISION.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-010"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "670e056",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Trace exact collision predicate/classification/height and contact side effects with original addresses and fixed data contracts.",
+        "Identify smallest faithful on-foot controller collision slice and required real native bindings.",
+        "Provide concrete positive/negative collision cases and source-derived thresholds; no fabricated placeholder adapters.",
+        "Keep original ARM layouts read-only and document unresolved branches; no gameplay."
+      ],
+      "submission": null
     }
   ],
   "orchestrator_resources": [
