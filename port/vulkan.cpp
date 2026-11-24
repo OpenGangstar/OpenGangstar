@@ -1077,6 +1077,8 @@ void prepareVehicleEffects(CityRender& city, FileSystemBase& assets, CityDrawDat
             std::cerr << "Could not bind particle scene " << paths[i] << '\n';
             continue;
         }
+        if (scene.materials.size() != 1)
+            throw std::runtime_error(std::string("Vehicle particle scene requires exactly one resolved material: ") + paths[i]);
         auto& emitter = scene.particleEmitters.front();
         const auto node = std::find_if(scene.nodes.begin(), scene.nodes.end(), [&](const CityNode& entry) {
             return std::find(entry.particleEmitters.begin(), entry.particleEmitters.end(), emitter.name) !=

@@ -836,7 +836,7 @@
           "address": "0x0031eb99"
         },
         {
-          "signature": "PhysicAttributes::AddCollisionShapes(int,int)",
+          "signature": "PhysicAttributes::AddCollisionShapes(int,unsigned short)",
           "address": "0x0031e285"
         },
         {
@@ -948,7 +948,7 @@
           "address": "0x0031ad31 / 0x0031b3e9"
         },
         {
-          "signature": "PhysicAttributes::AddCollisionShapes(int,int)",
+          "signature": "PhysicAttributes::AddCollisionShapes(int,unsigned short)",
           "address": "0x0031e285"
         },
         {
@@ -1067,6 +1067,37 @@
         "Real supplied clip/channel sampling and root transform/worldcm-to-bodym conversion without double translation.",
         "Release/Debug focused tests using ignored harness while CMake owned byOG015; request additional reservations before touching shared files.",
         "Preserve ARM project; no manual gameplay."
+      ]
+    },
+    {
+      "id": "OG-019",
+      "description": "Reject empty or ambiguous material binding before vehicle-particle pipeline selection.",
+      "scope": "Narrow native validation guard for the existing single-emitter particle path; no guessed material routing.",
+      "symbols": [
+        {
+          "signature": "prepareVehicleEffects(CityRender&,FileSystemBase&,CityDrawData&)",
+          "address": null
+        }
+      ],
+      "resources": [
+        "port/vulkan.cpp"
+      ],
+      "priority": 7,
+      "complexity": "small",
+      "dependencies": [
+        "OG-009"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "fede6e6",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Rebuild x64 game; supplied retail automated Vulkan opening smoke with11productionpixelchecks."
+      ],
+      "independent_validation": [
+        "Reviewed single-resolved-material guard before map dereference; no ambiguous fallback introduced.",
+        "x64 Release game rebuild and automated retail Vulkan opening smoke passed;11productionGPUcases remain passing."
       ]
     }
   ],
