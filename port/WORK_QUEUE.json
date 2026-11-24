@@ -20,15 +20,15 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-001",
-      "status": "IN_PROGRESS"
+      "assignment": null,
+      "status": "AVAILABLE"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
       "assignment": "OG-002",
-      "status": "IN_PROGRESS"
+      "status": "AWAITING_REVIEW"
     },
     {
       "slot": 3,
@@ -72,15 +72,27 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "6d454d1",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Focused native script tests: blocking, completion, skip, malformed payloads, original category-specific predicates.",
         "Isolated x64 build and relevant CTest.",
         "Audit retail opcode-5 payloads; report unsupported production binding honestly."
       ],
-      "submission": null,
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-001.patch",
+        "worker_validation": "Isolated x64 build and city_collision CTest and retail test passed;151 opcode5 records across41/106 scripts; full audit baseline output unchanged.",
+        "limitations": "Production compiled cinematics do not yet bind objectMotion or wait on opcode5."
+      },
       "findings": [
         "Vehicle spawn category 5 completes when flag 0x4000 is SET; player/category 1 completes when flags & 0xfe == 0; categories 2/3 compare GetSpeed exactly to zero."
+      ],
+      "reservations_active": false,
+      "independent_validation": [
+        "Source review confirms original category-specific predicates and skip behavior without cancellation.",
+        "Full integration x64 Release build passed; all5 CTests passed.",
+        "Retail city_collision_test passed; full audit output byte-identical to verified OG-003.",
+        "Game, collision test and audit verified AMD64 PE32+.",
+        "Intervening changes touch only scheduler, asset-audit diagnostics and port documentation."
       ]
     },
     {
@@ -109,13 +121,17 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "6d454d1",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "validation": [
         "Original source or binary evidence tied to exact changed behavior.",
         "Compile GLSL with glslc and isolated x64 game build for runtime changes.",
         "Focused regression evidence; no manual gameplay."
       ],
-      "submission": null,
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-002.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-002-report.md",
+        "worker_validation": "Isolated x64 full build, shader compile,5 CTests and opening smoke passed; equal-depth pixel parity unverified."
+      },
       "findings": [
         "Original VERTEX_COLOR_ALPHA is opaque and uses GL_DECAL; native material decoding lacks the selection. Decoder/header expansion awaits OG-001 reservation release. Worker continues independent renderer investigation."
       ]
@@ -162,7 +178,8 @@
         "Full audit rerun from original ZIP; exit1 and complete stdout/stderr match submission exactly.",
         "Intervening main changes affect scheduler documentation only."
       ],
-      "reservations_active": false
+      "reservations_active": false,
+      "integration_commit": "31a160f"
     }
   ],
   "orchestrator_resources": [

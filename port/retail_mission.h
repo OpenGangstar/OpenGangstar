@@ -51,6 +51,17 @@ private:
     double phaseMs = 0;
 };
 
+// Values supplied by the native world, never a view of an original ARM object.
+struct RetailScriptObjectMotion {
+    int32_t category; // LevelObject::s_type[objectType], not getSpawnType().
+    // PlayerTest +240, category-1 object +236, or category-5 vehicle +356.
+    uint32_t flags;
+    float speed; // The result of virtual GetSpeed(), used only by categories 2 and 3.
+    bool player;
+
+    bool stopped() const;
+};
+
 struct RetailMissionHooks {
     RetailMissionConditions* conditions = nullptr;
     std::function<void(uint32_t)> showObjective;
@@ -88,6 +99,7 @@ struct RetailMissionHooks {
     std::function<void()> clearActorAttacks;
     std::function<void(std::string_view)> tagKillTarget;
     std::function<int32_t()> wantedLevel;
+    std::function<RetailScriptObjectMotion(std::string_view)> objectMotion;
 };
 
 class RetailScriptExecution {

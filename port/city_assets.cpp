@@ -322,7 +322,7 @@ public:
                     command.finish();
                 }
                 if (opcode == 64 || opcode == 105) readCheckpointCommand(command, opcode);
-                if (opcode == 23 || opcode == 76 || opcode == 77 || opcode == 87 || opcode == 89 ||
+                if (opcode == 5 || opcode == 23 || opcode == 76 || opcode == 77 || opcode == 87 || opcode == 89 ||
                     opcode == 99 || opcode == 106 || opcode == 108)
                     readScriptObject(command);
                 if (opcode == 111) {
@@ -1999,6 +1999,14 @@ std::string decodeCityWaitStolen(const CityScriptCommand& command)
 {
     if (command.opcode != 89) throw std::runtime_error("Expected retail WaitStolen opcode.");
     const std::string path = scriptMapPath;
+    CityDataReader reader(path, command.payload);
+    return readScriptObject(reader);
+}
+
+std::string decodeCityStopObject(const CityScriptCommand& command)
+{
+    if (command.opcode != 5) throw std::runtime_error("Expected the retail StopObject opcode.");
+    const std::string path = "retail StopObject";
     CityDataReader reader(path, command.payload);
     return readScriptObject(reader);
 }

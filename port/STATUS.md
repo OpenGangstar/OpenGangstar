@@ -144,6 +144,13 @@ mission playthroughs for discovery or verification.
   The interpreter and opening timeline share the retail sound command
   decoder. The Win32 mixer stops ambient IDs 25 and 14 before a scripted
   priority loop. A skip suppresses playback opcodes while preserving stops.
+  StopObject now has a strict decoder and an explicit shared-executor motion
+  query. Its original player/category-1 flag mask, category-2/3 exact zero-speed
+  comparison, and category-5 completion-bit polarity are preserved. Tests cover
+  blocking, resume order, skip, missing bindings, malformed records, and floating
+  edge cases. All 151 retail StopObject records across 41 scripts validate.
+  This command waits; it does not cancel movement. Production compiled cinematic
+  timelines still ignore opcode 5 and do not yet bind the motion query.
   The live game still uses its opening timeline. Runtime dispatch for the
   remaining opcodes and behavioral parity with the retail scheduler remain
   open. The asset audit decodes the mission catalog

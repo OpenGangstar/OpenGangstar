@@ -891,6 +891,7 @@ struct CityWaitEscape {
 };
 CityWaitEscape decodeCityWaitEscape(const CityScriptCommand& command);
 std::string decodeCityWaitStolen(const CityScriptCommand& command);
+std::string decodeCityStopObject(const CityScriptCommand& command);
 std::string decodeCityActorGetOut(const CityScriptCommand& command);
 std::string decodeCityKillTarget(const CityScriptCommand& command);
 std::string decodeCityFightSideActor(const CityScriptCommand& command);

@@ -46,6 +46,15 @@ bool applyCinematicCommand(const CityScriptCommand& command, const RetailMission
 }
 }
 
+bool RetailScriptObjectMotion::stopped() const
+{
+    // Script::executeCommand opcode 5 waits for these predicates; it never calls Stop().
+    if (player || category == 1) return (flags & 0xfe) == 0;
+    if (category == 2 || category == 3) return speed == 0.f;
+    if (category == 5) return (flags & 0x4000) != 0;
+    return true;
+}
+
 bool retailEscapeReached(const RetailEscapePositions& positions, float distanceCm)
 {
     const float x = positions.player[0] - positions.target[0];
@@ -210,6 +219,10 @@ void RetailScriptExecution::execute(uint32_t id, int32_t elapsedMs, int32_t play
             }
         } else if (command.opcode == 4) {
             if (!command.payload.empty()) throw std::runtime_error("Invalid startup marker payload.");
+        } else if (command.opcode == 5 && mission && mission->objectMotion) {
+            const auto target = decodeCityStopObject(command);
+            const auto motion = mission->objectMotion(target);
+            if (!motion.stopped() && !skipBlockingCommands) break;
         } else if (command.opcode == 57) {
             const auto duration = signedScriptWord(command);
             // Retail Wait consumes the current tick on entry and advances only below zero.

@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -164,6 +165,102 @@ void verifyScriptChapterCommands()
     run(true);
     require(blinks == 1 && shown == 1 && hidden == 2 && achievements.stat(24) == 2 && saves == 2,
             "Cinema skip skipped a nonblocking HUD or chapter command.");
+}
+
+void verifyStopObject()
+{
+    for (const bool player : {false, true}) {
+        const int32_t category = player ? 5 : 1;
+        require(RetailScriptObjectMotion{category, 0xffffff01, 100, player}.stopped(),
+                "StopObject used unrelated flags or speed for a player/category-1 object.");
+        for (uint32_t bit = 2; bit <= 0x80; bit <<= 1)
+            require(!RetailScriptObjectMotion{category, bit, 0, player}.stopped(),
+                    "StopObject ignored a player/category-1 movement flag.");
+    }
+    for (const int32_t category : {2, 3}) {
+        for (const float speed : {0.f, -0.f})
+            require(RetailScriptObjectMotion{category, UINT32_MAX, speed, false}.stopped(),
+                    "StopObject must accept either sign of zero from GetSpeed().");
+        for (const float speed : {1.f, -1.f, std::numeric_limits<float>::denorm_min(),
+                                  std::numeric_limits<float>::infinity(),
+                                  -std::numeric_limits<float>::infinity(),
+                                  std::numeric_limits<float>::quiet_NaN()})
+            require(!RetailScriptObjectMotion{category, 0, speed, false}.stopped(),
+                    "StopObject replaced the original exact zero-speed comparison.");
+    }
+    require(RetailScriptObjectMotion{5, 0x4000, 100, false}.stopped() &&
+            !RetailScriptObjectMotion{5, 0xffffbfff, 0, false}.stopped(),
+            "StopObject must wait for the vehicle's completion bit to be set.");
+    for (const int32_t category : {-1, 0, 4, 6})
+        require(RetailScriptObjectMotion{category, UINT32_MAX, 100, false}.stopped(),
+                "StopObject incorrectly blocked an unhandled original object category.");
+
+    const CityScriptCommand playerStop{5, {0, 0, 0, 1, 'P'}};
+    const CityScriptCommand vehicleStop{5, {0, 0, 0, 3, 'C', 'a', 'r'}};
+    require(decodeCityStopObject(playerStop) == "P" &&
+            decodeCityStopObject({5, {0, 0, 0, 2, 'P', 0}}) == "P",
+            "StopObject did not preserve the original string framing.");
+    for (const CityScriptCommand invalid : {
+            CityScriptCommand{6, playerStop.payload}, {5, {}}, {5, {0, 0, 0, 2, 'P'}},
+            {5, {0, 0, 0, 0}}, {5, {0, 0, 0, 3, 'P', 0, 'Q'}},
+            {5, {0, 0, 0, 1, 'P', 0}}}) {
+        bool rejected = false;
+        try { decodeCityStopObject(invalid); }
+        catch (const std::runtime_error&) { rejected = true; }
+        require(rejected, "StopObject accepted an invalid opcode or malformed object payload.");
+    }
+
+    RetailScriptExecution scripts({{playerStop, {48, {}}, vehicleStop, {48, {}}}});
+    RetailScriptObjectMotion player{0, 2, 100, true}, vehicle{5, 0, 0, false};
+    std::vector<std::string> queries;
+    unsigned hidden = 0, refreshed = 0, saved = 0;
+    RetailMissionHooks mission;
+    mission.objectMotion = [&](std::string_view name) {
+        require(name == "P" || name == "Car", "StopObject resolved the wrong object name.");
+        queries.emplace_back(name);
+        return name == "P" ? player : vehicle;
+    };
+    mission.hideTutorial = [&] { ++hidden; };
+    const auto step = [&](int32_t elapsedMs, bool skip = false) {
+        scripts.execute(0, elapsedMs, 0, [](const auto&, int32_t) -> bool {
+            throw std::runtime_error("Bound StopObject reached the fallback dispatcher.");
+        }, [&] { ++refreshed; }, [&] { ++saved; }, skip, nullptr, {}, &mission);
+    };
+    scripts.unlock(0, 0, 0);
+    step(0);
+    step(100000);
+    require(hidden == 0 && refreshed == 0 && saved == 0 && player.flags == 2,
+            "StopObject cancelled movement or advanced while its player was moving.");
+    player.flags = 1;
+    step(16);
+    require(hidden == 1 && refreshed == 2 && saved == 0 &&
+            scripts.state(0) == RetailScriptState::active && vehicle.flags == 0,
+            "StopObject did not resume in order and wait for the vehicle completion bit.");
+    vehicle.flags = 0x4000;
+    step(16);
+    require(hidden == 2 && refreshed == 4 && saved == 1 &&
+            scripts.state(0) == RetailScriptState::locked &&
+            queries == std::vector<std::string>{"P", "P", "P", "Car", "Car"},
+            "StopObject failed to requery a blocked object or finish after it stopped.");
+    player.flags = 2;
+    vehicle.flags = 0;
+    scripts.unlock(0, 0, 0);
+    step(0, true);
+    require(hidden == 4 && refreshed == 8 && saved == 2 &&
+            player.flags == 2 && vehicle.flags == 0,
+            "Skipping StopObject did not resume without changing object movement.");
+
+    RetailScriptExecution unbound({{playerStop}});
+    RetailMissionHooks unboundMission;
+    unsigned dispatched = 0;
+    unbound.unlock(0, 0, 0);
+    unbound.execute(0, 16, 0, [&](const auto& command, int32_t) {
+        require(command.opcode == 5, "Unbound StopObject changed its opcode.");
+        ++dispatched;
+        return false;
+    }, [] {}, [] {}, true, nullptr, {}, &unboundMission);
+    require(dispatched == 1 && unbound.state(0) == RetailScriptState::active,
+            "StopObject silently advanced without an object-state binding.");
 }
 
 void verifyWaitForLock()
@@ -3705,6 +3802,7 @@ int wmain(int argc, wchar_t** argv)
         verifyTaggedKillTargets();
         verifyScriptExecution();
         verifyScriptChapterCommands();
+        verifyStopObject();
         verifyWaitKilled();
         verifyWaitForLock();
         verifyScriptWait();
