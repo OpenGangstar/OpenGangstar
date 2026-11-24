@@ -20,17 +20,17 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "feb6317"
+      "assignment": "OG-009",
+      "status": "IN_PROGRESS",
+      "baseline": "89e4015"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "ff9b048"
+      "assignment": "OG-011",
+      "status": "IN_PROGRESS",
+      "baseline": "89e4015"
     },
     {
       "slot": 3,
@@ -242,7 +242,8 @@
         "Independent direct ZIP/BRES parsing confirms359 scenes,1366 material records:1178solid,169alpha-channel,19additive; hospital base selects14.",
         "Corrected contradicted prior STATUS claim about hospital alpha-reference selection.",
         "Documentation-only change; no new build or gameplay claim."
-      ]
+      ],
+      "integration_commit": "89e4015"
     },
     {
       "id": "OG-005",
@@ -462,7 +463,8 @@
       "complexity": "high",
       "dependencies": [
         "OG-007",
-        "OG-010"
+        "OG-010",
+        "OG-011"
       ],
       "blockers": [
         "Ordered original movement dispatch must be integrated first.",
@@ -531,6 +533,99 @@
         "Distinguish faithfully reusable native facilities from current approximations and missing original dependencies.",
         "Give concrete original edge cases for independent controller tests and smallest correct implementation slice.",
         "No ARM edits or manual gameplay; do not invent unsupported completion behavior."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-009",
+      "description": "Correct native original material selection and alpha/additive rendering using the verified original selector and game overrides.",
+      "scope": "Preserve original source material selector fields and per-instance resolved mode; support evidenced solid0,additive13,alpha14 and game alpha-reference15 with exact blend/alpha/depth/pass behavior. Do not guess custom GL_DECAL selection or unsupported reflection/lightmap rendering.",
+      "symbols": [
+        {
+          "signature": "irr::collada::CMaterial::prepareMaterial(...)",
+          "address": "0x002a0905"
+        },
+        {
+          "signature": "irr::collada::CResFileManager::postLoadProcess(...)",
+          "address": "0x002ae0a9"
+        },
+        {
+          "signature": "CCommonGLMaterialRenderer_TRANSPARENT_ALPHA_CHANNEL::onSetMaterial(...)",
+          "address": "0x002cd64d"
+        },
+        {
+          "signature": "CCommonGLMaterialRenderer_TRANSPARENT_ADD_COLOR::onSetMaterial(...)",
+          "address": "0x002cbfc5"
+        },
+        {
+          "signature": "GS3DStuff::SetMaterialTypeCondition(...)",
+          "address": "0x002dc41d"
+        }
+      ],
+      "resources": [
+        "port/city_assets.cpp",
+        "port/city_assets.h",
+        "port/city_view.cpp",
+        "port/city_view.h",
+        "port/vulkan.cpp",
+        "port/shaders/city.vert",
+        "port/shaders/city.frag",
+        "port/tests/city_collision.cpp",
+        "port/tests/retail_asset_audit.cpp"
+      ],
+      "priority": 4,
+      "complexity": "high",
+      "dependencies": [
+        "OG-004",
+        "OG-007"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "89e4015",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Original selector precedence and fixed-width BRES fields; independent1366-material counts and concrete hospital/fire/health-crate fixtures.",
+        "Layer0-only game alpha-reference override after actual instance material resolution.",
+        "Original type14 texture-alpha replacement and SRC_ALPHA/ONE_MINUS_SRC_ALPHA;type13 SRC_ALPHA/ONE with original modulation.",
+        "Validate original depth-write/transparent ordering before equivalence claims; use actual shader/pipeline checks and GPU fixture if practical.",
+        "x64 build, relevant native/retail tests and automated Vulkan smoke; preserve missing-asset failures."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-011",
+      "description": "Identify the original Box2D version and native build requirements; provide a faithful x64 physics dependency where source provenance and compatibility are established.",
+      "scope": "Read original b2_version/symbols/settings and compare primary upstream historical source. Establish native compatibility without replacing missing behavior with stubs or selecting a modern incompatible engine. Build/test a pinned compatible source only after evidence supports it; otherwise submit exact dependency blockers.",
+      "symbols": [
+        {
+          "signature": "b2World::Step(float,int)",
+          "address": "0x00400c7d"
+        },
+        {
+          "signature": "b2_version and original Box2D settings",
+          "address": null
+        }
+      ],
+      "resources": [
+        "port/CMakeLists.txt",
+        "port/cmake/Box2D.cmake",
+        "port/tests/box2d.cpp",
+        "port/PHYSICS_DEPENDENCY.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-007"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "89e4015",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Original version/configuration and API evidence; primary upstream source provenance/hash/license.",
+        "No ARM submodule changes and no raw original-layout pointer casts.",
+        "If implemented, x64 static library and meaningful independent collision/stepping/contact tests; preserve original float units/settings.",
+        "Keep runtime world binding and unverified original divergences explicit; do not claim physics complete from compile success."
       ],
       "submission": null
     }
