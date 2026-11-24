@@ -1420,3 +1420,12 @@ Global shadow reparent/retention, pool-aware teardown/visibility, late world fra
 ## OG067: correct typed retained animation masks
 
 Whole-pose original comparisons exposed an earlier049 mapping error. Corrected position/PositionZ to persistent mask4, quaternion remains2, scale to1. Position4 takes the existing translation-only branch; scale1 rebuilds the basis. Root actual full forceBind/getter probes prove each mapping; new native regression fails old code in both configurations and passes the fix. Typed64 matrix bits/config,800 original owner snapshots and44 live joint caches plus retention regressions match. Full Release/Debug builds and33CTests pass. No setter-bit substitution, clock change, original ARM edit or masked failure.
+
+
+## OG056 / OG062: real retained full actor pose
+
+Implemented actual detached plain animator over the full24-track source and genuine retained scene targets. Typed masks4/2/1, source-order NULL slots, persistent bound retention, same-root no-op/forced repair, UID-based old callbacks after rebind, unsigned time/library period, shared/per-slot scratch and direct animateNode forwarding preserve original behavior. Existing clock consumes true live Bip01 position without early root stripping or an extra frame clock. Weighted apply for these four source track classes is the verified original no-op after scratch evaluation, distinct from weighted getters. Weak owner context prevents native ownership cycles and explicitly rejects expired reuse.
+
+Root original R/D comparisons:288 signed/duplicate/wrapped sampler cases,47,160 complete nodeTRS/flag records and31,440 track applications/scratch entries per configuration across both Player models,655 profiles/model and all213 clip boundaries/midpoints. Identical native dump SHA2568d315643e4c3c1b1eae04bba447e38c85953600df7fb1625ccea2afe90275846. Existing213root/444clock and bothPlayer639sample tests pass; original91slerp+80synthetic+144retail old-pose regressions remain exact. Full native builds and34CTests/config pass; checked executables PE32+AMD64.
+
+Full scene/material/render/body/world composition, generic AnimatorSet/blender/timeline/event behavior and source domains outside the documented plain path remain incomplete. No full-game completion, original Android libm identity or manual gameplay claimed.

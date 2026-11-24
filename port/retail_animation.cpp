@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <stdexcept>
 
@@ -51,29 +52,69 @@ void validateChannel(const CityAnimationChannel& channel, RetailAnimationInterpo
     }
 }
 
-struct ChannelBracket {
-    const CityAnimationKey& first;
-    const CityAnimationKey* second;
+template<class Key> struct ChannelBracket {
+    const Key& first;
+    const Key* second;
     float amount;
 };
 
-ChannelBracket bracket(const CityAnimationChannel& channel, int32_t relativeMs,
-                        RetailAnimationInterpolation interpolation)
+template<class Keys> size_t keyIndex(const Keys& keys, int32_t time)
+{
+    const auto next = std::upper_bound(keys.begin(), keys.end(), time,
+        [](int32_t ms, const auto& key) { return int64_t(ms) < int64_t(key.timeMs); });
+    return next == keys.begin() ? 0 : size_t(std::prev(next) - keys.begin());
+}
+
+template<class Keys, class Difference>
+auto bracketKeys(const Keys& keys, int32_t time, RetailAnimationInterpolation interpolation,
+                 Difference difference)
+{
+    const auto index = keyIndex(keys, time);
+    const auto& first = keys[index];
+    using Key = typename Keys::value_type;
+    if (int64_t(time) == int64_t(first.timeMs) || index + 1 == keys.size() ||
+        interpolation == RetailAnimationInterpolation::step)
+        return ChannelBracket<Key>{first, nullptr, 0};
+    const auto& second = keys[index + 1];
+    const float amount = std::clamp(float(difference(time, first.timeMs)) /
+        float(difference(second.timeMs, first.timeMs)), 0.f, 1.f);
+    return ChannelBracket<Key>{first, &second, amount};
+}
+
+auto bracket(const CityAnimationChannel& channel, int32_t relativeMs,
+             RetailAnimationInterpolation interpolation)
 {
     validateChannel(channel, interpolation);
-    const auto next = std::upper_bound(channel.keys.begin(), channel.keys.end(), relativeMs,
-        [](int32_t ms, const CityAnimationKey& key) { return int64_t(ms) < key.timeMs; });
-    const auto& first = next == channel.keys.begin() ? channel.keys.front() : *std::prev(next);
-    // Exact-key and last-key branches copy authored words, including nonunit
-    // quaternions and signed zeros. Before-first interpolation still executes.
-    if (int64_t(relativeMs) == first.timeMs || channel.keys.size() == 1 ||
-        next == channel.keys.end() || interpolation == RetailAnimationInterpolation::step)
-        return {first, nullptr, 0};
-    const auto& second = next == channel.keys.begin() ? channel.keys[1] : *next;
-    const float amount = std::clamp(float(int64_t(relativeMs) - first.timeMs) /
-        float(uint64_t(second.timeMs) - first.timeMs), 0.f, 1.f);
-    return {first, &second, amount};
+    return bracketKeys(channel.keys, relativeMs, interpolation,
+        [](auto a, auto b) { return int64_t(a) - int64_t(b); });
 }
+
+void validateLibraryTrack(const CityAnimationLibraryTrack& track)
+{
+    if (track.keys.empty() || track.keys.size() > size_t(std::numeric_limits<int32_t>::max()))
+        throw std::runtime_error("An original library track requires int32-indexable keys.");
+    const auto count = components(track.transform);
+    for (size_t i = 0; i < track.keys.size(); ++i) {
+        if (i && track.keys[i].timeMs < track.keys[i-1].timeMs)
+            throw std::runtime_error("Original library keys require nondecreasing signed times.");
+        for (size_t axis = 0; axis < count; ++axis)
+            if (!std::isfinite(track.keys[i].value[axis]))
+                throw std::runtime_error("Nonfinite original library key value.");
+    }
+}
+
+template<class Bracket>
+std::array<float, 4> sampleBracket(const Bracket& selected, CityAnimationTransform transform)
+{
+    auto value = selected.first.value;
+    if (!selected.second) return value;
+    if (transform == CityAnimationTransform::rotation)
+        return retailAnimationSlerp(value, selected.second->value, selected.amount);
+    for (size_t axis = 0; axis < components(transform); ++axis)
+        value[axis] += (selected.second->value[axis] - value[axis]) * selected.amount;
+    return value;
+}
+
 }
 
 RetailAnimationQuaternion retailAnimationNormalizeQuaternion(RetailAnimationQuaternion q)
@@ -128,14 +169,29 @@ RetailAnimationQuaternion retailAnimationSlerp(RetailAnimationQuaternion first,
 std::array<float, 4> sampleRetailAnimationChannel(const CityAnimationChannel& channel,
     int32_t relativeMs, RetailAnimationInterpolation interpolation)
 {
-    const auto selected = bracket(channel, relativeMs, interpolation);
-    auto value = selected.first.value;
-    if (!selected.second) return value;
-    if (channel.transform == CityAnimationTransform::rotation)
-        return retailAnimationSlerp(value, selected.second->value, selected.amount);
-    for (size_t axis = 0; axis < components(channel.transform); ++axis)
-        value[axis] += (selected.second->value[axis] - value[axis]) * selected.amount;
-    return value;
+    return sampleBracket(bracket(channel, relativeMs, interpolation), channel.transform);
+}
+
+int32_t selectRetailAnimationLibraryKey(const CityAnimationLibraryTrack& track, int32_t time)
+{
+    validateLibraryTrack(track);
+    return static_cast<int32_t>(keyIndex(track.keys, time));
+}
+
+std::array<float, 4> sampleRetailAnimationLibraryTrack(const CityAnimationLibraryTrack& track,
+    int32_t time, RetailAnimationInterpolation interpolation, int32_t* selectedIndex)
+{
+    validateLibraryTrack(track);
+    if (interpolation != RetailAnimationInterpolation::step && interpolation != RetailAnimationInterpolation::linear)
+        throw std::runtime_error("Unsupported original interpolation selector.");
+    if (selectedIndex) *selectedIndex = static_cast<int32_t>(keyIndex(track.keys, time));
+    const auto difference = [](auto a, auto b) {
+        const uint32_t bits = uint32_t(a) - uint32_t(b);
+        int32_t signedValue;
+        std::memcpy(&signedValue, &bits, 4);
+        return signedValue;
+    };
+    return sampleBracket(bracketKeys(track.keys, time, interpolation, difference), track.transform);
 }
 
 void applyRetailAnimationChannel(RetailAnimationPoseTransform& pose, const CityAnimationChannel& channel,

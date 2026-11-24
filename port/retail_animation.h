@@ -28,6 +28,12 @@ std::array<float, 4> sampleRetailAnimationChannel(const CityAnimationChannel&,
     int32_t relativeMs, RetailAnimationInterpolation = RetailAnimationInterpolation::linear);
 void applyRetailAnimationChannel(RetailAnimationPoseTransform&, const CityAnimationChannel&,
     int32_t relativeMs, RetailAnimationInterpolation = RetailAnimationInterpolation::linear);
+// Full signed source-domain counterpart, sharing the existing search/typed
+// interpolation. Equal times select the rightmost key. Original ARM time
+// differences wrap in int32 before float conversion. Scratch is an output.
+int32_t selectRetailAnimationLibraryKey(const CityAnimationLibraryTrack&, int32_t timeMs);
+std::array<float, 4> sampleRetailAnimationLibraryTrack(const CityAnimationLibraryTrack&,
+    int32_t timeMs, RetailAnimationInterpolation, int32_t* selectedIndex = nullptr);
 
 // Genuine live-pose operations, supplied by an owning actor runtime. evaluate
 // applies the whole bound animator at the selected time and reads its live root.

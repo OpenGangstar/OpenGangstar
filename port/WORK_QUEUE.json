@@ -28,9 +28,9 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-062",
+      "assignment": "OG-069",
       "status": "IN_PROGRESS",
-      "baseline": "0c8820342569d0c32762f51f89286f298e0d2cb8"
+      "baseline": "f95ae2d"
     },
     {
       "slot": 3,
@@ -38,7 +38,7 @@
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
       "assignment": "OG-055",
       "status": "IN_PROGRESS",
-      "baseline": "0c8820342569d0c32762f51f89286f298e0d2cb8"
+      "baseline": "f95ae2d"
     }
   ],
   "unavailable_worker": {
@@ -2811,11 +2811,12 @@
       "dependencies": [
         "OG-049",
         "OG-051",
-        "OG-060"
+        "OG-060",
+        "OG-067"
       ],
       "blockers": [],
       "assigned_agent": "/root/worker_3",
-      "baseline": "0c8820342569d0c32762f51f89286f298e0d2cb8",
+      "baseline": "f95ae2d",
       "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
@@ -2836,7 +2837,7 @@
     },
     {
       "id": "OG-056",
-      "description": "Trace actual retained animator-set application and blend semantics before concrete actor binding.",
+      "description": "Trace actual retained plain animator application, cache and binding semantics, distinguishing AnimatorSet/weighted computation.",
       "scope": "Read-only investigation beyond OG045: actual CSceneNodeAnimatorSet/CSceneNodeAnimator apply/compute dispatch, per-track weights, getValue versus applyValue exact-key/quaternion behavior, blend flags and manual-time application after timeline detach. Reuse frozen actor ownership and verified clock/sampler; identify concrete next implementation inputs and original executable proofs. No product edits.",
       "symbols": [],
       "resources": [
@@ -2849,15 +2850,16 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "3976e52",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Precise original symbols/addresses and reproducible original-reference evidence; distinguish implemented native behavior from pending integration."
       ],
       "submission": {
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-056-report.md",
         "sha256": "fa48bfc12c3506d29df67d12ce990d4c190f05a5fce5c543550de2e2d6e78160"
-      }
+      },
+      "independent_verification": "Original plain factory/source library/runtime binding/application semantics independently exercised by root OG060/062 original comparisons; precise typed masks corrected separately067. Generic AnimatorSet/blender implementation remains unported, not claimed by this research."
     },
     {
       "id": "OG-057",
@@ -3039,13 +3041,20 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "0c8820342569d0c32762f51f89286f298e0d2cb8",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Full Release/Debug native build and focused tests with actual original instruction comparisons.",
         "All24 global tracks and both retained Player graphs: live TRS, persistent masks/targets, original key scratch states/boundary/uint32 timing, rebinding/invalidation/lifetime, exact keys and root evaluation.",
         "Preserve existing original clock/body/root-stripping ordering and old clipped/root behavior. No manual gameplay."
-      ]
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-062.patch",
+        "sha256": "1d822fb53054c351e67645e789e790533d92366dbe20ddbb449bd379bbc0e282",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-062-report.md",
+        "report_sha256": "e9799afa7ee9da969bbd38bcc3b5031641796bb0e6b61c360332c7e82d783f2f"
+      },
+      "independent_verification": "Root full R/D builds and34CTests/config; independently executes original288 signed/duplicate/wrapped typed sampler cases,47160 full nodeTRS/flag records,31440 applications/scratch entries/config across all213 clips and655 profiles per Player model, same-root/force/rebind and float period proofs. Native dumphash8d315643e4c3c1b1eae04bba447e38c85953600df7fb1625ccea2afe90275846 identical configs. Existing213roots/444clock/bothPlayer639samples and original91slerp+80synthetic+144retail old-pose cases pass."
     },
     {
       "id": "OG-063",
@@ -3215,6 +3224,82 @@
         "Exact original function/ownership evidence, targeted actual-original execution probes and raw retail coverage where useful.",
         "Frozen report/complete ignored research artifacts with source identity, limitations and reserved product-resource plan; no manual gameplay."
       ]
+    },
+    {
+      "id": "OG-068",
+      "description": "Implement genuine global actor/shadow graph ownership, reparenting and late frame dispatch.",
+      "scope": "Port actual addChild/removeChild/setParent/manager propagation/visibility ordering for supported retained actor and authored ordinary-shadow subtrees. Provide genuine global scene root type0x72676d73, ordered stable node pointers and hierarchy invalidation. Preserve source local TRS/cached matrices and first-child-only layer1. Transfer detached shadow node/resource ownership out of actor owner so actor teardown invalidates its pose and frees remaining actor graph while globally retained shadow remains alive. Do not retain an entire dead actor merely to preserve one moved shadow, or emulate a registry with callbacks/copies. Preserve pooled vs unpooled cleanup and genuine late onAnimate; no fake camera/render driver host.",
+      "symbols": [
+        "ISceneNode::addChild0x273479",
+        "removeChild0x2731f5",
+        "setParent0x273415",
+        "setSceneManager0x2727c9",
+        "CSceneManager::getType0x217329",
+        "notifyHierarchyChanged0x217725",
+        "Character::bindAnimation0x2f23fd and destructor0x2f2af5"
+      ],
+      "resources": [
+        "port/retail_actor_graph.h",
+        "port/retail_actor_graph.cpp",
+        "port/tests/retail_actor_graph.cpp",
+        "port/ACTOR_GRAPH.md",
+        "port/retail_actor_scene.h",
+        "port/retail_actor_scene.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-049",
+        "OG-055",
+        "OG-061",
+        "OG-062",
+        "OG-065",
+        "OG-067"
+      ],
+      "blockers": [
+        "OG055 owns actor graph header/source until independently verified;062 pose lifetime must remain compatible with actual shadow extraction."
+      ],
+      "assigned_agent": null,
+      "baseline": null,
+      "status": "BLOCKED",
+      "reservations_active": false,
+      "validation": [
+        "Actual original54 ownership/lifecycle/projection cases and additional manager propagation/hierarchy flag/lifetime cases compared against real Player/jail native graphs.",
+        "Pool reuse/unpooled teardown, independent visibility, unchanged local/cache bits on reparent, original child order/UID lookup/layer and late cache update. Native destruction/invalidation must occur at genuine record ownership boundaries.",
+        "Full R/D builds/CTests and pose/skin/source regressions; no manual gameplay."
+      ]
+    },
+    {
+      "id": "OG-069",
+      "description": "Recover genuine Character floor producer, placement and post-animation physics/scene order.",
+      "scope": "Read-only original investigation to unblock040 live outer actor host and065 true floor160 input. Trace Character floor sticking/height/normal/body/scene synchronization and full updatePosition, LevelObject::GetPosition/SetPosition, branch/callback/update ordering and mutable fields. Distinguish Character floor160 from animation rootHeight156, world cached vs local positions and original bodyXY*100 conversion/refilter timing. Produce exact smallest native implementation plan using existing retained scene/physics/height/clock components, no fabricated full host.",
+      "symbols": [
+        "Character::updatePosition0x2f42cd",
+        "LevelObject::SetPosition0x316861",
+        "Character::StickToFloor/height producer and original Character/Player outer Update callers"
+      ],
+      "resources": [
+        "worker-2/port/build/OG-069-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-034",
+        "OG-035",
+        "OG-036",
+        "OG-049",
+        "OG-065",
+        "OG-067"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "f95ae2d",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Exact original functions/dataflow and targeted actual-original execution/callback probes, all field identities and source constraints explicit.",
+        "Frozen report/ignored source artifacts with implementation resources/limits; no product or original-source edits and no manual gameplay."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -3230,7 +3315,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full Release/Debug builds and33CTests/config pass with corrected typed binding masks. Old implementation fails new regression in both configs; fixed typed/source owner/retention original gates pass. Retained full-pose062 and live bounds055 remain in progress."
+    "native_integration": "2026-11-25: Root complete Release/Debug builds and34CTests/config pass with OG062 retained pose. Root original full pose/flags/scratch288sampler and old-pose/catalogue/clock gates pass. OG055 bounds still under worker gates. No renderer changes since058/060 Vulkan31pixel/opening+98/111audit."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
