@@ -28,6 +28,7 @@ std::shared_ptr<RetailActorSceneSource> sourceFixture(bool secondShadowMesh = fa
     auto source = std::make_shared<RetailActorSceneSource>();
     auto &model = source->model;
     model.path = "graph.bdae";
+    model.materialCatalog.push_back({"fixture-material", {}});
     for (const char *uid : {"body", "shadow-mesh"}) {
         CityMesh m;
         m.name = uid;
@@ -47,15 +48,15 @@ std::shared_ptr<RetailActorSceneSource> sourceFixture(bool secondShadowMesh = fa
     };
     model.nodes = {node("body-container", "", -1), node("Bip01-node", "Bone", -1),
                    node("shadow-node", "", 1)};
-    model.nodes[0].geometry.push_back({"", "body", {}});
+    model.nodes[0].geometry.push_back({"", "body", {{"", "fixture-material", 0}}});
     model.nodes[0].instances.push_back({2, 0, "", "body-skin", false});
     model.nodes[1].translation = {2, 3, 4};
     model.nodes[2].translation = {.5f, -1.5f, 2.5f};
     model.nodes[2].scale = {.75f, .75f, .75f};
-    model.nodes[2].geometry.push_back({"", "shadow-mesh", {}});
+    model.nodes[2].geometry.push_back({"", "shadow-mesh", {{"", "fixture-material", 0}}});
     model.nodes[2].instances.push_back({3, 0, "", "shadow-mesh", false});
     if (secondShadowMesh) {
-        model.nodes[2].geometry.push_back({"", "shadow-mesh", {}});
+        model.nodes[2].geometry.push_back({"", "shadow-mesh", {{"", "fixture-material", 0}}});
         model.nodes[2].instances.push_back({3, 1, "", "shadow-mesh", false});
     }
     model.visualScenes.push_back({"visual", "visual", 0, model.nodes.size()});

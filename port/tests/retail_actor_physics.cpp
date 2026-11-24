@@ -443,6 +443,7 @@ void poolReuse() {
 }
 std::shared_ptr<RetailActorSceneSource> collisionSceneSource() {
     auto source = std::make_shared<RetailActorSceneSource>();
+    source->model.materialCatalog.push_back({"collision-material", {}});
     auto& model = source->model;
     model.path = "./actor.bdae";
     CityMesh mesh{};
@@ -454,7 +455,7 @@ std::shared_ptr<RetailActorSceneSource> collisionSceneSource() {
     CityNode body{}, bone{};
     body.name = "body-node"; body.parent = -1; body.rotation = {0,0,0,1}; body.scale = {1,1,1};
     body.instances.push_back({2,0,"","body-skin",false});
-    body.geometry.push_back({"", "body", {}});
+    body.geometry.push_back({"", "body", {{"", "collision-material", 0}}});
     bone.name = "Bip01-node"; bone.jointName = "Bone1"; bone.parent = -1;
     bone.rotation = {0,0,0,1}; bone.scale = {1,1,1}; bone.translation = {2,3,4};
     model.nodes = {body,bone};

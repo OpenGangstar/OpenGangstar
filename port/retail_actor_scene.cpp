@@ -388,6 +388,7 @@ RetailActorSceneMesh &RetailActorScene::ordinaryMesh(const std::string &uid) {
   mesh->sourceMesh = &*found;
   mesh->cachedBox = *found->rawBoundsCm;
   mesh->bufferState.resize(found->buffers.size());
+  mesh->sourceMaterials.resize(found->buffers.size()); // Actual embedded SMaterial ctor defaults.
   auto &result = *mesh;
   liveMeshes.push_back(std::move(mesh));
   return result;
@@ -413,6 +414,38 @@ RetailActorSceneMesh &RetailActorScene::skinMesh(const std::string &uid) {
   liveMeshes.push_back(std::move(mesh));
   return result;
 }
+void RetailActorScene::bindMaterials(RetailActorSceneNode &node,
+                                    const CityGeometryRef &geometry,
+                                    uint32_t instanceKind) {
+  const auto count = node.runtimeMesh->geometry().buffers.size();
+  // Original reserves exactly this many raw binding slots: missing entries
+  // remain uninitialized, while extra authored entries can overwrite capacity.
+  // Check that unsafe domain rather than fabricate a default material.
+  if (geometry.materials.size() != count)
+    throw std::runtime_error("Unsupported actor material/buffer binding count mismatch.");
+  node.materials.reserve(count);
+  for (const auto &binding : geometry.materials) {
+    // Controller binding0x2964c9 selects the local index even if the unused
+    // path/name fields disagree. Ordinary geometry0x2966f9 has an external arm.
+    if (instanceKind == 3 && !binding.sourcePath.empty())
+      throw std::runtime_error("External actor material database binding is unsupported.");
+    if (!binding.sourceIndex || *binding.sourceIndex >= decoded->model.materialCatalog.size())
+      throw std::runtime_error("Missing original actor material source index.");
+    const auto index = *binding.sourceIndex;
+    std::string_view uid = decoded->model.materialCatalog[index].uid;
+    uid = uid.substr(0, uid.find('\0'));
+    const auto found = std::find_if(materials.begin(), materials.end(),
+                                   [&](const auto &owner) { return owner->uid() == uid; });
+    if (found != materials.end())
+      node.materials.push_back(*found);
+    else {
+      auto owner = std::shared_ptr<RetailActorMaterial>(new RetailActorMaterial(decoded, index));
+      materials.push_back(owner);
+      node.materials.push_back(std::move(owner));
+    }
+  }
+}
+
 RetailActorScene::RetailActorScene(
     std::shared_ptr<const RetailActorSceneSource> source)
     : decoded(std::move(source)) {
@@ -483,6 +516,7 @@ RetailActorScene::RetailActorScene(
                                     : retailSceneMeshRuntimeType(model.path);
               auto &child = add(type, &container, mesh.uid());
               child.runtimeMesh = &mesh;
+              bindMaterials(child, ref, instance.kind);
             } else if (instance.kind == 3) {
               if (!instance.localSpline || !instance.sourcePath.empty())
                 throw std::runtime_error(

@@ -187,6 +187,7 @@ std::shared_ptr<RetailActorSceneSource> actorFixture(bool repeated = false) {
     auto result = std::make_shared<RetailActorSceneSource>();
     auto &model = result->model;
     model.path = "./bounds.bdae";
+    model.materialCatalog.push_back({"fixture-material", {}});
     CityMesh geometry;
     geometry.name = "body";
     geometry.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
@@ -198,7 +199,7 @@ std::shared_ptr<RetailActorSceneSource> actorFixture(bool repeated = false) {
     container.parent = -1;
     container.rotation = {0, 0, 0, 1};
     container.scale = {1, 1, 1};
-    container.geometry.push_back({"", "body", {}});
+    container.geometry.push_back({"", "body", {{"", "fixture-material", 0}}});
     container.instances.push_back({2, 0, "", "body-skin", false});
     model.nodes.push_back(container);
     CityNode joint{};

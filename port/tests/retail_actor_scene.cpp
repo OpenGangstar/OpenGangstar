@@ -41,14 +41,15 @@ std::shared_ptr<RetailActorSceneSource> fixture() {
   auto source = std::make_shared<RetailActorSceneSource>();
   auto &scene = source->model;
   scene.path = "./actor.bdae";
+  scene.materialCatalog.push_back({"fixture-material", {}});
   scene.meshes = {mesh("body"), mesh("shadow")};
   scene.nodes = {node("body-node", "", -1), node("Bip01-node", "Bone1", -1),
                  node("shadow-node", "", 1), node("Bip01-node", "Bone1", -1)};
   scene.nodes[1].translation = {2, 3, 4};
   scene.nodes[3].translation = {50, 60, 70};
-  scene.nodes[0].geometry.push_back({"", "body", {}});
+  scene.nodes[0].geometry.push_back({"", "body", {{"", "fixture-material", 0}}});
   scene.nodes[0].instances.push_back({2, 0, "", "body-skin", false});
-  scene.nodes[2].geometry.push_back({"", "shadow", {}});
+  scene.nodes[2].geometry.push_back({"", "shadow", {{"", "fixture-material", 0}}});
   scene.nodes[2].instances.push_back({3, 0, "", "shadow", false});
   scene.visualScenes.push_back({"visual-uid", "visual-display", 0, 4});
   CitySkin skin{};
@@ -348,7 +349,7 @@ void repeatedResources() {
       other.controllerUid = controller = "other-skin";
       source->skins.push_back(std::move(other));
     }
-    repeated.geometry.push_back({"", geometry, {}});
+    repeated.geometry.push_back({"", geometry, {{"", "fixture-material", 0}}});
     repeated.instances.push_back(
         {skinned ? 2u : 3u, 0, "", skinned ? controller : geometry, false});
     source->model.nodes.push_back(std::move(repeated));

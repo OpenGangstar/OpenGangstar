@@ -28,17 +28,17 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-080",
+      "assignment": "OG-082",
       "status": "IN_PROGRESS",
-      "baseline": "5b4692e"
+      "baseline": "445e143"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-079",
+      "assignment": "OG-084",
       "status": "IN_PROGRESS",
-      "baseline": "5b4692e"
+      "baseline": "445e143"
     }
   ],
   "unavailable_worker": {
@@ -3676,7 +3676,8 @@
         "port/tests/retail_actor_shadow.cpp",
         "port/tests/retail_skin_bounds.cpp",
         "port/tests/retail_actor_floor.cpp",
-        "port/tests/retail_actor_position.cpp"
+        "port/tests/retail_actor_position.cpp",
+        "port/tests/retail_actor_physics.cpp"
       ],
       "priority": 1,
       "complexity": "high",
@@ -3690,13 +3691,15 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "5b4692e",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Root-reviewed076 original ownership/order/identity/drop sequences match real native owners in R/D, including shared aliases and detachedshadows.",
         "Ordered source catalog/material-binding indices raw-exact, first UID/case behavior, reject malformed/externaldomain withoutfallback.",
         "Separate source-buffer state used for074, no node/embedded conflation; existing all41CTest/core/retail gates and sourceunchanged."
-      ]
+      ],
+      "integration_adjustment": "Root075 introduced another explicit syntheticmesh fixture after079baseline; root adds its authored materialcatalog/sourceIndex metadata after repro42CTestfailure. No productionfallback.",
+      "independent_verification": "Root full R/D42CTests/config after addingexplicitmaterialmetadata tointervening075syntheticcollisionfixture.46actualoriginal materialsnapshots/460state+refwords+14sourcewords exact/config;359rawcatalogues/1366indices+UIDs/10928preparedwords exact. Independentlyreplayed4235bindinginventory+originalunsafe0/2countcontrols.48actualGPUpixelchecks andopening smoke/config passtemporarysaves;98decode/0fails/exact111missingpathset unchanged. Game/newtestPE32+AMD64. Prepared nodeowners/sourcebufferstates distinct, movedmaterials retainimmutableSource notActor; dynamicimage/external/fullrendererhost remain separate."
     },
     {
       "id": "OG-080",
@@ -3723,12 +3726,13 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "5b4692e",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Actual original plain animator factory/timeline/bind ownership and both actual Player graph identities/order; source-backed dynamic state access, no unsupportedGenericSet inference.",
         "Concrete next nativehost signatures/resources and exact remaining prerequisites; no original/product edits."
-      ]
+      ],
+      "independent_verification": "Root independently replayed actualconst24trackfactory, bothfullyfinalizedPlayer Characterbinds, sharedmutabletimeline retention/cleanup/23node-retainers,213rawgetters and15profiles74timelineupdates. Genuine293da9finalizer provesrawdirty0->1/nativecorrect. Rootnew082mutabletimeline active; pre-attachmentgraphseam required for nextconcretehost, never reorderactorattach."
     },
     {
       "id": "OG-081",
@@ -3759,6 +3763,99 @@
         "Existing command/arrival/rootbody regressions and full R/D tests; no original edits."
       ],
       "independent_verification": "Root full R/D41CTests/config.10896actualoriginal request/context/weapon combinations incl signedextremes compare returnvalues and true context-memory/weapon access traces exactly/config. R/D native dump SHAa9a616824c70acb592c695dcb876ebd6a403c618cce7258d1cc11cfb1743e6d7. Existing command/arrival/nativebody/rootmotion controls pass; affectedPE32+AMD64. Onecomplete mapping replaces movement-onlysubset, no outerUpdatehost claim."
+    },
+    {
+      "id": "OG-083",
+      "description": "Recover genuine default morph-to-skin constructed resources and single mutable weight owner.",
+      "scope": "Read-only next prerequisite074/040: actual default nonzero morph->skin construction on supplied vehicle BRES, source controller/base geometry/material/cache identities and runtime weights per fresh instance. Current native factory rejects all morph resources. Prove minimal shared scene/deformation integration without duplicate weights/palette/cache or fake nested source identity.",
+      "symbols": [
+        "CColladaFactory::createMorph0x29d27d",
+        "CColladaMorphingMesh constructor/source bindings",
+        "CColladaSkinnedMesh source construction0x2b1231"
+      ],
+      "resources": [
+        "port/build/reviews/OG-083/*"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-066",
+        "OG-070",
+        "OG-076"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "445e143",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original nonzero default factories execute for all supplied21morph->skin resources, exact source/weights/buffer/material identities.",
+        "Precise next native owner reservation/resource plan, no product/original edits."
+      ]
+    },
+    {
+      "id": "OG-084",
+      "description": "Recover exact Player target-facing and post-physics scene-update closure.",
+      "scope": "Read-only prerequisite040/072: actual _GetTarget/isFacingTarget/UpdateSceneNode and caller target lifetime/lookup/side-effect ordering. Reuse043heading/scene normalize and072real post-position; establish smallest genuine source-backed target field/reader binding without fake absent target or new fabricatedtargetmanager. No shared edits while079reviewed.",
+      "symbols": [
+        "PlayerTest::_GetTarget0x300db9",
+        "PlayerTest::isFacingTarget0x3025cd",
+        "PlayerTest::UpdateSceneNode0x302685",
+        "NPC::UpdateSceneNode0x2fd801"
+      ],
+      "resources": [
+        "worker-3/port/build/OG-084-*"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-043",
+        "OG-068",
+        "OG-072",
+        "OG-075"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "445e143",
+      "status": "RESERVED",
+      "reservations_active": true,
+      "validation": [
+        "Actual original target/no-target/getter-mutation order and exact facing bool/float threshold controls; sourcebounds and real actual node cached getters whereavailable.",
+        "Concrete next implementation interfaces/resources, originalproducer and lifetime gaps explicit; no product/original edits or gameplay."
+      ]
+    },
+    {
+      "id": "OG-082",
+      "description": "Port genuine mutable original timeline controller and indexed library lifetime.",
+      "scope": "Complete080 CTimelineController ctor/init/clip/range/jump/scale/loop/getters/update/callback semantics, owned typed x64state with shared immutable existing clipmetadata. Separate from Character detached clock; no second parser/clockreplacement, fabricated timeline or empty callback. Explicit unknown/unconfigured/invalid conversion domains, source signedinteger and strictfloatorder.",
+      "symbols": [
+        "CTimelineController ctor0x2b2a5d/update0x2b2ad9",
+        "jumpTo0x2b292d/setClip0x2b29c1+0x2b2951/init0x2b2979/setRange0x2b2981",
+        "Original timeline getters/loop/scale per080vtable"
+      ],
+      "resources": [
+        "port/retail_timeline.h",
+        "port/retail_timeline.cpp",
+        "port/tests/retail_timeline.cpp",
+        "port/TIMELINE.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-080",
+        "OG-060",
+        "OG-036"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "445e143",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "All213original getters and15profiles74updates match original definedstate/callbackorder in R/D; additional meaningful malformed/lifetime/floatwrapcontrols.",
+        "Oneactualshared immutable library+one mutabletimeline/object, native callback/userdata fullpointerwidth, no ARMoverlay or Characterclockconflation.",
+        "Full R/D build/tests PE32+AMD64, no original edits/manualgameplay."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -3774,7 +3871,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after078:2969original tracked sizes/SHA256 unchanged vs pre-migration baseline; originalsubmodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and userlocaledits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root R/D41CTests/config after081complete Character animationselection;10896actualoriginal results/access traces/config exact.075livegetter cases alreadyverified.074deformation waits079materialsource;079ownership and080timeline/hostresearch active."
+    "native_integration": "2026-11-25: Root fullR/D42CTests/config after079actor material ownership.46source material snapshots+359catalogues exact;48GPUpixels andstartup each pass, exact111missingpaths unchanged.080originalfullfactory/bind/timeline replay verified;074/082/084 active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

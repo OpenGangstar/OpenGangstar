@@ -41,6 +41,8 @@ struct CityGeometryRef {
     struct MaterialRef {
         std::string sourcePath;
         std::string name;
+        // Original SInstanceMaterial+8. Unknown hand-built metadata is not index0.
+        std::optional<uint32_t> sourceIndex;
     };
     std::vector<MaterialRef> materials;
 };
@@ -82,6 +84,13 @@ struct CityMaterial {
     std::vector<std::string> additionalTextures;
     std::array<CityTextureTransform, 2> textureTransforms{
         cityIdentityTextureTransform, cityIdentityTextureTransform};
+};
+
+// Literal source-table order, including duplicate/case-colliding UIDs. The
+// renderer's compatibility map remains a separate name lookup.
+struct CityMaterialSource {
+    std::string uid;
+    CityMaterial material;
 };
 
 struct CityNodeInstance {
@@ -183,6 +192,7 @@ struct CityScene {
     std::vector<CityVisualSceneInstance> visualScenes;
     std::vector<std::string> lightUids; // SCollada+44, 24-byte SLight records.
     bool hasSceneAnimations = false; // Static scene binding rejects unported animator behavior.
+    std::vector<CityMaterialSource> materialCatalog;
 };
 
 struct CityLodGroup {

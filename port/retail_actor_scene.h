@@ -2,6 +2,7 @@
 
 #include "retail_scene.h"
 #include "retail_skin_bounds.h"
+#include "retail_actor_material.h"
 
 #include <list>
 #include <memory>
@@ -54,6 +55,15 @@ public:
     return jointPointers;
   }
   const std::vector<RetailSceneMatrix> &skinMatrices();
+  // Original embedded CColladaMeshBuffer material; skin proxies borrow the
+  // same base-buffer object. This is separate from prepared node materials.
+  RetailMaterialState &sourceMaterial(std::size_t index) {
+    return base ? base->sourceMaterial(index) : sourceMaterials.at(index);
+  }
+  const RetailMaterialState &sourceMaterial(std::size_t index) const {
+    return base ? static_cast<const RetailActorSceneMesh &>(*base).sourceMaterial(index)
+                : sourceMaterials.at(index);
+  }
   // Shares the original skin dirty flag with skinMatrices(). Explicit compute
   // forces genuine cache preparation even clean; palette-first can leave an
   // older cached box visible. Ordinary meshes retain their actual raw box.
@@ -90,6 +100,7 @@ private:
   std::vector<const RetailSceneMatrix *> jointPointers;
   std::vector<RetailSceneMatrix> matrices;
   std::vector<std::optional<std::uint8_t>> bufferState;
+  std::vector<RetailMaterialState> sourceMaterials;
   // Required raw source geometry seeds this once during construction.
   RetailSkinBoundingBox cachedBox{};
   bool dirty = true, bindIdentity = false, enabled = true;
@@ -110,6 +121,10 @@ public:
     return childNodes;
   }
   RetailActorSceneMesh *mesh() const { return runtimeMesh; }
+  std::size_t materialCount() const { return materials.size(); }
+  const std::shared_ptr<RetailActorMaterial> &materialOwner(std::size_t index) const {
+    return materials.at(index);
+  }
   const std::array<float, 3> &position() const { return localPosition; }
   const RetailSceneQuaternion &rotation() const { return localRotation; }
   const std::array<float, 3> &scale() const { return localScale; }
@@ -172,6 +187,7 @@ private:
   RetailActorSceneNode *parentNode = nullptr;
   std::vector<RetailActorSceneNode *> childNodes;
   RetailActorSceneMesh *runtimeMesh = nullptr;
+  std::vector<std::shared_ptr<RetailActorMaterial>> materials;
   RetailActorGraph *manager = nullptr;
   std::weak_ptr<RetailActorGraphState> managerState;
   std::int32_t layer = 0;
@@ -205,6 +221,9 @@ public:
   const std::vector<std::unique_ptr<RetailActorSceneMesh>> &meshes() const {
     return liveMeshes;
   }
+  const std::vector<std::shared_ptr<RetailActorMaterial>> &materialLibrary() const {
+    return materials;
+  }
 
 private:
   friend class RetailActorGraph;
@@ -214,8 +233,10 @@ private:
                             std::string name = {});
   RetailActorSceneMesh &ordinaryMesh(const std::string &);
   RetailActorSceneMesh &skinMesh(const std::string &);
+  void bindMaterials(RetailActorSceneNode &, const CityGeometryRef &, uint32_t instanceKind);
   std::shared_ptr<const RetailActorSceneSource> decoded;
   std::vector<std::unique_ptr<RetailActorSceneNode>> liveNodes;
   std::vector<std::unique_ptr<RetailActorSceneMesh>> liveMeshes;
+  std::vector<std::shared_ptr<RetailActorMaterial>> materials;
   RetailActorSceneNode *rootNode = nullptr;
 };

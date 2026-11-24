@@ -899,7 +899,9 @@ void readMaterials(const BresReader& bres, CityScene& scene)
             resolved.state.setFlag(512, false);
             resolved.state.setFlag(1024, false);
         }
-        scene.materials.emplace(bres.string(bres.word(material)), std::move(resolved));
+        const auto uid = bres.string(bres.word(material));
+        scene.materialCatalog.push_back({uid, resolved});
+        scene.materials.emplace(uid, std::move(resolved));
     }
 }
 
@@ -980,8 +982,9 @@ void readNodes(const BresReader& bres, CityScene& scene, uint32_t count, uint32_
             for (uint32_t k = 0; k < materialCount; ++k) {
                 const auto material = materialTable + k * 20;
                 const auto source = bres.word(material);
+                const auto url = bres.word(material + 4);
                 geometry.materials.push_back({source ? bres.string(source) : std::string{},
-                    readFragment(bres, bres.word(material + 4))});
+                    url ? readFragment(bres, url) : std::string{}, bres.word(material + 8)});
             }
             if (geometry.sourcePath.empty() &&
                 std::none_of(scene.meshes.begin(), scene.meshes.end(), [&](const CityMesh& mesh) {
