@@ -1,6 +1,7 @@
 #pragma once
 
 #include "city_assets.h"
+#include "retail_vertex_streams.h"
 
 #include <array>
 #include <cstddef>
@@ -25,5 +26,8 @@ struct RetailSkinningOutput {
 // Zero influences/zero total retain original nonfinite arithmetic, never a bind
 // pose fallback. Checked structural errors fail before any output writes.
 void retailSkinVertexRange(const CityMesh&, const CitySkin&,
+    const std::vector<RetailSkinningMatrix>& skeletonCache,
+    std::size_t firstVertex, std::size_t endVertex, RetailSkinningOutput&);
+void retailSkinVertexRange(const RetailVertexStreams&, const CitySkin&,
     const std::vector<RetailSkinningMatrix>& skeletonCache,
     std::size_t firstVertex, std::size_t endVertex, RetailSkinningOutput&);

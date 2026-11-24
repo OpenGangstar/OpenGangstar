@@ -16,24 +16,24 @@ float linearComponent(const RetailSkinningMatrix& matrix, const std::array<float
 }
 }
 
-void retailSkinVertexRange(const CityMesh& mesh, const CitySkin& skin,
+void retailSkinVertexRange(const RetailVertexStreams& mesh, const CitySkin& skin,
     const std::vector<RetailSkinningMatrix>& skeletonCache,
     size_t firstVertex, size_t endVertex, RetailSkinningOutput& output)
 {
-    if (skin.meshName != mesh.name || skin.vertices.size() != mesh.positions.size() ||
+    if (std::string_view(skin.meshName) != mesh.sourceName || skin.vertices.size() != mesh.currentPositions.size() ||
         skeletonCache.size() != skin.joints.size())
         throw std::runtime_error("Skin source geometry or final joint-cache identity/count mismatch.");
-    if (firstVertex > endVertex || endVertex > mesh.positions.size() || output.positions.size() < endVertex)
+    if (firstVertex > endVertex || endVertex > mesh.currentPositions.size() || output.positions.size() < endVertex)
         throw std::runtime_error("Invalid original skin vertex range/output capacity.");
-    const bool normals = !mesh.normals.empty() && !output.normals.empty();
-    if (normals && (!mesh.floatNormals || mesh.normals.size() < endVertex || output.normals.size() < endVertex))
+    const bool normals = !mesh.currentNormals.empty() && !output.normals.empty();
+    if (normals && (!mesh.floatNormals || mesh.currentNormals.size() < endVertex || output.normals.size() < endVertex))
         throw std::runtime_error("Original CPU skinning requires complete float normal streams.");
 
     // Checked native input adaptation: reject malformed used references before
     // partial output writes. Zero weights skip their joint read as in the game.
     for (size_t vertex = firstVertex; vertex < endVertex; ++vertex) {
-        finiteVector(mesh.positions[vertex]);
-        if (normals) finiteVector(mesh.normals[vertex]);
+        finiteVector(mesh.currentPositions[vertex]);
+        if (normals) finiteVector(mesh.currentNormals[vertex]);
         if (skin.vertices[vertex].size() > 255)
             throw std::runtime_error("Skin influence count exceeds the original byte-sized domain.");
         for (const auto& influence : skin.vertices[vertex]) {
@@ -56,9 +56,9 @@ void retailSkinVertexRange(const CityMesh& mesh, const CitySkin& skin,
             if (weight == 0.f) continue;
             const auto& matrix = skeletonCache[influence.joint];
             for (size_t axis = 0; axis < 3; ++axis) {
-                const float transformed = linearComponent(matrix, mesh.positions[vertex], axis) + matrix[12 + axis];
+                const float transformed = linearComponent(matrix, mesh.currentPositions[vertex], axis) + matrix[12 + axis];
                 position[axis] += weight * transformed;
-                if (normals) normal[axis] += weight * linearComponent(matrix, mesh.normals[vertex], axis);
+                if (normals) normal[axis] += weight * linearComponent(matrix, mesh.currentNormals[vertex], axis);
             }
             total += weight;
         }
@@ -72,4 +72,12 @@ void retailSkinVertexRange(const CityMesh& mesh, const CitySkin& skin,
         output.positions[vertex] = position;
         if (normals) output.normals[vertex] = normal;
     }
+}
+
+void retailSkinVertexRange(const CityMesh& mesh, const CitySkin& skin,
+    const std::vector<RetailSkinningMatrix>& skeletonCache,
+    size_t firstVertex, size_t endVertex, RetailSkinningOutput& output)
+{
+    retailSkinVertexRange(RetailVertexStreams{mesh.name, mesh.positions, mesh.normals, mesh.floatNormals},
+                         skin, skeletonCache, firstVertex, endVertex, output);
 }

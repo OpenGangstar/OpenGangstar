@@ -3345,8 +3345,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "f14b77a",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Preserve existing original55+6skin and48+126morph comparisons and fullR/D tests.",
         "Original-backed current morph-output->skin composition, borrowed-address/no-topology-copy and absent-normal/range/sourceidentity/zero-weight controls.",
@@ -3357,7 +3357,8 @@
         "sha256": "b1d1b4b98f9fae8723518f61076f58e1c61f8cb2ce3337c6e5d47f5f8e32709f",
         "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-070-report.md",
         "report_sha256": "aa0ca099be4b23517db94d4b42f6a53f4fca65318eb3b9702aac14e0c11a4f90"
-      }
+      },
+      "independent_verification": "Root fresh Release/Debug builds39CTests/config. All five native dumps/config unchanged hashes. Actual original55+6skin,48+126morph and21direct morph-pointer-to-skin chains/config match:468intermediate+504final chain words, all original finite/NaN classifications retained. Borrowed current streams only; no process allocator/production host claim."
     },
     {
       "id": "OG-071",
@@ -3461,7 +3462,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "3587d97",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Exact original call/field/function evidence; targeted actual-original probes including live matrix/box/animation mutations and side-effect order where supported.",
@@ -3482,7 +3483,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full R/D builds38CTests/config pass after072; source original post-body/reset/down gate values and no-refilter native controls pass,071floor dump unchanged. 064render and070borrowed streams frozen awaiting root review;068globalgraph and073livecollision research active."
+    "native_integration": "2026-11-25: Root R/D39CTests/config pass after070. All original skin/morph/composition outputs unchanged. 064 rendering and073 live-filter research frozen awaiting review;068 global graph finalizing."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

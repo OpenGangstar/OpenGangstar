@@ -13,3 +13,6 @@
 void retailMorphVertexRange(const CityMesh &currentSource, const CityMorphController &controller,
                             const std::vector<CityMesh> &targetGeometry, std::size_t firstVertex,
                             std::size_t endVertex, RetailSkinningOutput &output);
+void retailMorphVertexRange(const RetailVertexStreams &currentSource, const CityMorphController &controller,
+                            const std::vector<CityMesh> &targetGeometry, std::size_t firstVertex,
+                            std::size_t endVertex, RetailSkinningOutput &output);

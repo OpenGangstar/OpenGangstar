@@ -100,6 +100,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_vertex_streams_test tests/retail_vertex_streams.cpp)
+    target_link_libraries(retail_vertex_streams_test PRIVATE opengangstar_physics opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_vertex_streams_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_vertex_streams COMMAND retail_vertex_streams_test)
+
     add_executable(retail_actor_position_test tests/retail_actor_position.cpp)
     target_link_libraries(retail_actor_position_test PRIVATE opengangstar_physics opengangstar_assets)
     if(MSVC)

@@ -39,13 +39,13 @@ void addWeighted(Stream &destination, const Stream &source, float weight, size_t
 }
 } // namespace
 
-void retailMorphVertexRange(const CityMesh &source, const CityMorphController &controller,
+void retailMorphVertexRange(const RetailVertexStreams &source, const CityMorphController &controller,
                             const std::vector<CityMesh> &targetGeometry, size_t first, size_t end,
                             RetailSkinningOutput &output) {
-    if (source.name != controller.source)
+    if (source.sourceName != std::string_view(controller.source))
         throw std::runtime_error(
             "Morph current source identity does not match the authored controller source.");
-    if (first > end || end > source.positions.size() || output.positions.size() < end)
+    if (first > end || end > source.currentPositions.size() || output.positions.size() < end)
         throw std::runtime_error("Invalid original morph vertex range/output capacity.");
     if (controller.targets.size() >= std::numeric_limits<uint32_t>::max())
         throw std::runtime_error("Original morph target count exceeds the source-plus-target uint32 domain.");
@@ -72,13 +72,13 @@ void retailMorphVertexRange(const CityMesh &source, const CityMorphController &c
         // skipped; only subsequent nonzero target geometries are accumulated.
     }
 
-    validateStream(source.positions, first, end);
+    validateStream(source.currentPositions, first, end);
     const bool outputNormals = !output.normals.empty();
-    const bool initializeNormals = outputNormals && !source.normals.empty();
+    const bool initializeNormals = outputNormals && !source.currentNormals.empty();
     if (initializeNormals) {
         if (!source.floatNormals)
             throw std::runtime_error("Original morph requires used float normal streams.");
-        validateStream(source.normals, first, end);
+        validateStream(source.currentNormals, first, end);
         if (output.normals.size() < end)
             throw std::runtime_error("Short original morph output normal stream.");
     }
@@ -103,9 +103,9 @@ void retailMorphVertexRange(const CityMesh &source, const CityMorphController &c
         }
     }
 
-    setWeighted(output.positions, source.positions, initialWeight, first, end);
+    setWeighted(output.positions, source.currentPositions, initialWeight, first, end);
     if (initializeNormals)
-        setWeighted(output.normals, source.normals, initialWeight, first, end);
+        setWeighted(output.normals, source.currentNormals, initialWeight, first, end);
     for (size_t i = firstAddedTarget; i < controller.targets.size(); ++i) {
         const auto &target = controller.targets[i];
         if (target.weight == 0.f)
@@ -115,4 +115,11 @@ void retailMorphVertexRange(const CityMesh &source, const CityMorphController &c
         if (outputNormals && !mesh.normals.empty())
             addWeighted(output.normals, mesh.normals, target.weight, first, end);
     }
+}
+
+void retailMorphVertexRange(const CityMesh &source, const CityMorphController &controller,
+                            const std::vector<CityMesh> &targetGeometry, size_t first, size_t end,
+                            RetailSkinningOutput &output) {
+    retailMorphVertexRange(RetailVertexStreams{source.name, source.positions, source.normals, source.floatNormals},
+                           controller, targetGeometry, first, end, output);
 }
