@@ -21,24 +21,24 @@
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
       "assignment": "OG-009",
-      "status": "NEEDS_REVISION",
+      "status": "AWAITING_REVIEW",
       "baseline": "89e4015"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "f5723dd"
+      "assignment": "OG-017",
+      "status": "RESERVED",
+      "baseline": "pending verified OG016 commit"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "f5723dd"
+      "assignment": "OG-015",
+      "status": "IN_PROGRESS",
+      "baseline": "eb7368c"
     }
   ],
   "unavailable_worker": {
@@ -468,7 +468,8 @@
         "OG-011",
         "OG-012",
         "OG-013",
-        "OG-014"
+        "OG-014",
+        "OG-015"
       ],
       "blockers": [
         "Original customfilter and coreheight/cliff contracts must be implemented or accounted for; no no-op terrain/steering adapters.",
@@ -601,7 +602,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "89e4015",
-      "status": "NEEDS_REVISION",
+      "status": "AWAITING_REVIEW",
       "validation": [
         "Original selector precedence and fixed-width BRES fields; independent1366-material counts and concrete hospital/fire/health-crate fixtures.",
         "Layer0-only game alpha-reference override after actual instance material resolution.",
@@ -618,7 +619,13 @@
       "review_requests": [
         "Resolve effects by vector index directly; name-keyed map still collapses indexed identities and is unnecessary.",
         "Verify material+12 null-target guard against original postload/prepare behavior before retaining obsolete URL-dependent skipping."
-      ]
+      ],
+      "revision": {
+        "patch_sha256": "b616692e46761bece3588e766e45b18748106b176dddc7551582778a7d5f735f",
+        "resolution": "Direct vector effect-index identity and removal of obsolete material+12 URL guard; original null-effect fallback not invented.",
+        "tests": "Actual serializedBRES fixtures with duplicateeffectnames/distinctindexedvalues,nulltargets,andinvalidindices; worker fullretail/GPU/CTest gates pass.",
+        "source_image_override": "Original+36 is an unconditional layer0 override after effecttextures, not an empty-effect fallback. Actual-loader fixture covers conflicting nonempty override; four extra light-mesh bindings are original gloweffects texture overrides."
+      }
     },
     {
       "id": "OG-011",
@@ -806,7 +813,8 @@
         "Integration fullx64Releasebuild and7CTests passed; DebugBox2D+retailfilter2tests passed withassertions.",
         "Release/Debug filtertests verifiedAMD64PE32+; nativeVulkanopening smoke returned0.",
         "Intervening queue/height documentation does not affect submitted source/buildinterfaces."
-      ]
+      ],
+      "integration_commit": "eb7368c"
     },
     {
       "id": "OG-014",
@@ -862,6 +870,145 @@
         "Independent original ZIP bytecounts/SHA256 confirm exact navigation and heightmap fixtures cited.",
         "Original identities match existing native CityNavigation buffer/indexOffset/lane/overlap representations.",
         "Documentation-only change; no native algorithm or runtime/matching completion claim."
+      ],
+      "integration_commit": "6c267cf"
+    },
+    {
+      "id": "OG-016",
+      "description": "Resolve remaining original Box2D source-comparison differences and apply only evidence-backed native fidelity corrections.",
+      "scope": "Bounded analysis of37 remaining per-translation-unit comparison differences, separating compiler/header/padding effects from actual source/settings differences. Change native source adaptations only when original behavior is proven; no forced byte matches or original project edits.",
+      "symbols": [
+        {
+          "signature": "Remaining weak math, broad-phase, polygon, island and joint comparison entries",
+          "address": null
+        }
+      ],
+      "resources": [
+        "port/BOX2D_PARITY.md",
+        "port/cmake/Box2D.cmake",
+        "port/tests/box2d.cpp"
+      ],
+      "priority": 2,
+      "complexity": "high",
+      "dependencies": [
+        "OG-011",
+        "OG-013"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "eb7368c",
+      "status": "MERGED",
+      "validation": [
+        "Exact comparison inventory with duplicate weak symbols distinguished; original compiler/header evidence and no full-match overclaim.",
+        "If behavior changes, independent numeric/physics regression cases and Release/Debug gates.",
+        "Native alignment adaptations and genuine64-bit layouts must remain intact.",
+        "Original ARM source/tables remain unchanged; research artifacts stay ignored."
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-016.patch",
+        "sha256": "ef5ed4bc1d7677de3d471a45f3011d5b5f15ea7077f6a0c4204d69b1ba156866",
+        "files": [
+          "port/BOX2D_PARITY.md"
+        ],
+        "implementation": false
+      },
+      "reservations_active": false,
+      "independent_validation": [
+        "Reviewed all37 row classifications, five unresolved bodies, external-call/relocation caveats and native-runtime boundaries.",
+        "Independently verified original/limit55 comparison SHA256 and summary counts against research artifacts; no runtime change supported.",
+        "No intervening main changes overlap the new document; no original ARM or native code changed."
+      ]
+    },
+    {
+      "id": "OG-015",
+      "description": "Implement original ordinary terrain-height query and owned cliff-body backend using decoded original identities and native Box2D.",
+      "scope": "Real native terrain component for the verified no-jump terrain path: original seed/neighbor/overlap order,markers/cache/sentinel,state mutations, exact cliff strips and ownership. Complete literal control-flow trace before coding unresolved reseed/degenerate branches; do not use nearest-Z, epsilon, slide or empty edge callback substitutes.",
+      "symbols": [
+        {
+          "signature": "PhysicAttributes::GetHeight(int,vector3df const&,bool,bool)",
+          "address": "0x0031eb99"
+        },
+        {
+          "signature": "PhysicAttributes::GetHeight(vector3df const&,int,bool)",
+          "address": "0x0031ff49"
+        },
+        {
+          "signature": "PhysicAttributes::SetHeightAttributes overloads",
+          "address": "0x0031ad31 / 0x0031b3e9"
+        },
+        {
+          "signature": "PhysicAttributes::AddCollisionShapes(int,int)",
+          "address": "0x0031e285"
+        },
+        {
+          "signature": "PhysicAttributes::UpdateEdgesCollisions(int)",
+          "address": "0x0031e99d"
+        }
+      ],
+      "resources": [
+        "port/retail_height.cpp",
+        "port/retail_height.h",
+        "port/tests/retail_height.cpp",
+        "port/CMakeLists.txt"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-011",
+        "OG-013",
+        "OG-014"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "eb7368c",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Actual original buffer/indexOffset identity, lane7 visit state and ordered/phase-specific overlaps; retain separate roadFlags.",
+        "Synthetic exact-height/order/cache/state/boundary fixtures and automated supplied-asset enumeration.",
+        "Real native Box2D local cliff bodies with original geometry/filter/friction, duplicate-anchor behavior and safe documented ownership/capacity handling.",
+        "No jump/controller/steering completeness claim; explicit unsupported boundary only where required and documented.",
+        "Release/Debug physics and full native regression/smoke checks, no manual progression."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-017",
+      "description": "Port original destination obstruction query and polygon adjustment with real native Box2D shapes and body metadata.",
+      "scope": "Reconstruct both canGoToPoint overloads and exact accepted shape/interval/adjustment branches before implementation. Use existing RetailPhysicsBodyData; no generic wall slide or empty callback substitutes. Keep unknown branch restrictions explicit.",
+      "symbols": [
+        {
+          "signature": "LevelObject::canGoToPoint(point, hit, adjusted)",
+          "address": "0x00317fb5"
+        },
+        {
+          "signature": "LevelObject::canGoToPoint(point)",
+          "address": "0x00318be5"
+        }
+      ],
+      "resources": [
+        "port/retail_steering.h",
+        "port/retail_steering.cpp",
+        "port/tests/retail_steering.cpp",
+        "port/STEERING.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-011",
+        "OG-012",
+        "OG-013"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "pending verified OG016 commit",
+      "status": "RESERVED",
+      "reservations_active": true,
+      "validation": [
+        "Exact3D normalization, category margins, query100 cap/order, metadata/group/sensor filters, strict hit selection and both segment casts.",
+        "Original polygon/differing-height/vehicle-adjustment evidence; no guessed slide or first-hit third-output substitute.",
+        "Actual native Box2D fixtures with independent expected geometry, height, tie, boundary and negative cases.",
+        "Release/Debug build and relevant gates; do not edit CMake while OG015 owns it. Request reservation when integration wiring needed.",
+        "Original ARM read-only; no gameplay progression."
       ]
     }
   ],
