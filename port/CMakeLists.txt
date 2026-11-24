@@ -54,6 +54,7 @@ add_library(opengangstar_assets STATIC
     retail_animation.cpp
     retail_actor_animation.cpp
     retail_skinning.cpp
+    retail_morph.cpp
     filesystem.cpp
     retail_audio.cpp
     retail_radio.cpp
@@ -97,6 +98,20 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(animation_library_test tests/animation_library.cpp)
+    target_link_libraries(animation_library_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(animation_library_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME animation_library COMMAND animation_library_test)
+
+    add_executable(retail_morph_test tests/retail_morph.cpp)
+    target_link_libraries(retail_morph_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_morph_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_morph COMMAND retail_morph_test)
+
     add_executable(retail_actor_scene_test tests/retail_actor_scene.cpp)
     target_link_libraries(retail_actor_scene_test PRIVATE opengangstar_physics)
     if(MSVC)
@@ -297,4 +312,8 @@ endif()
 
 if(MSVC)
     set_source_files_properties(retail_skinning.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict;/we4302;/we4311;/we4312")
+endif()
+
+if(MSVC)
+    set_source_files_properties(retail_morph.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict;/we4302;/we4311;/we4312")
 endif()

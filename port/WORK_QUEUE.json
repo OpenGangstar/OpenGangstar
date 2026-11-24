@@ -20,24 +20,24 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-059",
+      "assignment": "OG-061",
       "status": "IN_PROGRESS",
-      "baseline": "3fbcff5"
+      "baseline": "bded90a"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-060",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "3fbcff5"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-058",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "a01e74f"
     }
   ],
@@ -2897,8 +2897,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "a01e74f",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original normalized/relative blend math for zero, signed, nonunit, cancellation and multiple-target weights, exact range/normal-stream rules.",
         "Automated supplied morph-controller enumeration and actual original comparisons using current source data; no fake base-pose substitution before skin.",
@@ -2909,7 +2909,8 @@
         "sha256": "e0443ad9b073d2fc4045912d791a4fa20142d45fb2f9737758fa71e8fd26c0aa",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-058-report.md",
         "report_sha256": "3797a194a9d3e35e66070e4d44685ab4ae21cb9fd6d3c29b838bce7031e9443c"
-      }
+      },
+      "independent_verification": "Root source review, full Release/Debug builds and 31 CTests/config; all 24 tracks/73176 raw keys plus 240 actual original animator comparisons/config, 48 synthetic/126 retail morph cases and 372348 original component bits/config match; legacy213 catalogue and both Player roots pass; AMD64 executables, unchanged98/111 texture audit and 31 Vulkan material pixel checks/config and successful automated opening smoke pass. No production morph driver or full scene host claimed."
     },
     {
       "id": "OG-059",
@@ -2959,8 +2960,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "3fbcff5",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Source-backed original functions and exact native/input identities; no guessed behavior.",
         "Applicable original execution probes and focused Release/Debug tests; no manual gameplay."
@@ -2970,7 +2971,31 @@
         "sha256": "331e11fc8fcbf12a3eb50ddf4a3a3f1660f2ae149526a8dad4fceb673fbfdde7",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-060-report.md",
         "report_sha256": "963aedb63afac166cfc612535fcbfa2ccb73eb0965d0f445c3af6ed20f1ed330"
-      }
+      },
+      "independent_verification": "Root source review, full Release/Debug builds and 31 CTests/config; all 24 tracks/73176 raw keys plus 240 actual original animator comparisons/config, 48 synthetic/126 retail morph cases and 372348 original component bits/config match; legacy213 catalogue and both Player roots pass; AMD64 executables, unchanged98/111 texture audit and 31 Vulkan material pixel checks/config and successful automated opening smoke pass. No production morph driver or full scene host claimed."
+    },
+    {
+      "id": "OG-061",
+      "description": "Recover original actor shadow registration, render-layer and frame lifecycle contracts.",
+      "scope": "Read-only original-source and execution research for genuine actor scene-host integration. Trace Character shadow creation, ownership, registration/removal, visibility, render-layer selection, projection and frame/update ordering. Identify exact functions, original addresses, real resources and missing production dependencies. Do not write product sources or fabricate host behavior.",
+      "symbols": [],
+      "resources": [
+        "worker-1/port/build/OG-061-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-049"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "bded90a",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original instruction/function evidence and targeted original execution probes where practical.",
+        "Report limitations, resource plan, source identities and reviewable ignored research artifacts. No manual gameplay."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -2986,7 +3011,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root complete Release/Debug builds and 28 CTests pass. Copied-height13062-record original corpora match per configuration; prior root CPU skin, RNG and pose gates pass. Last root31GPU/opening gates passed with OG047; no rendering code has changed since."
+    "native_integration": "2026-11-25: Root Release/Debug complete builds and 31 CTests/config pass. OG058/060 combined original morphology/library and old catalogue/root gates pass; full audit98 decoded/111 missing unchanged; automated Vulkan opening smoke passes both configurations with isolated temporary saves. All checked executables are PE32+ AMD64."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

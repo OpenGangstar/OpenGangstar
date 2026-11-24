@@ -362,6 +362,31 @@ struct CityAnimationClip {
     std::optional<CityAnimationSource> source; // Original indexed range, not a name-derived identity.
 };
 
+// Unclipped source data for the original plain animator. Times remain signed
+// source milliseconds; neither clip rebasing nor a second animation clock is
+// applied. Source order/UID and target UID are separate identities.
+struct CityAnimationLibraryKey {
+    int32_t timeMs;
+    std::array<float, 4> value;
+};
+
+struct CityAnimationLibraryTrack {
+    uint32_t sourceIndex;
+    std::string sourceUid, target;
+    CityAnimationTransform transform;
+    uint32_t interpolationSelector;
+    uint32_t inputSourceIndex, outputSourceIndex;
+    std::vector<CityAnimationLibraryKey> keys;
+};
+
+struct CityAnimationLibrary {
+    std::string path;
+    // Exact SCollada+12 word. The original plain animator uses nonzero to
+    // select shared key-index scratch; this is not an interpolation selector.
+    uint32_t commonCacheMetadata;
+    std::vector<CityAnimationLibraryTrack> tracks;
+};
+
 struct CityActorAnimation {
     uint32_t startMs;
     CityAnimationClip first;
@@ -998,6 +1023,8 @@ CityAnimationClip readCityParticleClip(const CityScene& scene);
 // Exact source-order/index catalogue. Names retain source case and duplicates;
 // legacy script-name lookup remains separate and case-insensitive.
 std::vector<CityAnimationClip> loadCityAnimationCatalog(FileSystemBase& assets, const std::string& path);
+CityAnimationLibrary readCityAnimationLibrary(const CityScene& scene);
+CityAnimationLibrary loadCityAnimationLibrary(FileSystemBase& assets, const std::string& path);
 std::vector<CityAnimationClip> loadCityDoorClips(FileSystemBase& assets, const std::string& path);
 void bindCityAnimationTracks(std::vector<CityAnimationClip>& clips, const CityScene& model);
 const CityScene& cityGeometryLibrary(const CityAssets& city, const CityScene& scene,

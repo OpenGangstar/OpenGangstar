@@ -1313,6 +1313,52 @@ int32_t signedBresWord(const BresReader& bres, uint32_t offset)
     return value;
 }
 
+// Shared record decoder for both the existing clipped consumers and the
+// original plain animator's complete library. Unknown properties remain explicit
+// so legacy consumers can retain their original skip behavior.
+struct AnimationChannelView {
+    std::string target;
+    std::optional<CityAnimationTransform> transform;
+    uint32_t components = 0;
+};
+
+AnimationChannelView readAnimationChannel(const BresReader& bres, uint32_t animation)
+{
+    if (bres.word(animation + 12) != 1 || bres.word(animation + 20) != 1 ||
+        bres.word(animation + 28) != 0) bres.fail();
+    const auto channel = bres.word(animation + 24);
+    bres.checkSpan(channel, 1, 16);
+    AnimationChannelView result{bres.string(bres.word(channel + 4)), {}, 0};
+    switch (bres.word(channel + 8)) {
+    case 1: result.transform = CityAnimationTransform::translation; result.components = 3; break;
+    case 4: result.transform = CityAnimationTransform::translationZ; result.components = 1; break;
+    case 5: result.transform = CityAnimationTransform::rotation; result.components = 4; break;
+    case 10: result.transform = CityAnimationTransform::scale; result.components = 3; break;
+    }
+    return result;
+}
+
+struct AnimationSampleView {
+    uint32_t selector, input, output, count, times, values;
+};
+
+AnimationSampleView readAnimationSamples(const BresReader& bres, uint32_t animation, uint32_t components)
+{
+    const auto sampler = bres.word(animation + 16);
+    bres.checkSpan(sampler, 1, 20);
+    const auto sourceCount = bres.word(animation + 4), sources = bres.word(animation + 8);
+    bres.checkSpan(sources, sourceCount, 12);
+    const auto input = bres.word(sampler + 4), output = bres.word(sampler + 8);
+    if (input >= sourceCount || output >= sourceCount) bres.fail();
+    const auto time = sources + input * 12, value = sources + output * 12;
+    if (bres.word(time) != 4 || bres.word(value) != 6) bres.fail();
+    const auto count = bres.word(time + 4), times = bres.word(time + 8), values = bres.word(value + 8);
+    bres.checkSpan(times, count, 4);
+    bres.checkSpan(values, count, components * 4);
+    if (bres.word(value + 4) != uint64_t(count) * components) bres.fail();
+    return {bres.word(sampler), input, output, count, times, values};
+}
+
 CityAnimationClip readClipIndexed(const CityScene& library, const CityScene* model, uint32_t index,
                                   const std::string& name, bool allowEmpty)
 {
@@ -1332,12 +1378,8 @@ CityAnimationClip readClipIndexed(const CityScene& library, const CityScene* mod
     bres.checkSpan(animations, animationCount, 36);
     for (uint32_t i = 0; i < animationCount; ++i) {
         const auto animation = animations + i * 36;
-        // The in-game library stores one sampler and one target per animation.
-        if (bres.word(animation + 12) != 1 || bres.word(animation + 20) != 1 ||
-            bres.word(animation + 28) != 0) bres.fail();
-        const auto channel = bres.word(animation + 24);
-        bres.checkSpan(channel, 1, 16);
-        const auto target = bres.string(bres.word(channel + 4));
+        const auto channel = readAnimationChannel(bres, animation);
+        const auto& target = channel.target;
         std::optional<size_t> nodeIndex;
         if (model) {
             const auto node = std::find_if(model->nodes.begin(), model->nodes.end(),
@@ -1345,33 +1387,11 @@ CityAnimationClip readClipIndexed(const CityScene& library, const CityScene* mod
             if (node == model->nodes.end()) continue;
             nodeIndex = static_cast<size_t>(node - model->nodes.begin());
         }
-        const auto transform = bres.word(channel + 8);
-        CityAnimationTransform property;
-        uint32_t components;
-        switch (transform) {
-        case 1: property = CityAnimationTransform::translation; components = 3; break;
-        case 4: property = CityAnimationTransform::translationZ; components = 1; break;
-        case 5: property = CityAnimationTransform::rotation; components = 4; break;
-        case 10: property = CityAnimationTransform::scale; components = 3; break;
-        default: continue;
-        }
-        const auto sampler = bres.word(animation + 16);
-        bres.checkSpan(sampler, 1, 20);
-        const auto sourceCount = bres.word(animation + 4);
-        const auto sources = bres.word(animation + 8);
-        bres.checkSpan(sources, sourceCount, 12);
-        const auto input = bres.word(sampler + 4);
-        const auto output = bres.word(sampler + 8);
-        if (input >= sourceCount || output >= sourceCount) bres.fail();
-        const auto time = sources + input * 12;
-        const auto value = sources + output * 12;
-        if (bres.word(time) != 4 || bres.word(value) != 6) bres.fail();
-        const auto count = bres.word(time + 4);
-        const auto times = bres.word(time + 8);
-        const auto values = bres.word(value + 8);
-        bres.checkSpan(times, count, 4);
-        bres.checkSpan(values, count, components * 4);
-        if (bres.word(value + 4) != count * components) bres.fail();
+        if (!channel.transform) continue;
+        const auto property = *channel.transform;
+        const auto components = channel.components;
+        const auto samples = readAnimationSamples(bres, animation, components);
+        const auto count = samples.count, times = samples.times, values = samples.values;
 
         CityAnimationChannel track{nodeIndex, property, {}, target};
         for (uint32_t k = 0; k < count; ++k) {
@@ -1602,6 +1622,44 @@ std::vector<CityHighlight> loadCityHighlights(FileSystemBase& assets)
 CityAnimationClip readCityParticleClip(const CityScene& scene)
 {
     return readClip(scene, &scene, "AUTO_SceneAnims_Range", true);
+}
+
+CityAnimationLibrary readCityAnimationLibrary(const CityScene& scene)
+{
+    const BresReader bres(scene);
+    const auto root = scene.rootOffset;
+    bres.checkSpan(root, 1, 36);
+    CityAnimationLibrary library{scene.path, bres.word(root + 12), {}};
+    const auto count = bres.word(root + 16), animations = bres.word(root + 20);
+    bres.checkSpan(animations, count, 36);
+    library.tracks.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        const auto animation = animations + i * 36;
+        const auto channel = readAnimationChannel(bres, animation);
+        if (!channel.transform)
+            throw std::runtime_error("Unsupported full animation track in " + scene.path);
+        const auto samples = readAnimationSamples(bres, animation, channel.components);
+        if (!samples.count) bres.fail();
+        CityAnimationLibraryTrack track{i, bres.string(bres.word(animation)), channel.target,
+            *channel.transform, samples.selector, samples.input, samples.output, {}};
+        track.keys.reserve(samples.count);
+        for (uint32_t keyIndex = 0; keyIndex < samples.count; ++keyIndex) {
+            CityAnimationLibraryKey key{signedBresWord(bres, samples.times + keyIndex * 4), {}};
+            // Original binary search permits equal adjacent times. Preserve all
+            // keys and their order; decreasing input is outside its domain.
+            if (!track.keys.empty() && key.timeMs < track.keys.back().timeMs) bres.fail();
+            for (uint32_t c = 0; c < channel.components; ++c)
+                key.value[c] = bres.scalar(samples.values + (keyIndex * channel.components + c) * 4);
+            track.keys.push_back(key);
+        }
+        library.tracks.push_back(std::move(track));
+    }
+    return library;
+}
+
+CityAnimationLibrary loadCityAnimationLibrary(FileSystemBase& assets, const std::string& path)
+{
+    return readCityAnimationLibrary(loadBres(assets, path));
 }
 
 std::vector<CityAnimationClip> loadCityAnimationCatalog(FileSystemBase& assets, const std::string& path)
