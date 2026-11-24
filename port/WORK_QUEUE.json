@@ -28,17 +28,17 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "89e4015"
+      "assignment": "OG-013",
+      "status": "IN_PROGRESS",
+      "baseline": "f5723dd"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "670e056"
+      "assignment": "OG-014",
+      "status": "IN_PROGRESS",
+      "baseline": "f5723dd"
     }
   ],
   "unavailable_worker": {
@@ -466,11 +466,13 @@
         "OG-007",
         "OG-010",
         "OG-011",
-        "OG-012"
+        "OG-012",
+        "OG-013",
+        "OG-014"
       ],
       "blockers": [
-        "Ordered original movement dispatch must be integrated first.",
-        "Requires precise original movement/physics/animation ownership and a real native object-state binding; not a timestamp-derived approximation."
+        "Original customfilter and coreheight/cliff contracts must be implemented or accounted for; no no-op terrain/steering adapters.",
+        "city_view/vulkan/sharedtest resources are owned by current OG009 until integration."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -556,7 +558,7 @@
     {
       "id": "OG-009",
       "description": "Correct native original material selection and alpha/additive rendering using the verified original selector and game overrides.",
-      "scope": "Preserve original source material selector fields and per-instance resolved mode; support evidenced solid0,additive13,alpha14 and game alpha-reference15 with exact blend/alpha/depth/pass behavior. Do not guess custom GL_DECAL selection or unsupported reflection/lightmap rendering.",
+      "scope": "Preserve original source material selector fields and per-instance resolved mode; support evidenced solid0,additive13,alpha14 and game alpha-reference15 with exact blend/alpha/depth/pass behavior. Do not guess custom GL_DECAL selection or unsupported reflection/lightmap rendering. Bounded particle-mode extension: original prepareMaterial converts14/16/17/26 to25;25 modulates texture/vertex alpha with ordinary alpha blending, while additive13 remains unchanged.",
       "symbols": [
         {
           "signature": "irr::collada::CMaterial::prepareMaterial(...)",
@@ -605,7 +607,8 @@
         "Layer0-only game alpha-reference override after actual instance material resolution.",
         "Original type14 texture-alpha replacement and SRC_ALPHA/ONE_MINUS_SRC_ALPHA;type13 SRC_ALPHA/ONE with original modulation.",
         "Validate original depth-write/transparent ordering before equivalence claims; use actual shader/pipeline checks and GPU fixture if practical.",
-        "x64 build, relevant native/retail tests and automated Vulkan smoke; preserve missing-asset failures."
+        "x64 build, relevant native/retail tests and automated Vulkan smoke; preserve missing-asset failures.",
+        "Actual GPU readback proof for modes0/13/14/15/25 and strict-order comparator invariants; document allocation-hash/exact-distance ordering deviations."
       ],
       "submission": null
     },
@@ -744,7 +747,88 @@
         "Inspected matched ContactListener::Remove and original body/query/height dependencies against the documented ownership boundaries.",
         "Reviewed complete document and explicit unimplemented branches; no runtime/test completion claimed.",
         "Patch applicability and whitespace checked; only newcollisiondocument integrated."
-      ]
+      ],
+      "integration_commit": "f5723dd"
+    },
+    {
+      "id": "OG-013",
+      "description": "Port original custom contact filter with native body metadata and observable jump-surface dispatch.",
+      "scope": "Implement ContactFilter::ShouldCollide using real native Box2D types, original masks/groups/intervals/rectangle/player/NPC/vehicle gates, and explicit SetCurrentJumpShape host ownership. No empty game callback substitute or raw ARM record casts; production actor binding remains separate.",
+      "symbols": [
+        {
+          "signature": "ContactFilter::ShouldCollide(b2Shape*,b2Shape*)",
+          "address": "0x0031dc7d"
+        },
+        {
+          "signature": "PhysicAttributes::SetCurrentJumpShape(b2Shape*)",
+          "address": "0x0031ccf1"
+        }
+      ],
+      "resources": [
+        "port/retail_physics.cpp",
+        "port/retail_physics.h",
+        "port/tests/retail_physics.cpp",
+        "port/CMakeLists.txt"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-011",
+        "OG-012"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "f5723dd",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Original fullfilterbranch/field evidence; native typed metadata and genuine64-bit owner identities.",
+        "Allzero/mask/group/absentmetadata cases in both shape orders, exact interval touching, rooted actor intervals, stored bounds and strict rectangle edges.",
+        "Vehicle state and four-height surfaces; confirm exact transform column for velocity dot and test positive/nonpositive jump dispatch.",
+        "Meaningful actualBox2D integration tests in Release/Debug plus all existing gates and smoke; no custom filter completeness claim if branches unresolved."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-014",
+      "description": "Reconstruct core original height/triangle selection and edge-body construction prerequisites for a faithful actor controller.",
+      "scope": "Complete bounded original algorithm/data-contract investigation for core GetHeight and AddCollisionShapes. Reuse matched source/known asset identities; do not substitute nearest-Z or current wall-slide logic. Request code reservations only after a concrete faithful implementation slice is established.",
+      "symbols": [
+        {
+          "signature": "PhysicAttributes::GetHeight(int,vector3df const&,bool,bool)",
+          "address": "0x0031eb99"
+        },
+        {
+          "signature": "PhysicAttributes::AddCollisionShapes(int,int)",
+          "address": "0x0031e285"
+        },
+        {
+          "signature": "PhysicAttributes::UpdateEdgesCollisions(int)",
+          "address": "0x0031e99d"
+        },
+        {
+          "signature": "PhysicAttributes::SetHeightAttributes(...)",
+          "address": "0x0031ad31"
+        }
+      ],
+      "resources": [
+        "port/HEIGHT_SEARCH.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-012"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "f5723dd",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Exact source-derived search order, original buffer/triangle identity, neighbor/marker/cache state, plane math and sentinel handling.",
+        "Full edge eligibility/width/body construction rules or explicit untraced boundaries.",
+        "Specify executable native data contract and independent asset/synthetic acceptance cases; no invented terrain adapter.",
+        "Original ARM remains read-only; no manual progression or unsupported matching/runtime claims."
+      ],
+      "submission": null
     }
   ],
   "orchestrator_resources": [
