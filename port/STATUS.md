@@ -7,10 +7,12 @@ mission playthroughs for discovery or verification.
 
 ## Code coverage
 
-- [ ] Resolve the existing Debug startup breakpoint (0x80000003) after the
-  intro image, before the GameSWF menu. The same failure reproduces with the
-  pre-terrain Debug executable. Release startup and GPU smoke checks pass;
-  successful Debug compilation and subsystem tests do not prove Debug startup.
+- [x] Resolve the Debug startup breakpoint in GameSWF's borrowed memory reader.
+  A symbolized stack identified a read through membuf's writable accessor.
+  Reads now select a const accessor; writable-buffer checks remain active.
+  A focused borrowed/owned-buffer regression test reproduced 0x80000003 before
+  the fix and passes afterward. Ten CTests and the automatic Vulkan opening
+  smoke pass in both Release and Debug.
 - [ ] Account for every original translation unit and symbol in the game's
   `config/functions.tsv`. It records 17,703 symbols across 622 source labels,
   including 15,698 marked matched for the Android build. The native build

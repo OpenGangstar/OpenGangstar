@@ -91,6 +91,10 @@ target_link_libraries(gangstar-wch PRIVATE gdi32 mfplat mfreadwrite mfuuid ole32
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(gameswf_memory_test tests/gameswf_memory.cpp)
+    target_link_libraries(gameswf_memory_test PRIVATE gameswf_core)
+    add_test(NAME gameswf_memory COMMAND gameswf_memory_test)
+
     add_executable(box2d_test tests/box2d.cpp)
     target_link_libraries(box2d_test PRIVATE opengangstar_box2d)
     add_test(NAME box2d COMMAND box2d_test)

@@ -20,6 +20,16 @@ function(patch_gameswf path before after)
     endif()
 endfunction()
 
+# Borrowed memory files must read through membuf's const accessor. The mutable
+# accessor correctly asserts when the backing buffer is read-only.
+patch_gameswf("${gameswf_SOURCE_DIR}/base/tu_file.cpp"
+    [=[unsigned char*	get_cursor() { return ((unsigned char*) m_.data()) + m_position; }]=]
+    [=[unsigned char*	get_cursor() { return ((unsigned char*) m_.data()) + m_position; }
+	const unsigned char* get_cursor() const { return ((const unsigned char*) m_.data()) + m_position; }]=])
+patch_gameswf("${gameswf_SOURCE_DIR}/base/tu_file.cpp"
+    [=[memcpy(dst, buf->get_cursor(), bytes_to_read);]=]
+    [=[memcpy(dst, static_cast<const filebuf*>(buf)->get_cursor(), bytes_to_read);]=])
+
 if(MSVC)
     patch_gameswf("${gameswf_SOURCE_DIR}/base/tu_math.h"
         [=[#include <math.h>]=]

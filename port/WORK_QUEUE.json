@@ -21,7 +21,7 @@
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
       "assignment": "OG-018",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "baseline": "0479baa"
     },
     {
@@ -29,7 +29,7 @@
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
       "assignment": "OG-021",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "baseline": "99e110e"
     },
     {
@@ -1063,7 +1063,8 @@
           "port/tests/retail_steering.cpp",
           "port/STEERING.md"
         ]
-      }
+      },
+      "integration_commit": "7cc1bf5"
     },
     {
       "id": "OG-018",
@@ -1102,7 +1103,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "0479baa",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Exact original time units/frame cursor math, sampler and cache data contracts before implementing.",
@@ -1223,7 +1224,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "99e110e",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Complete literal original category/owner/sensor/player/NPC/vehicle branch and state ownership map before code.",
@@ -1243,19 +1244,33 @@
           "address": null
         }
       ],
-      "resources": [],
+      "resources": [
+        "port/cmake/GameSWF.cmake",
+        "port/tests/gameswf_memory.cpp",
+        "port/CMakeLists.txt"
+      ],
       "priority": 7,
       "complexity": "medium",
       "dependencies": [],
       "blockers": [],
-      "assigned_agent": null,
-      "baseline": null,
-      "status": "AVAILABLE",
+      "assigned_agent": "/root",
+      "baseline": "7cc1bf5",
+      "status": "MERGED",
       "reservations_active": false,
       "validation": [
         "Reproduce0x80000003 on known pre-OG015 binary and currentDebug build with isolated temporary saves.",
         "Locate exact assertion/stack and verify existing source behavior before requesting writable resource reservations.",
         "Targeted regression test and Debug+Release automated startup smoke; keep assertions active."
+      ],
+      "findings": [
+        "GDB SIGTRAP and LLVM PDB symbolization identify membuf::data nonconst assertion at membuf.h35, called by filebuf::get_cursor151 -> mem_read_func168 -> tu_file.read32 -> movie_def_impl.read -> MenuRuntime.load_file.",
+        "filebuf read-only constructor wraps externalbytes in READ_ONLY membuf, but its read callback calls mutable get_cursor/membuf.data; Debug asserts, Release happens to read through it. Preserve mutator checks and dispatch read through const accessor."
+      ],
+      "independent_validation": [
+        "GDB reproduced SIGTRAP; LLVM PDB symbolization located const-correctness failure in upstream filebuf.get_cursor/mem_read_func.",
+        "New focused regression executable failed with0x80000003 before sourcepatch, passed afterward; borrowedstorage/EOF/seek/size/no-copy semantics and ownedwrite/read behavior verified.",
+        "Guarded GameSWF sourcepatch adds constcursor overload and selects it only inreadcallback; noassertions suppressed or read-only storage copied.",
+        "Full nativeRelease+Debug builds, ten CTests perconfiguration, and both openingGPU/menu smokes pass."
       ]
     }
   ],
