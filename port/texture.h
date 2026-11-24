@@ -5,12 +5,16 @@
 
 class IFileStream;
 
+enum class TextureBaseFormat { rgb, rgba };
+
 struct Image {
     uint32_t width;
     uint32_t height;
     // Top-down pixels in BGRA byte order.
     std::vector<uint32_t> bgra;
     std::vector<Image> mipLevels;
+    // Original upload base format under default driver options 0x12. BGRA storage is separate.
+    TextureBaseFormat baseFormat = TextureBaseFormat::rgba;
 };
 
 // Decode BMP (BI_RGB 1/4/8/16/24/32-bit or RLE4/RLE8), PNG, TGA, PSD, or retail ATC DDS mip levels.

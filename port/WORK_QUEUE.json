@@ -20,9 +20,9 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-031",
+      "assignment": "OG-034",
       "status": "IN_PROGRESS",
-      "baseline": "330d2de"
+      "baseline": "6053cd4"
     },
     {
       "slot": 2,
@@ -36,8 +36,8 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-033",
-      "status": "IN_PROGRESS",
+      "assignment": "OG-029",
+      "status": "NEEDS_REVISION",
       "baseline": "330d2de"
     }
   ],
@@ -357,7 +357,10 @@
         "Source and Microsoft RLE specification review found packet alignment and bounds consistent; original malformed-input deviations documented.",
         "Intervening commits change only queue/docs, not reserved texture sources."
       ],
-      "integration_commit": "4d849da"
+      "integration_commit": "4d849da",
+      "findings": [
+        "OG027 original defaultRGBA32 path probes disprove old nearestUNORM rationale; corrected bitreplication is supported by all65536words in both original converters. Prior RLE malformed-input deviations remain documented."
+      ]
     },
     {
       "id": "OG-007",
@@ -1558,8 +1561,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "330d2de",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original selector and complete texture-combiner/UV/reflection/lighting/alpha/depth/blend contracts with original addresses.",
         "Identify existing decoded primary/auxiliaryUV/normals/texture resources; consolidate genuine shared paths, no fabricated lighting or customrenderer routing.",
@@ -1569,7 +1572,17 @@
       "submission": {
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-027.patch",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-027-report.md"
-      }
+      },
+      "independent_validation": [
+        "Root source review of indexed texture fixups, raw normal propagation, descriptor resource lifetimes, shader stage equations, persistent alpha emission and original mode17blend/depth.",
+        "Root full Release/Debug builds,15combinedCTest pass; retail geometry fixtures pass.",
+        "Root actual31GPU RGBA readbacks and opening smokes pass in both configurations using temporary saves; game/texture/collision imagesAMD64PE32+.",
+        "Root reran original GL state transition, deliberately permuted indexed-image fixup, all65536words for both original BMP converters, texture-matrix coefficients and native orientation0texgen probes. Supplemental nonzero orientation outputs observed only; those modes remain outside native scope.",
+        "Root exact111missing-path set compared to independent OG009baseline in both configurations;98images retained.",
+        "OG033 independent peer review no actionable findings. Original primary lighting/tracked material color and scene/skin transforms remain explicitly incomplete; no speculative multiplier.",
+        "Intervening actorbody/height integration does not overlap submitted material files.",
+        "Root removed pending authored-jump CMake wiring and rebuilt the exact material integration slice:14CTest passed in Release and Debug."
+      ]
     },
     {
       "id": "OG-028",
@@ -1646,7 +1659,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "330d2de",
-      "status": "AWAITING_REVIEW",
+      "status": "NEEDS_REVISION",
       "reservations_active": true,
       "validation": [
         "Complete source/ELF evidence for producer identities and exact vertexorder/heights/rawflag/localtransform/filter/group/ownership.",
@@ -1660,7 +1673,10 @@
       "submission": {
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029.patch",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-029-report.md"
-      }
+      },
+      "review_findings": [
+        "OG032 original finite-TRS comparison found collector omits final generated identity-child mult34; signed-zero matrix/body-yaw bits differ. Author correcting both Jump/current and visible/placement child contexts with actual-loader and original-bridge regression."
+      ]
     },
     {
       "id": "OG-030",
@@ -1719,7 +1735,8 @@
         "Root reran original19returning synthetic fixtures plus separately stoppedcycle;14576point+16scene records zero differences against root-built dumps.",
         "OG031 independent peer review completed with no actionable findings; native tests and19original returning fixtures independently rerun.",
         "Production scene factory/loaded transforms/bbox/runtime tags and actor-loop host remain incomplete. Intervening actor body commit changes no submitted height sources."
-      ]
+      ],
+      "integration_commit": "6053cd4"
     },
     {
       "id": "OG-031",
@@ -1751,7 +1768,8 @@
       "scope": "Review submitted patch and original evidence; no implementation modifications. Write only the ignored review report in the assigned worktree.",
       "symbols": [],
       "resources": [
-        "port/build/OG-032-review.md"
+        "port/build/OG-032-review.md",
+        "port/build/OG-032-*"
       ],
       "priority": 1,
       "complexity": "medium",
@@ -1779,10 +1797,46 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "330d2de",
+      "status": "VERIFIED",
+      "reservations_active": false,
+      "validation": [
+        "Source-backed findings with precise location and reproducible evidence; distinguish implemented component from unbound production behavior."
+      ],
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-033-review.md"
+      }
+    },
+    {
+      "id": "OG-034",
+      "description": "Implement original fixed-step physics accumulation and real native world advancement leaf from GS3DStuff::update.",
+      "scope": "Reconstruct exact elapsed/clamp/accumulation/loop/reset semantics and required pre/post vehicle hooks from original source; advance genuine shared Box2D world. Do not duplicate a production clock or fabricate full game update. Root owns CMake; request additional interfaces before edits.",
+      "symbols": [
+        {
+          "signature": "GS3DStuff::update(StateMachine*) physics accumulator and b2World::Step slice",
+          "address": "0x002e078d; Step call0x002e0954..0x002e095a"
+        }
+      ],
+      "resources": [
+        "port/retail_world.h",
+        "port/retail_world.cpp",
+        "port/tests/retail_world.cpp",
+        "port/WORLD_UPDATE.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-013",
+        "OG-025"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "6053cd4",
       "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
-        "Source-backed findings with precise location and reproducible evidence; distinguish implemented component from unbound production behavior."
+        "Exact original accumulator math/order and strict timestep boundary with original-backed fixtures.",
+        "Actual native world/body movement and mandatory original hook ordering; no silent no-op host.",
+        "Release/Debug relevant tests, architecture and regression evidence; no manual gameplay."
       ]
     }
   ],
@@ -1801,6 +1855,7 @@
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
-    "Root owns CMake and integration. Worker1 owns only remaining-material evidence document until additional source reservations; OG025 remains frozen for independentreview."
+    "Root owns CMake and integration. Worker1 owns only remaining-material evidence document until additional source reservations; OG025 remains frozen for independentreview.",
+    "OG027 independently validated with pending OG029 producer present, then rebuilt without that pending CMake source before material integration."
   ]
 }

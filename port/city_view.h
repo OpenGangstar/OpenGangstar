@@ -133,6 +133,9 @@ struct CityVertex {
     std::array<float, 2> uv;
     std::array<float, 4> color{1, 1, 1, 1};
     std::array<float, 3> normal{};
+    std::array<float, 2> auxiliaryUv{};
+    // Raw model-linear normal for original software texgen; w records float32 source availability.
+    std::array<float, 4> reflectionNormal{};
 };
 
 struct CityBounds {
@@ -182,6 +185,8 @@ struct CitySurface {
     float diffuseAlpha = 1;
     std::shared_ptr<CitySurfaceNode> node;
     std::vector<std::string> additionalTextures;
+    std::array<CityTextureTransform, 2> textureTransforms{
+        cityIdentityTextureTransform, cityIdentityTextureTransform};
 };
 
 bool cityTransparentSurfaceBefore(const CitySurface& first, const CitySurface& second,

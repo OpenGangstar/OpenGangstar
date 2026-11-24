@@ -57,10 +57,30 @@ All 359 retail scenes and 1,366 material records decode: 1,178 solid, 19 additiv
 and 169 alpha-channel. Source-image bindings resolve four additional car-light
 mesh buffers. The audit still fails on the same 111 missing texture paths and
 two district bindings to missing light_parking.tga; all 98 supplied images decode.
-This is not full visual parity. Modes 3/12/17 are identified but explicitly
-unsupported, custom GL_DECAL selection remains unknown, and lighting, fog,
-animated materials, arbitrary option changes and complete node transforms need
-further implementation.
+This is not full visual parity. The subsequent OG-027 update implements the
+texture-stage slice for modes3/12/17 described in REMAINING_MATERIALS.md. Custom
+GL_DECAL selection, full primary lighting, fog, animated materials, arbitrary
+option changes and complete node transforms remain unimplemented or unverified.
+
+## Native texture-stage update: OG-027
+
+Modes3/12/17 now share the actual indexed texture-record/sampler/image-list/image
+resolver, both static texture matrices, authored UV1, raw-normal reflection texgen
+and driver-lifetime stage-alpha state. Mode17 uses original screen blending and
+transparent depth behavior. Root integration Release/Debug builds and14CTest pass;
+31actual GPU RGBA readbacks per configuration validate texture-stage equations,
+matrices, inherited alpha, screen blending, depth and the one-stage UI descriptor.
+Full original primary lighting and tracked material color remain prerequisites;
+no unconditional source-color/alpha multiplier was added. See REMAINING_MATERIALS.md.
+
+The former secondary-binding count flattened image catalogues. The actual777diffuse
+texture records across776effects produce only1prepared secondary slot. Hospital
+selects props_alpha_02 alone; props_alpha_01 is an unused image-list entry. This
+keeps its initial mode14 and does not trigger a layer0 props_alpha_01 override.
+All98supplied images still decode; the same111texture paths remain absent.
+Default driver options0x12 convert uncompressed color to RGBA32. Original16_to32
+converters prove bit replication for all65536packed words, correcting the earlier
+nearest-UNORM BMP assumption. Nondefault upload options remain outside this slice.
 
 ## Custom renderer registration and unresolved selection
 

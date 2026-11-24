@@ -144,7 +144,7 @@ bool auditReferences(const std::map<std::string, SceneIndex>& catalog,
               << " primary textured mesh buffer bindings resolved across the BRES catalog ("
               << missingBoundTextures.size() << " distinct missing textures across all slots)\n";
     std::cout << secondaryBindings - missingSecondaryBindings << '/' << secondaryBindings
-              << " secondary textured mesh buffer bindings resolved across the BRES catalog\n";
+              << " prepared indexed secondary material slots resolved across the BRES catalog (draw usage depends on mode)\n";
     // Catalog membership does not prove runtime use. In particular, an instance
     // can select different materials from its mesh library's defaults. Keep the
     // full dependency failure below; this classification only directs investigation.
@@ -728,7 +728,7 @@ try {
 
     size_t containers = 0, particleScenes = 0, particleTracks = 0, simulatedEmitters = 0;
     std::map<CityMaterialMode, size_t> materialModes;
-    size_t unsupportedMaterials = 0;
+    size_t unsupportedMaterials = 0, twoStageMaterials = 0;
     size_t meshesWithNormals = 0, authoredNormals = 0, authoredColors = 0;
     size_t nodesWithProperties = 0, billboardNodes = 0, lodNodes = 0;
     size_t auxiliaryUvMeshes = 0, auxiliaryUvCount = 0;
@@ -746,6 +746,9 @@ try {
             const auto scene = loadCityScene(assets, path);
             for (const auto& [name, material] : scene.materials) {
                 ++materialModes[material.mode];
+                if ((material.mode == CityMaterialMode::lightmap || material.mode == CityMaterialMode::reflection ||
+                     material.mode == CityMaterialMode::transparentReflection) &&
+                    !material.additionalTextures.empty() && !material.additionalTextures[0].empty()) ++twoStageMaterials;
                 if (!cityMaterialModeSupported(material.mode)) {
                     ++unsupportedMaterials;
                     std::cerr << "Unsupported material mode " << static_cast<uint32_t>(material.mode)
@@ -797,8 +800,11 @@ try {
     std::cout << particleScenes << " BRES particle scenes with decoded emitters and "
               << particleTracks << " animated parameters, " << simulatedEmitters << " emitters simulated\n";
     std::cout << authoredColors << " authored BGRA vertex colors decoded\n";
+    for (const auto mode : {CityMaterialMode::lightmap, CityMaterialMode::reflection,
+                            CityMaterialMode::transparentReflection}) materialModes.try_emplace(mode, 0);
     for (const auto& [mode, count] : materialModes)
         std::cout << count << " original material records select mode " << static_cast<uint32_t>(mode) << '\n';
+    std::cout << twoStageMaterials << " material records select a two-stage renderer with a stage1 image\n";
     std::cout << secondaryColorCount << " secondary BGRA vertex colors decoded across "
               << secondaryColorMeshes << " meshes\n";
     std::cout << auxiliaryUvCount << " auxiliary texture coordinates decoded across "

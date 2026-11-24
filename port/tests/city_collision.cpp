@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -307,7 +308,7 @@ void verifyIndexedMaterialLoader()
     ResourceFileSystem assets(temporary.directory);
     // Independent fixed32-bit BRES fixture: root32, two88-byte effects at156,
     // two64-byte materials at332, colors460/464, then strings. No geometry.
-    std::vector<unsigned char> bytes(640);
+    std::vector<unsigned char> bytes(1536);
     const auto word = [&](size_t offset, uint32_t value) {
         for (unsigned byte = 0; byte < 4; ++byte) bytes.at(offset + byte) = static_cast<unsigned char>(value >> (8 * byte));
     };
@@ -361,25 +362,101 @@ void verifyIndexedMaterialLoader()
     word(512 + 8, 552); word(532 + 8, 564);
     text(552, "effect.tga"); text(564, "override.tga");
     bytes[156 + 16] = 1;
+    word(156 + 20, 600); word(600, 1); word(604, 608);
+    word(608, 0); word(628, 0x3f800000); word(632, 0x3f800000);
+    word(156 + 72, 1); word(156 + 76, 648); word(648, 0);
     word(156 + 80, 1); word(156 + 84, 580); word(580, 0);
     word(332 + 36, 1);
     require(load().materials.at("first").texture == "override.tga",
             "Source image must override a nonempty effect texture at layer zero.");
-    word(156 + 80, 0);
+    word(600, 0);
     require(load().materials.at("first").texture == "override.tga",
             "Source image must also bind layer zero when the effect texture list is empty.");
-    word(332 + 36, UINT32_MAX); word(156 + 80, 1);
+    word(332 + 36, UINT32_MAX); word(600, 1);
     require(load().materials.at("first").texture == "effect.tga",
             "An absent source image must preserve the effect's layer-zero texture.");
     word(332 + 36, 2);
     bool rejected = false;
     try { load(); } catch (const std::runtime_error&) { rejected = true; }
     require(rejected, "Out-of-range source image index was accepted.");
+    // Independent original postLoadProcess oracle: records -> sampler[2,0] -> images[2,0,1].
+    word(32 + 52, 3); word(32 + 56, 900);
+    for (uint32_t i = 0; i < 3; ++i) {
+        word(900 + i * 20 + 8, 1000 + i * 16);
+        text(1000 + i * 16, "tex" + std::to_string(i) + ".tga");
+    }
+    word(156 + 20, 720); word(720, 2); word(724, 728);
+    word(728, 0); word(756, 1);
+    word(156 + 72, 2); word(156 + 76, 800); word(800, 2); word(804, 0);
+    word(156 + 80, 3); word(156 + 84, 816); word(816, 2); word(820, 0); word(824, 1);
+    const auto scalar = [&](size_t offset, float value) {
+        uint32_t bits; std::memcpy(&bits, &value, sizeof bits); word(offset, bits);
+    };
+    for (size_t record : {728u, 756u}) {
+        scalar(record + 8, 0); scalar(record + 12, 0); scalar(record + 16, 0);
+        scalar(record + 20, 1); scalar(record + 24, 1);
+    }
+    scalar(728 + 8, 0.25f); scalar(728 + 12, -0.5f);
+    scalar(728 + 20, 2); scalar(728 + 24, 3);
+    word(332 + 36, UINT32_MAX);
+    auto indexed = load().materials.at("first");
+    require(indexed.texture == "tex1.tga" && indexed.additionalTextures == std::vector<std::string>{"tex2.tga"},
+            "Texture records did not preserve indexed sampler/image-list selection.");
+    require(indexed.textureTransforms[0] == CityTextureTransform{2, 0, 0.25f, 0, 3, -0.5f},
+            "Original zero-center texture transform lost output-axis scale or translation.");
+    word(332 + 36, 0); word(332 + 40, 1);
+    indexed = load().materials.at("first");
+    require(indexed.mode == CityMaterialMode::reflection && indexed.texture == "tex0.tga" &&
+            indexed.additionalTextures[0] == "tex1.tga" && indexed.textureTransforms[0][2] == 0.25f,
+            "Reflection overrides lost stage identity or reset the prepared texture matrix.");
+    word(332 + 48, 1);
+    require(load().materials.at("first").mode == CityMaterialMode::transparentReflection,
+            "Original transparent reflection source selector was lost.");
+    bytes[156 + 8] = 1; word(156 + 12, 840); word(840, 1); word(844, 848); word(848, 1);
+    word(332 + 28, 1);
+    indexed = load().materials.at("first");
+    require(indexed.mode == CityMaterialMode::lightmap && indexed.additionalTextures[0] == "tex2.tga" &&
+            indexed.texture == "tex0.tga" && indexed.textureTransforms[0][0] == 2,
+            "Late lightmap selection did not override reflection/additive while retaining matrices.");
+    const auto reject = [&] {
+        bool invalid = false;
+        try { load(); } catch (const std::runtime_error&) { invalid = true; }
+        require(invalid, "Malformed original material resource chain was accepted.");
+    };
+    word(332 + 36, UINT32_MAX); reject(); word(332 + 36, 0);
+    word(848, 2); reject(); word(848, 1);
+    word(804, 3); reject(); word(804, 0);
+    word(816, 3); reject(); word(816, 2);
+    word(840, 0); reject(); word(840, 1);
+    word(900 + 12, 1); reject(); // External-library lookup needs a live root-scene host.
+    word(900 + 12, 2);
+    require(load().materials.at("first").texture == "tex0.tga", "Image external selector must compare exactly with1.");
+    word(900 + 12, 0);
+
 }
 
 void verifyMaterialModes()
 {
     using Mode = CityMaterialMode;
+    CityMaterialStageState stages;
+    for (auto mode : {Mode::reflection, Mode::transparentReflection, Mode::solid, Mode::additive,
+                      Mode::alphaChannel, Mode::alphaReference, Mode::textureVertexAlpha}) {
+        stages.bind(mode);
+        require(stages.alpha == CityStageOneAlpha::textureTimesPrevious, "Fresh stage1 alpha state changed.");
+    }
+    stages.bind(Mode::lightmap);
+    for (auto mode : {Mode::reflection, Mode::transparentReflection, Mode::solid, Mode::alphaChannel,
+                      Mode::textureVertexAlpha, Mode::reflection}) {
+        stages.bind(mode);
+        require(stages.alpha == CityStageOneAlpha::previousSquared, "Unset/reset/one-stage binding lost inherited alpha.");
+    }
+    const auto transformed = cityTextureTransform(0.5f, {0.25f, -0.5f}, {2, 3});
+    const CityTextureTransform original{1.7551651000976562f, -0.9588510990142822f, 0.25f,
+                                      1.4382766485214233f, 2.6327476501464844f, -0.5f};
+    for (size_t i = 0; i < original.size(); ++i)
+        require(std::abs(transformed[i] - original[i]) < 1e-6f, "Texture transform differs from actual original ARM oracle.");
+    for (auto mode : {Mode::lightmap, Mode::reflection, Mode::transparentReflection})
+        require(cityMaterialModeSupported(mode), "Original two-stage material remains unsupported.");
     CityMaterialSelection selection{false, UINT32_MAX, false, 0, 1, 0};
     require(selectCityMaterialMode(selection) == Mode::solid, "Default retail material was not solid.");
     selection.effectTransparency = 1;
@@ -396,8 +473,7 @@ void verifyMaterialModes()
     require(selectCityMaterialMode(selection) == Mode::additive, "Additive did not override reflection and transparency.");
     selection.lightmap = 1;
     require(selectCityMaterialMode(selection) == Mode::lightmap, "Late lightmap selection did not override the earlier modes.");
-    for (const auto mode : {Mode::lightmap, Mode::reflection, Mode::transparentReflection})
-        require(!cityMaterialModeSupported(mode), "An unresolved original material mode was silently supported.");
+    require(!cityMaterialModeSupported(static_cast<Mode>(UINT32_MAX)), "An unknown material ID was silently supported.");
     for (const uint32_t mode : {14u, 16u, 17u, 26u})
         require(cityParticleMaterialMode(static_cast<Mode>(mode)) == Mode::textureVertexAlpha,
                 "Particle preparation did not convert the original transparent mode to type 25.");
@@ -431,7 +507,8 @@ void verifyMaterialModes()
     require(cityTransparentSurfaceBefore(near, far, {}) && !cityTransparentSurfaceBefore(far, near, {}),
             "Native material identity ordering must remain strict for mode prefixes separated by INT32_MIN.");
     std::vector<CitySurface> ties;
-    for (const auto mode : {Mode::solid, Mode::additive, Mode::alphaChannel, Mode::alphaReference, Mode::textureVertexAlpha})
+    for (const auto mode : {Mode::solid, Mode::lightmap, Mode::reflection, Mode::additive, Mode::alphaChannel,
+                            Mode::alphaReference, Mode::transparentReflection, Mode::textureVertexAlpha})
         for (const auto* texture : {"a.tga", "b.tga"}) {
             auto surface = near;
             surface.materialMode = mode;
@@ -1629,8 +1706,9 @@ void poseRetailDoor(const std::filesystem::path& root)
     const auto hospitalSign = loadCityScene(assets, "hospital_logo_00.bdae");
     const auto& hospitalMaterial = hospitalSign.materials.at("hospital_logo_00_mat");
     require(hospitalMaterial.mode == CityMaterialMode::alphaChannel && hospitalMaterial.texture == "props_alpha_02.tga" &&
-            hospitalMaterial.additionalTextures == std::vector<std::string>{"props_alpha_01.tga"},
-            "Hospital sign lost one of its distinct authored texture bindings.");
+            hospitalMaterial.additionalTextures.empty() && hospitalSign.images ==
+                std::vector<std::string>{"props_alpha_02.tga", "props_alpha_01.tga"},
+            "Hospital sampler selection confused an unused image-list entry with a bound texture.");
     require(loadCityScene(assets, "p_fire_00.bdae").materials.at("p_fire_00").mode == CityMaterialMode::additive &&
             loadCityScene(assets, "health_crate.bdae").materials.at("props_00").mode == CityMaterialMode::alphaChannel,
             "Retail fire additive precedence or health-crate opacity selection changed.");
@@ -1658,13 +1736,31 @@ void poseRetailDoor(const std::filesystem::path& root)
     require(!staticCity.terrain.jumpRamps.empty(), "Retail jump surfaces did not reach the world.");
     std::cout << staticCity.terrain.jumpRamps.size() << " authored jump ramps.\n";
     std::cout << staticCity.terrain.walls.size() << " authored district collision-plane triangles.\n";
+    size_t hospitalBindings = 0;
+    for (const auto& district : city.districts)
+        for (const auto& node : district.scene.nodes)
+            for (const auto& instance : node.geometry) {
+                if (std::filesystem::path(instance.sourcePath).filename() != "hospital_logo_00.bdae") continue;
+                const auto& library = cityGeometryLibrary(city, district.scene, instance);
+                const auto mesh = std::find_if(library.meshes.begin(), library.meshes.end(),
+                    [&](const CityMesh& value) { return value.name == instance.meshName; });
+                require(mesh != library.meshes.end(), "Placed hospital mesh is missing.");
+                for (size_t buffer = 0; buffer < mesh->buffers.size(); ++buffer) {
+                    const auto material = resolveCityMaterial(city, district.scene, library, instance, *mesh, buffer);
+                    require(citySurfaceMaterialMode(material, true) == CityMaterialMode::alphaChannel &&
+                            material.texture == "props_alpha_02.tga" && material.additionalTextures.empty(),
+                            "Actual placed hospital material did not retain its indexed alpha-channel binding.");
+                    ++hospitalBindings;
+                }
+            }
+    require(hospitalBindings, "Retail fixture did not resolve a placed hospital instance.");
     auto markerDraw = prepareCityView(city, opening);
     size_t hospitalSurfaces = 0, shadowSurfaces = 0;
     for (const auto& surface : markerDraw.surfaces) {
         require(surface.node != nullptr, "A rendered mesh buffer lost its original node sorting metadata.");
         shadowSurfaces += surface.node->renderingLayer == 1;
-        if (surface.texture == "props_alpha_02.tga" &&
-            surface.additionalTextures == std::vector<std::string>{"props_alpha_01.tga"}) {
+        if (surface.texture == "props_alpha_02.tga" && surface.materialMode == CityMaterialMode::alphaChannel &&
+            surface.additionalTextures.empty()) {
             require(surface.materialMode == CityMaterialMode::alphaChannel && surface.tintAndCutoff[3] == 0,
                     "Resolved placed hospital surfaces must use alpha-channel blending, not alpha-reference.");
             ++hospitalSurfaces;
@@ -3999,6 +4095,55 @@ static void checkBillboardPose()
             "Billboard did not rotate toward the horizontal camera basis.");
 }
 
+static void checkReflectionMetadata()
+{
+    CityMesh mesh;
+    mesh.name = "reflection";
+    mesh.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
+    mesh.normals.assign(3, {0.25f, -0.25f, 1});
+    mesh.texCoords.assign(3, {0.75f, 0.75f});
+    mesh.auxiliaryTexCoords.assign(3, {0.25f, 0.25f});
+    mesh.buffers = {{"material", {0, 1, 2}}};
+    CityNode node{};
+    node.parent = -1;
+    node.translation = {100, 200, 300};
+    node.rotation = {0, 0, 0, 1};
+    node.scale = {2, 2, 2};
+    node.geometry = {{"", "reflection", {}}};
+    CityMaterial material;
+    material.mode = CityMaterialMode::reflection;
+    material.texture = "base.tga";
+    material.additionalTextures = {"reflection.tga"};
+    material.textureTransforms[1] = {2, 0, 0.25f, 0, 3, -0.5f};
+    CityAssets city;
+    auto& scene = city.districts.emplace_back().scene;
+    scene.meshes = {mesh}; scene.nodes = {node}; scene.materials.emplace("material", material);
+    const auto draw = prepareCityView(city, CityOpening{});
+    require(draw.vertices[0].reflectionNormal == std::array<float, 4>{0.5f, -0.5f, 2, 1} &&
+            draw.vertices[0].normal == std::array<float, 3>{0.125f, -0.125f, 0.5f} &&
+            draw.vertices[0].auxiliaryUv == std::array<float, 2>{0.25f, 0.25f},
+            "Reflection input used inverse-transpose/normalized normals, translation, or UV0 instead of authored UV1.");
+    require(draw.surfaces[0].materialMode == CityMaterialMode::reflection &&
+            draw.surfaces[0].additionalTextures == material.additionalTextures &&
+            draw.surfaces[0].textureTransforms == material.textureTransforms,
+            "Resolved material stage resources/transforms were lost during scene assembly.");
+    scene.meshes[0].floatNormals = false;
+    require(prepareCityView(city, CityOpening{}).vertices[0].reflectionNormal[3] == 0,
+            "Non-float original normal stream incorrectly enabled software reflection texgen.");
+    scene.meshes[0].auxiliaryTexCoords.clear();
+    bool rejected = false;
+    try { prepareCityView(city, CityOpening{}); } catch (const std::runtime_error&) { rejected = true; }
+    require(rejected, "Missing authored UV1 silently invented an original current-coordinate value.");
+    scene.meshes[0].floatNormals = true;
+    require(prepareCityView(city, CityOpening{}).vertices[0].reflectionNormal[3] == 1,
+            "Valid generated reflection coordinates incorrectly required authored UV1.");
+    scene.materials.at("material").mode = CityMaterialMode::lightmap;
+    rejected = false;
+    try { prepareCityView(city, CityOpening{}); } catch (const std::runtime_error&) { rejected = true; }
+    require(rejected, "Lightmap substituted generated reflection coordinates for missing authored UV1.");
+
+}
+
 static void checkLodPlacement()
 {
     CityMesh nearMesh;
@@ -4096,6 +4241,7 @@ int wmain(int argc, wchar_t** argv)
         checkCityFrustum();
         checkNodeProperties();
         checkBillboardPose();
+        checkReflectionMetadata();
         checkDistantProjection();
         checkStaticPlane();
         checkJumpRamp();

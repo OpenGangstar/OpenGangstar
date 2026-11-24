@@ -647,6 +647,7 @@ CityMesh readMesh(const BresReader& bres, uint32_t geometry)
         const auto type = bres.word(types + normalStream * 4);
         const uint32_t size = type == 0 ? 3 : 12;
         if ((type != 0 && type != 6) || offset > stride || size > stride - offset) bres.fail();
+        result.floatNormals = type == 6;
         result.normals.reserve(vertexCount);
         for (uint32_t i = 0; i < vertexCount; ++i) {
             const auto normal = data + i * stride + offset;
@@ -771,33 +772,67 @@ void readMaterials(const BresReader& bres, CityScene& scene)
         const auto uri = bres.word(imageTable + i * 20 + 8);
         scene.images.push_back(uri ? bres.string(uri) : std::string{});
     }
+    const auto imageName = [&](uint32_t image) -> const std::string& {
+        if (image >= imageCount) bres.fail();
+        if (bres.word(imageTable + image * 20 + 12) == 1)
+            throw std::runtime_error("Unsupported original external-library material image binding.");
+        return scene.images[image];
+    };
     struct Effect {
         CityMaterial material;
         uint8_t transparency, lightmap;
         float opacity;
+        uint32_t lightmapImage;
     };
     std::vector<Effect> effects;
     effects.reserve(effectCount);
     for (uint32_t i = 0; i < effectCount; ++i) {
         const auto effect = effectTable + i * 88;
         CityMaterial material;
+        const auto textureImage = [&](uint32_t record) {
+            const auto samplerCount = bres.word(effect + 72), samplers = bres.word(effect + 76);
+            const auto imageListCount = bres.word(effect + 80), imageList = bres.word(effect + 84);
+            bres.checkSpan(samplers, samplerCount, 4);
+            bres.checkSpan(imageList, imageListCount, 4);
+            const auto sampler = bres.word(record);
+            if (sampler >= samplerCount) bres.fail();
+            const auto entry = bres.word(samplers + sampler * 4);
+            if (entry >= imageListCount) bres.fail();
+            const auto image = bres.word(imageList + entry * 4);
+            if (image >= imageCount) bres.fail();
+            return image;
+        };
+        uint32_t lightmapImage = UINT32_MAX;
+        if (bres.byte(effect + 8) == 1) {
+            const auto vector = bres.word(effect + 12);
+            bres.checkSpan(vector, 1, 8);
+            const auto count = bres.word(vector), records = bres.word(vector + 4);
+            if (!count) bres.fail();
+            bres.checkSpan(records, count, 28);
+            lightmapImage = textureImage(records);
+        }
         const auto diffuse = bres.word(effect + 20);
         const auto type = bres.byte(effect + 16);
         if (diffuse && type == 0) {
             material.diffuse = bres.word(diffuse);
         } else if (diffuse && type == 1) {
-            const auto textureCount = bres.word(effect + 80);
-            const auto textures = bres.word(effect + 84);
-            bres.checkSpan(textures, textureCount, 4);
+            // postLoadProcess fixes texture record -> sampler -> image-list -> SImage.
+            const auto textureCount = bres.word(diffuse);
+            const auto textures = bres.word(diffuse + 4);
+            bres.checkSpan(textures, textureCount, 28);
             for (uint32_t slot = 0; slot < textureCount; ++slot) {
-                const auto image = bres.word(textures + slot * 4);
-                if (image >= imageCount) bres.fail();
-                if (slot == 0) material.texture = scene.images[image];
-                else material.additionalTextures.push_back(scene.images[image]);
+                const auto record = textures + slot * 28;
+                const auto image = textureImage(record);
+                if (slot == 0) material.texture = imageName(image);
+                else material.additionalTextures.push_back(imageName(image));
+                if (slot < material.textureTransforms.size())
+                    material.textureTransforms[slot] = cityTextureTransform(bres.scalar(record + 16),
+                        {bres.scalar(record + 8), bres.scalar(record + 12)},
+                        {bres.scalar(record + 20), bres.scalar(record + 24)});
             }
         }
         effects.push_back(Effect{
-            std::move(material), bres.byte(effect + 48), bres.byte(effect + 8), bres.scalar(effect + 56)});
+            std::move(material), bres.byte(effect + 48), bres.byte(effect + 8), bres.scalar(effect + 56), lightmapImage});
     }
     for (uint32_t i = 0; i < materialCount; ++i) {
         const auto material = materialTable + i * 64;
@@ -810,8 +845,16 @@ void readMaterials(const BresReader& bres, CityScene& scene)
         const auto baseImage = bres.word(material + 36);
         if ((reflection != UINT32_MAX && reflection >= imageCount) ||
             (baseImage != UINT32_MAX && baseImage >= imageCount)) bres.fail();
+        if (reflection != UINT32_MAX && baseImage == UINT32_MAX) bres.fail();
+        const auto bindSecond = [&](uint32_t image) {
+            if (image >= imageCount) bres.fail();
+            if (resolved.additionalTextures.empty()) resolved.additionalTextures.emplace_back();
+            resolved.additionalTextures[0] = imageName(image);
+        };
+        if (reflection != UINT32_MAX) bindSecond(reflection);
+        if (effect.lightmap == 1) bindSecond(effect.lightmapImage);
         // prepareMaterial assigns this image to stage zero after effect textures.
-        if (baseImage != UINT32_MAX) resolved.texture = scene.images[baseImage];
+        if (baseImage != UINT32_MAX) resolved.texture = imageName(baseImage);
         resolved.mode = selectCityMaterialMode({reflection != UINT32_MAX, bres.word(material + 48),
             bres.word(material + 28) != 0, effect.transparency,
             effect.opacity, effect.lightmap});
@@ -1445,9 +1488,26 @@ CityMaterialMode cityParticleMaterialMode(CityMaterialMode mode)
     }
 }
 
+CityTextureTransform cityTextureTransform(float rotation, const std::array<float, 2>& translation,
+                                         const std::array<float, 2>& scale)
+{
+    const auto cosine = std::cos(rotation), sine = std::sin(rotation);
+    // Original buildTextureTransform at0x0028f1c5, zero center, output-axis scaling.
+    return {scale[0] * cosine, scale[0] * -sine, translation[0],
+            scale[1] * sine, scale[1] * cosine, translation[1]};
+}
+
+void CityMaterialStageState::bind(CityMaterialMode mode)
+{
+    // Original lightmap sets both alpha sources to PREVIOUS; unset/reset never clears them.
+    if (mode == CityMaterialMode::lightmap) alpha = CityStageOneAlpha::previousSquared;
+}
+
 bool cityMaterialModeSupported(CityMaterialMode mode)
 {
-    return mode == CityMaterialMode::solid || mode == CityMaterialMode::additive ||
+    return mode == CityMaterialMode::solid || mode == CityMaterialMode::lightmap ||
+        mode == CityMaterialMode::reflection || mode == CityMaterialMode::transparentReflection ||
+        mode == CityMaterialMode::additive ||
         mode == CityMaterialMode::alphaChannel || mode == CityMaterialMode::alphaReference ||
         mode == CityMaterialMode::textureVertexAlpha;
 }

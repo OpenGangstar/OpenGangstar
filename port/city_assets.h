@@ -28,6 +28,7 @@ struct CityMesh {
     std::vector<CityMeshBuffer> buffers;
     std::vector<std::array<float, 2>> auxiliaryTexCoords;
     std::vector<std::array<float, 4>> secondaryColors;
+    bool floatNormals = true; // Original software reflection texgen accepts only float32 normals.
 };
 
 struct CityGeometryRef {
@@ -60,11 +61,23 @@ CityMaterialMode cityParticleMaterialMode(CityMaterialMode mode);
 bool cityMaterialModeSupported(CityMaterialMode mode);
 bool cityMaterialTransparent(CityMaterialMode mode);
 
+using CityTextureTransform = std::array<float, 6>;
+inline constexpr CityTextureTransform cityIdentityTextureTransform{1, 0, 0, 0, 1, 0};
+CityTextureTransform cityTextureTransform(float rotation, const std::array<float, 2>& translation,
+                                         const std::array<float, 2>& scale);
+enum class CityStageOneAlpha { textureTimesPrevious, previousSquared };
+struct CityMaterialStageState {
+    CityStageOneAlpha alpha = CityStageOneAlpha::textureTimesPrevious;
+    void bind(CityMaterialMode mode);
+};
+
 struct CityMaterial {
     uint32_t diffuse = 0xffffffff;
     std::string texture;
     CityMaterialMode mode = CityMaterialMode::solid;
     std::vector<std::string> additionalTextures;
+    std::array<CityTextureTransform, 2> textureTransforms{
+        cityIdentityTextureTransform, cityIdentityTextureTransform};
 };
 
 struct CityNode {

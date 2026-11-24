@@ -88,7 +88,9 @@ void rejectBitmap(const std::vector<unsigned char>& bytes, const char* message)
 void checkBitmapRgb()
 {
     const auto rgb = bitmap(1, 2, 24, {}, {3, 2, 1, 0xcd, 6, 5, 4, 0xef});
-    if (decodeBitmap(rgb).bgra != std::vector<uint32_t>{0xff040506, 0xff010203})
+    const auto rgbImage = decodeBitmap(rgb);
+    if (rgbImage.baseFormat != TextureBaseFormat::rgba ||
+        rgbImage.bgra != std::vector<uint32_t>{0xff040506, 0xff010203})
         throw std::runtime_error("BMP 24-bit channels, bottom-up order, or DWORD row padding changed.");
     auto rgba = bitmap(1, -2, 32, {}, {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88});
     if (decodeBitmap(rgba).bgra != std::vector<uint32_t>{0xff332211, 0xff776655} ||
@@ -106,21 +108,38 @@ void checkBitmapRgb()
         0x00, 0xfc, 0xe0, 0x03, 0x1f, 0x80, 0xde, 0xad,
         0x00, 0x80, 0xff, 0xff, 0x07, 0x8f, 0xbe, 0xef});
     if (decodeBitmap(rgb555).bgra != std::vector<uint32_t>{
-            0xff000000, 0xffffffff, 0xff19c53a, 0xffff0000, 0x0000ff00, 0xff0000ff})
-        throw std::runtime_error("Retail BMP A1R5G5B5 channels, alpha, normalized expansion, or padding changed.");
+            0xff000000, 0xffffffff, 0xff18c639, 0xffff0000, 0x0000ff00, 0xff0000ff})
+        throw std::runtime_error("Retail BMP A1R5G5B5 channels, alpha, original RGBA32 expansion, or padding changed.");
     std::vector<unsigned char> ramp;
     for (unsigned level = 0; level < 32; ++level) {
         const unsigned pixel = 0x8000 | (level << 10) | (level << 5) | level;
         ramp.push_back(static_cast<unsigned char>(pixel));
         ramp.push_back(static_cast<unsigned char>(pixel >> 8));
     }
-    constexpr std::array<unsigned, 32> normalized{
-        0, 8, 16, 25, 33, 41, 49, 58, 66, 74, 82, 90, 99, 107, 115, 123,
-        132, 140, 148, 156, 165, 173, 181, 189, 197, 206, 214, 222, 230, 239, 247, 255};
+    constexpr std::array<unsigned, 32> originalRamp{
+        0, 8, 16, 24, 33, 41, 49, 57, 66, 74, 82, 90, 99, 107, 115, 123,
+        132, 140, 148, 156, 165, 173, 181, 189, 198, 206, 214, 222, 231, 239, 247, 255};
     const auto levels = decodeBitmap(bitmap(32, -1, 16, {}, ramp));
-    for (size_t i = 0; i < normalized.size(); ++i)
-        if (levels.bgra[i] != (0xff000000 | normalized[i] * 0x010101))
-            throw std::runtime_error("A five-bit BMP channel did not select the nearest BGRA8 UNORM value.");
+    if (levels.baseFormat != TextureBaseFormat::rgba)
+        throw std::runtime_error("Default driver options did not preserve the original BMP RGBA32 upload format.");
+    for (size_t i = 0; i < originalRamp.size(); ++i)
+        if (levels.bgra[i] != (0xff000000 | originalRamp[i] * 0x010101))
+            throw std::runtime_error("BMP expansion differs from the original 65536-word RGBA32 conversion oracle.");
+    // Actual original converter and same-size Blit both exhaustively matched this 32-entry ramp.
+    std::vector<unsigned char> packed;
+    packed.reserve(65536 * 2);
+    for (unsigned value = 0; value < 65536; ++value) {
+        packed.push_back(static_cast<unsigned char>(value));
+        packed.push_back(static_cast<unsigned char>(value >> 8));
+    }
+    const auto allWords = decodeBitmap(bitmap(256, -256, 16, {}, packed));
+    for (unsigned value = 0; value < 65536; ++value) {
+        const auto expected = ((value & 0x8000) ? 0xff000000u : 0u) |
+            (originalRamp[(value >> 10) & 31] << 16) | (originalRamp[(value >> 5) & 31] << 8) | originalRamp[value & 31];
+        if (allWords.bgra[value] != expected)
+            throw std::runtime_error("BMP packed word differs from the exhaustive original conversion oracle.");
+    }
+
 }
 
 void checkBitmapIndexed()
@@ -144,7 +163,7 @@ void checkBitmapIndexed()
     auto indexed = bitmap(3, 2, 8, fullPalette, {2, 1, 0, 0xee, 200, 2, 1, 0xdd});
     bitmapWord(indexed, 46, 0); // Default full palette size when biClrUsed is zero.
     if (decodeBitmap(indexed).bgra != std::vector<uint32_t>{
-            0xff19c53a, 0xff00ff00, 0xffff0000, 0xff00ff00, 0xffff0000, 0xff000000})
+            0xff18c639, 0xff00ff00, 0xffff0000, 0xff00ff00, 0xffff0000, 0xff000000})
         throw std::runtime_error("Indexed BMP default palette, unsigned index, or retail 555 quantization changed.");
 }
 
@@ -274,7 +293,8 @@ void checkAtcVariants()
     bytes[129] = 0x7c;
     bytes[136] = 0x1f;
     SampleStream rgb(128 + 16, bytes.data());
-    if (readTexture(rgb).bgra != std::vector<uint32_t>{
+    const auto rgbImage = readTexture(rgb);
+    if (rgbImage.baseFormat != TextureBaseFormat::rgb || rgbImage.bgra != std::vector<uint32_t>{
             0xffff0000, 0xffff0000, 0xffff0000, 0xffff0000,
             0xff0000ff, 0xff0000ff, 0xff0000ff, 0xff0000ff})
         throw std::runtime_error("ATC RGB block stride or opacity changed.");
@@ -292,7 +312,8 @@ void checkAtcVariants()
     bytes[147] = 0x01;
     bytes[152] = 0x1f;
     SampleStream rgba(bytes.size(), bytes.data());
-    if (readTexture(rgba).bgra != std::vector<uint32_t>{
+    const auto rgbaImage = readTexture(rgba);
+    if (rgbaImage.baseFormat != TextureBaseFormat::rgba || rgbaImage.bgra != std::vector<uint32_t>{
             0x14ff0000, 0x78ff0000, 0x3cff0000, 0xffff0000,
             0xb40000ff, 0x3c0000ff, 0x500000ff, 0xc80000ff})
         throw std::runtime_error("ATCI alpha endpoints, interpolation, or selectors changed.");

@@ -30,8 +30,10 @@ mission playthroughs for discovery or verification.
   Eleven actual GPU pixel checks verify blend factors, fractional alpha,
   strict 0.5 cutoff, depth writes and equal-depth LEQUAL. All seven Release
   CTests, retail fixture, opening and six checkpoint smokes passed.
-  Modes 3/12/17 explicitly fail when selected; lighting/fog, custom GL_DECAL
-  selection, animated materials and complete child transforms remain open.
+  OG-027 also implements texture stages for modes 3/12/17, indexed sampler/image
+  bindings, static texture matrices, raw-normal reflection texgen and persistent
+  stage alpha state. Lighting/fog, custom GL_DECAL selection, animated materials
+  and complete child transforms remain open; see REMAINING_MATERIALS.md.
   Exact-distance native material ordering deliberately avoids original
   pointer hashes and non-strict signed wrapped comparison. See MATERIAL_MODES.md.
 - [x] Decode and preserve BRES node user properties through the retail
@@ -853,17 +855,18 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   archives. The audit reports this distinction without changing its dependency
   failure status or dropping unresolved references. The native x64 audit was
   rebuilt and rerun against the ZIP; its existing diagnostics remain unchanged.
-- [x] Preserve secondary BRES material texture slots and validate every image
-  index. The hospital sign fixture retains separate references to
-  `props_alpha_02.tga` and `props_alpha_01.tga`. The audit checks both.
-  The asset audit resolves 1,404 of 1,409 secondary mesh-buffer bindings.
+- [x] Resolve original texture-record/sampler/image-list/image indices rather
+  than flattening image catalogues. The777diffuse records across776effects
+  select only1prepared secondary slot, which resolves. Hospital selects one
+  texture, props_alpha_02; props_alpha_01 is an unused catalogue entry. Earlier
+  1404/1409secondary-binding claims were incorrect.
   The retail alpha-reference renderer disables later texture stages and
   uses stage-zero texture alpha for the 0.5 cutoff. However, original Collada
   construction selects alpha-channel blending (type 14) for the hospital base
   material, not alpha-reference (type 15); its layer-0 props_alpha_02 texture
   does not match the game override for props_alpha/props_alpha_01. The prior
   claim that this base material inherently selects alpha-reference was incorrect.
-  The native effect flag currently conflates blending with a cutoff. Original
+  Native material modes now distinguish blending from cutoff. Original
   initial catalog selection is 1178 solid, 169 alpha-channel, and 19 additive
   material records before game/instance overrides. See MATERIAL_MODES.md for
   selector precedence, fixups, exact blend behavior, and remaining caveats.
@@ -944,8 +947,9 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
 - [x] Port the original BMP loader variants: BI_RGB 1/4/8/16/24/32-bit,
   RLE4, and RLE8. Monochrome ignores its unused palette as the original does;
   indexed palettes retain opaque 555 quantization, and 16-bit pixels preserve
-  A1R5G5B5 alpha. Five-bit channels use nearest BGRA8 UNORM values, with at most
-  half an eight-bit step of representation error. Existing 24/32-bit conversion
+  A1R5G5B5 alpha. OG-027 corrects five-bit expansion to original bit replication
+  (v<<3)|(v>>2), proven by both original RGBA32 converters for all65536words;
+  the prior nearest-UNORM assumption was incorrect. Existing24/32-bit conversion
   and keepBitmapAlpha remain unchanged. All five integration CTests and six
   independently generated pixel fixtures pass; the x64 Vulkan smoke passes.
   New variants are validated synthetically, not by the supplied retail files.
@@ -1299,3 +1303,7 @@ Implemented original body/circle/mass/filter creation, body placement/refilter a
 ## OG-030: original height initialization
 
 Implemented distinct point-overlap and ordered scene-node initialization helpers, including live raw bounds/translations, last-successful-sibling selection, full overlap traversal, recursive partial-state behavior and core mixed node/mesh sources. Root Release/Debug builds and combined15CTest gates pass. Original executable comparisons cover19returning synthetic fixtures plus a separately stopped cycle probe and all14576point/16scene asset records, with zero differences. Release/Debug corpus bits agree. Existing12998ordinary heights and16330actual cliff proxies/254explicit original-world range errors remain verified; test-only expanded world17085proxies. See HEIGHT_INITIALIZATION.md. Production loaded-scene identities/types/raw boxes/transforms and actor-host composition remain prerequisites.
+
+## OG-027: original material texture stages
+
+Verified texture-stage support for modes3/12/17, indexed sampler bindings, both static texture matrices, raw-normal reflection texgen, persistent driver alpha and mode17screen blending. Root rebuilt the committed slice without pending authored-jump CMake wiring:14CTest pass in Release and Debug. Combined candidate validation also passed15tests;31actual GPU RGBA readbacks, retail fixtures and opening smokes pass in both configurations. Original probes verify state transitions, indexed fixups, matrix coefficients and all65536packed BMP words. All98supplied images decode and the exact111missing-path set remains. See REMAINING_MATERIALS.md. Full primary lighting/tracked material color, dynamic materials, full scene/skin transforms and other listed boundaries remain incomplete.

@@ -96,6 +96,16 @@ Vec3 direction(const Transform& transform, const Vec3& vector)
                scale(transform[2], vector[2]));
 }
 
+Vec3 reflectionDirection(const Transform& transform, const std::array<float, 4>& normal)
+{
+    return direction(transform, {normal[0], normal[1], normal[2]});
+}
+
+void setReflectionNormal(CityVertex& vertex, const Vec3& normal, float available)
+{
+    vertex.reflectionNormal = {normal[0], normal[1], normal[2], available};
+}
+
 Vec3 point(const Transform& transform, const Vec3& vector)
 {
     return add(direction(transform, vector), transform[3]);
@@ -433,6 +443,7 @@ void poseCityVehicleLight(const CityVehicleLightMesh& mesh, const CityParticleFr
         auto& vertex = vertices[mesh.firstVertex + i];
         vertex.position = point(transform, source.position);
         vertex.normal = direction(normals, source.normal);
+        setReflectionNormal(vertex, reflectionDirection(transform, source.reflectionNormal), source.reflectionNormal[3]);
         vertex.color[3] = source.color[3] * opacity;
     }
 }
@@ -645,7 +656,11 @@ void appendScene(CityDrawData& draw, const CityAssets& city, const CityScene& sc
                 const auto uv = mesh->texCoords.empty() ? std::array<float, 2>{} : mesh->texCoords[i];
                 CityVertex vertex{point(transform, mesh->positions[i]), uv};
                 if (!mesh->colors.empty()) vertex.color = mesh->colors[i];
-                if (!mesh->normals.empty()) vertex.normal = direction(normals, mesh->normals[i]);
+                if (!mesh->auxiliaryTexCoords.empty()) vertex.auxiliaryUv = mesh->auxiliaryTexCoords[i];
+                if (!mesh->normals.empty()) {
+                    vertex.normal = direction(normals, mesh->normals[i]);
+                    setReflectionNormal(vertex, direction(transform, mesh->normals[i]), mesh->floatNormals ? 1.f : 0.f);
+                }
                 draw.vertices.push_back(vertex);
             }
             float billboardRadius = 0;
@@ -669,6 +684,14 @@ void appendScene(CityDrawData& draw, const CityAssets& city, const CityScene& sc
                 if (!cityMaterialModeSupported(mode))
                     throw std::runtime_error("Unsupported original material mode " +
                         std::to_string(static_cast<uint32_t>(mode)) + " in " + meshLibrary.path);
+                const bool twoStage = mode == CityMaterialMode::lightmap || mode == CityMaterialMode::reflection ||
+                    mode == CityMaterialMode::transparentReflection;
+                if (twoStage && !material.texture.empty() && mesh->texCoords.empty())
+                    throw std::runtime_error("Unsupported original current-coordinate fallback without authored UV0.");
+                const bool secondBound = !material.additionalTextures.empty() && !material.additionalTextures[0].empty();
+                const bool generatesUv = mode != CityMaterialMode::lightmap && mesh->floatNormals && !mesh->normals.empty();
+                if (twoStage && secondBound && !generatesUv && mesh->auxiliaryTexCoords.empty())
+                    throw std::runtime_error("Unsupported original current-coordinate fallback without authored UV1.");
                 const bool alphaTest = mode == CityMaterialMode::alphaReference;
                 const auto channel = [&](unsigned shift) { return float((material.diffuse >> shift) & 255) / 255; };
                 draw.surfaces.push_back({static_cast<uint32_t>(draw.indices.size()), static_cast<uint32_t>(buffer.indices.size()),
@@ -679,6 +702,7 @@ void appendScene(CityDrawData& draw, const CityAssets& city, const CityScene& sc
                 draw.surfaces.back().diffuseAlpha = channel(24);
                 draw.surfaces.back().node = renderNode;
                 draw.surfaces.back().additionalTextures = material.additionalTextures;
+                draw.surfaces.back().textureTransforms = material.textureTransforms;
                 if (actor && actor->payphoneOnly) draw.surfaces.back().payphoneActor = actorIndex;
                 for (const auto index : buffer.indices) draw.indices.push_back(base + index);
                 if (billboardRadius > 0) {
@@ -893,6 +917,11 @@ void poseSkinnedMesh(const CityScene& model, const CitySkin& skin, const std::ve
         auto& vertex = vertices[i];
         vertex.position = point(world, position);
         vertex.normal = normal;
+        // Reuse the current posed normal: undo its inverse-transpose world step, then
+        // apply the raw model-linear texgen transform. Original skin deformation remains unverified.
+        const Vec3 posedLocalNormal{dot(world[0], normal), dot(world[1], normal), dot(world[2], normal)};
+        setReflectionNormal(vertex, direction(world, posedLocalNormal),
+                            !mesh->normals.empty() && mesh->floatNormals ? 1.f : 0.f);
     }
 }
 
@@ -1164,6 +1193,7 @@ void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& po
         target[i] = vertex;
         target[i].position = point(transform, vertex.position);
         target[i].normal = direction(normals, vertex.normal);
+        setReflectionNormal(target[i], reflectionDirection(transform, vertex.reflectionNormal), vertex.reflectionNormal[3]);
     }
     if (!actor.fightIdle) return;
     const auto& clip = walking ? *actor.pursuitWalk : *actor.fightIdle;
@@ -1215,6 +1245,8 @@ void poseCityBillboard(const CityBillboard& billboard, const CityCameraMatrix& c
         vertex = source;
         vertex.position = add(billboard.origin, rotate(add(source.position, scale(billboard.origin, -1))));
         vertex.normal = rotate(source.normal);
+        setReflectionNormal(vertex, rotate({source.reflectionNormal[0], source.reflectionNormal[1], source.reflectionNormal[2]}),
+                            source.reflectionNormal[3]);
     }
 }
 
@@ -1532,7 +1564,10 @@ static void poseCityMarker(const CityScene& model, const CityAnimationClip& clip
         for (size_t i = 0; i < mesh.positions.size(); ++i) {
             auto& vertex = vertices[mesh.firstVertex + i];
             vertex.position = point(transform, mesh.positions[i]);
-            if (!mesh.normals.empty()) vertex.normal = direction(normals, mesh.normals[i]);
+            if (!mesh.normals.empty()) {
+                vertex.normal = direction(normals, mesh.normals[i]);
+                setReflectionNormal(vertex, direction(transform, mesh.normals[i]), vertex.reflectionNormal[3]);
+            }
         }
     }
 }
@@ -2546,6 +2581,8 @@ void poseCityVehicle(const CityActor& actor, const CityVehiclePose& vehicle,
         target[i].position = add(vehicle.position, {c*local[0] - s*local[1], s*local[0] + c*local[1], local[2]});
         const auto& normal = source[i].normal;
         target[i].normal = {c*normal[0] - s*normal[1], s*normal[0] + c*normal[1], normal[2]};
+        const auto& raw = source[i].reflectionNormal;
+        setReflectionNormal(target[i], {c*raw[0] - s*raw[1], s*raw[0] + c*raw[1], raw[2]}, raw[3]);
     }
     for (const auto& range : morphs) {
         const auto& mesh = actor.model.meshes.at(range.mesh);
@@ -2562,6 +2599,7 @@ void poseCityVehicle(const CityActor& actor, const CityVehiclePose& vehicle,
             auto& vertex = target[range.firstVertex + i];
             vertex.position = point(live, position);
             vertex.normal = direction(normals, normal);
+            setReflectionNormal(vertex, direction(live, normal), vertex.reflectionNormal[3]);
         }
     }
     const auto restYaw = actor.rotationDegrees[2] * radians;
@@ -2586,6 +2624,8 @@ void poseCityVehicle(const CityActor& actor, const CityVehiclePose& vehicle,
             };
             target[i].position = add(pivot, rotate(add(source[i].position, scale(wheel.pivot, -1))));
             target[i].normal = rotate(source[i].normal);
+            const auto& raw = source[i].reflectionNormal;
+            setReflectionNormal(target[i], rotate({raw[0], raw[1], raw[2]}), raw[3]);
         }
     }
     if (vehicle.chassisTilt != std::array<float, 2>{}) {
@@ -2599,6 +2639,7 @@ void poseCityVehicle(const CityActor& actor, const CityVehiclePose& vehicle,
             auto& vertex = target[i];
             vertex.position = add(vehicle.position, direction(transform, add(vertex.position, scale(vehicle.position, -1))));
             vertex.normal = direction(transform, vertex.normal);
+            setReflectionNormal(vertex, reflectionDirection(transform, vertex.reflectionNormal), vertex.reflectionNormal[3]);
         }
     }
 }

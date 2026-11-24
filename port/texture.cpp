@@ -129,21 +129,23 @@ Image readAtcTexture(IFileStream& file)
     if (!count || count > maximum) throw std::runtime_error("Invalid ATC mip count.");
 
     auto result = readAtcLevel(file, width, height, mode);
+    result.baseFormat = mode == AtcAlpha::opaque ? TextureBaseFormat::rgb : TextureBaseFormat::rgba;
     for (uint32_t level = 1; level < count; ++level) {
         width = std::max(1u, width / 2);
         height = std::max(1u, height / 2);
         result.mipLevels.push_back(readAtcLevel(file, width, height, mode));
+        result.mipLevels.back().baseFormat = result.baseFormat;
     }
     return result;
 }
 
 uint32_t bitmap555(unsigned value)
 {
-    // The retail BMP loader stores indexed colors in A1R5G5B5, uploaded as
-    // GL_UNSIGNED_SHORT_5_5_5_1. Choose the nearest BGRA8 UNORM representation.
-    const auto channel = [](unsigned component) { return (component * 255 + 15) / 31; };
+    // Default driver options 0x12 convert loader A1R5G5B5 to RGBA32 before upload.
+    // Both original same-size Blit and resized conversion replicate the high bits.
     return ((value & 0x8000) ? 0xff000000u : 0u) |
-        (channel((value >> 10) & 31) << 16) | (channel((value >> 5) & 31) << 8) | channel(value & 31);
+        (uint32_t(expand((value >> 10) & 31, 5)) << 16) |
+        (uint32_t(expand((value >> 5) & 31, 5)) << 8) | uint32_t(expand(value & 31, 5));
 }
 
 Image readBitmap(IFileStream& file, bool keepAlpha)

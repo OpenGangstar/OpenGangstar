@@ -32,6 +32,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <tuple>
 
 namespace {
 void check(VkResult result, const char* operation)
@@ -41,6 +42,7 @@ void check(VkResult result, const char* operation)
 }
 
 struct Vulkan {
+    CityMaterialStageState materialStages;
     HMODULE loader = LoadLibraryExW(L"vulkan-1.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
     PFN_vkGetInstanceProcAddr get = loader ? reinterpret_cast<PFN_vkGetInstanceProcAddr>(
         GetProcAddress(loader, "vkGetInstanceProcAddr")) : nullptr;
@@ -402,6 +404,8 @@ struct CityTexture {
     VkDeviceMemory memory = VK_NULL_HANDLE;
     VkImageView view = VK_NULL_HANDLE;
     VkDescriptorSet descriptor = VK_NULL_HANDLE;
+    TextureBaseFormat baseFormat = TextureBaseFormat::rgba;
+    bool enabled = true;
 };
 
 struct CityFragmentConstants {
@@ -409,11 +413,26 @@ struct CityFragmentConstants {
     float brightness;
     uint32_t materialMode = 0;
     float diffuseAlpha = 1;
+    uint32_t stageState = 0;
 };
 
 CityFragmentConstants cityFragment(const CitySurface& surface, float brightness)
 {
     return {surface.tintAndCutoff, brightness, static_cast<uint32_t>(surface.materialMode), surface.diffuseAlpha};
+}
+
+using CityTextureBinding = std::tuple<std::string, std::string,
+    CityTextureTransform, CityTextureTransform>;
+CityTextureBinding cityTextureBinding(const CitySurface& surface)
+{
+    return {surface.texture, surface.additionalTextures.empty() ? std::string{} : surface.additionalTextures[0],
+            surface.textureTransforms[0], surface.textureTransforms[1]};
+}
+using CityUvConstants = std::array<std::array<float, 4>, 4>;
+CityUvConstants cityUvConstants(const CityTextureTransform& first, const CityTextureTransform& second)
+{
+    return {{{first[0], first[1], first[2], 0}, {first[3], first[4], first[5], 0},
+             {second[0], second[1], second[2], 0}, {second[3], second[4], second[5], 0}}};
 }
 
 struct CityVehicleEffect {
@@ -447,6 +466,8 @@ struct CityRender {
         if (vehicleExteriorPipeline) VK_CALL(vkDestroyPipeline)(vk.device, vehicleExteriorPipeline, nullptr);
         if (pipeline) VK_CALL(vkDestroyPipeline)(vk.device, pipeline, nullptr);
         if (layout) VK_CALL(vkDestroyPipelineLayout)(vk.device, layout, nullptr);
+        if (uvBuffer) VK_CALL(vkDestroyBuffer)(vk.device, uvBuffer, nullptr);
+        if (uvMemory) VK_CALL(vkFreeMemory)(vk.device, uvMemory, nullptr);
         if (texturePool) VK_CALL(vkDestroyDescriptorPool)(vk.device, texturePool, nullptr);
         if (textureLayout) VK_CALL(vkDestroyDescriptorSetLayout)(vk.device, textureLayout, nullptr);
         if (sampler) VK_CALL(vkDestroySampler)(vk.device, sampler, nullptr);
@@ -568,6 +589,10 @@ struct CityRender {
     VkDescriptorSetLayout textureLayout = VK_NULL_HANDLE;
     VkDescriptorPool texturePool = VK_NULL_HANDLE;
     std::map<std::string, CityTexture> textures;
+    struct Binding { VkDescriptorSet descriptor = VK_NULL_HANDLE; VkDeviceSize offset = 0; };
+    std::map<CityTextureBinding, Binding> materialBindings;
+    VkBuffer uvBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory uvMemory = VK_NULL_HANDLE;
     std::vector<CityTexture> captions;
     std::map<int32_t, CityTexture> portraits;
     std::vector<CityTexture> failureTextures;
@@ -826,6 +851,7 @@ VkImageView imageView(const Vulkan& vk, VkImage image, VkFormat format, VkImageA
 
 void uploadCityTexture(Vulkan& vk, CityTexture& texture, const Image& pixels)
 {
+    texture.baseFormat = pixels.baseFormat;
     constexpr auto format = VK_FORMAT_B8G8R8A8_UNORM;
     VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     image.imageType = VK_IMAGE_TYPE_2D;
@@ -960,6 +986,30 @@ void drawHighlightedCaption(HDC dc, const std::wstring& text, const std::vector<
         }
         y += lineHeight;
     }
+}
+
+void allocateCityTextureDescriptor(CityRender& city, CityTexture& texture, VkDescriptorPool pool, VkSampler sampler)
+{
+    auto& vk = city.context;
+    VkDescriptorSetAllocateInfo descriptor{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    descriptor.descriptorPool = pool;
+    descriptor.descriptorSetCount = 1;
+    descriptor.pSetLayouts = &city.textureLayout;
+    check(VK_CALL(vkAllocateDescriptorSets)(vk.device, &descriptor, &texture.descriptor), "vkAllocateDescriptorSets");
+    const VkDescriptorImageInfo image{sampler, texture.view,
+                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+    const VkDescriptorBufferInfo matrix{city.uvBuffer, 0, sizeof(CityUvConstants)};
+    VkWriteDescriptorSet writes[3]{};
+    for (uint32_t i = 0; i < 3; ++i) {
+        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[i].dstSet = texture.descriptor;
+        writes[i].dstBinding = i;
+        writes[i].descriptorCount = 1;
+        writes[i].descriptorType = i == 2 ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        if (i == 2) writes[i].pBufferInfo = &matrix;
+        else writes[i].pImageInfo = &image;
+    }
+    VK_CALL(vkUpdateDescriptorSets)(vk.device, std::size(writes), writes, 0, nullptr);
 }
 
 Image rasterCaption(const CityDialogue& dialogue, bool tutorial = false, bool title = false,
@@ -1101,6 +1151,8 @@ void prepareVehicleEffects(CityRender& city, FileSystemBase& assets, CityDrawDat
         effect.surface.texture = effect.texture;
         effect.surface.tintAndCutoff = {1, 1, 1, -2};
         effect.surface.materialMode = cityParticleMaterialMode(scene.materials.begin()->second.mode);
+        effect.surface.additionalTextures = scene.materials.begin()->second.additionalTextures;
+        effect.surface.textureTransforms = scene.materials.begin()->second.textureTransforms;
         if (!cityMaterialModeSupported(effect.surface.materialMode))
             throw std::runtime_error(std::string("Unsupported particle material mode in ") + paths[i]);
         effect.surface.firstIndex = effect.firstVertex; // Nonindexed particle vertex range.
@@ -1143,17 +1195,50 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                          RetailLanguage language)
 {
     auto& vk = city.context;
-    for (const auto& surface : draw.surfaces) city.textures.try_emplace(surface.texture);
-    for (const auto& effect : city.vehicleEffects)
-        if (!effect.texture.empty()) city.textures.try_emplace(effect.texture);
+    const auto reserveMaterial = [&](const CitySurface& surface) {
+        city.textures.try_emplace(surface.texture);
+        const auto second = surface.additionalTextures.empty() ? std::string{} : surface.additionalTextures[0];
+        if (!second.empty()) city.textures.try_emplace(second);
+        if (!second.empty() || surface.textureTransforms[0] != cityIdentityTextureTransform ||
+            surface.textureTransforms[1] != cityIdentityTextureTransform)
+            city.materialBindings.try_emplace(cityTextureBinding(surface));
+    };
+    for (const auto& surface : draw.surfaces) reserveMaterial(surface);
+    for (const auto& effect : city.vehicleEffects) reserveMaterial(effect.surface);
     if (city.opening.payphone) city.textures.try_emplace("");
-    const VkDescriptorSetLayoutBinding binding{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
-                                               VK_SHADER_STAGE_FRAGMENT_BIT, nullptr};
+    const VkDescriptorSetLayoutBinding bindings[]{
+        {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}};
     VkDescriptorSetLayoutCreateInfo layout{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    layout.bindingCount = 1;
-    layout.pBindings = &binding;
+    layout.bindingCount = std::size(bindings);
+    layout.pBindings = bindings;
     check(VK_CALL(vkCreateDescriptorSetLayout)(vk.device, &layout, nullptr, &city.textureLayout),
           "vkCreateDescriptorSetLayout (city texture)");
+    VkPhysicalDeviceProperties matrixProperties{};
+    VK_CALL(vkGetPhysicalDeviceProperties)(vk.gpu, &matrixProperties);
+    const auto alignment = matrixProperties.limits.minUniformBufferOffsetAlignment;
+    const VkDeviceSize stride = (sizeof(CityUvConstants) + alignment - 1) / alignment * alignment;
+    VkBufferCreateInfo uniform{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    uniform.size = stride * (city.materialBindings.size() + 1);
+    uniform.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    check(VK_CALL(vkCreateBuffer)(vk.device, &uniform, nullptr, &city.uvBuffer), "vkCreateBuffer (texture matrices)");
+    VkMemoryRequirements requirements{};
+    VK_CALL(vkGetBufferMemoryRequirements)(vk.device, city.uvBuffer, &requirements);
+    city.uvMemory = allocate(vk, requirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    check(VK_CALL(vkBindBufferMemory)(vk.device, city.uvBuffer, city.uvMemory, 0), "vkBindBufferMemory (texture matrices)");
+    void* mapped = nullptr;
+    check(VK_CALL(vkMapMemory)(vk.device, city.uvMemory, 0, uniform.size, 0, &mapped), "vkMapMemory (texture matrices)");
+    const auto identity = cityUvConstants(cityIdentityTextureTransform, cityIdentityTextureTransform);
+    std::memcpy(mapped, &identity, sizeof identity);
+    VkDeviceSize offset = stride;
+    for (auto& [key, binding] : city.materialBindings) {
+        const auto data = cityUvConstants(std::get<2>(key), std::get<3>(key));
+        std::memcpy(static_cast<char*>(mapped) + offset, &data, sizeof data);
+        binding.offset = offset;
+        offset += stride;
+    }
+    VK_CALL(vkUnmapMemory)(vk.device, city.uvMemory);
     const auto& checkpoint = city.opening.checkpoint;
     const auto tutorialCount = (checkpoint ? 2 : 0) + (city.opening.payphone ? 2 : 0);
     const auto* payphoneLines = city.opening.payphone ? &city.opening.payphone->cinematicDialogue : nullptr;
@@ -1435,7 +1520,7 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
         objectiveFrames[0] = rasterRetailSpriteAnimation(assets, "huds.bsprite", "OBJECTIVE", 480, 320, true);
         objectiveFrames[1] = rasterRetailSpriteAnimation(assets, "huds.bsprite", "OBJECTIVE_END", 480, 320, true);
     }
-    const auto count = static_cast<uint32_t>(city.textures.size() + city.opening.dialogue.size() +
+    const auto count = static_cast<uint32_t>(city.textures.size() + city.materialBindings.size() + city.opening.dialogue.size() +
                                              tutorialCount + payphoneCount + postFightCount + missionLineCount + pierLineCount +
                                              shopLineCount + closingLineCount + postLcLineCount + ambushLineCount + confrontationLineCount + phoneLineCount + fightIntroLineCount + locoNextLineCount + cooperLineCount + cooperNextLineCount + cooperArrivalLineCount + cooperClosingLineCount + brawlNextLineCount + basketballLineCount + basketballClosingLineCount + postBasketballLineCount + ambush29LineCount + briefing29LineCount + repairArrivalLineCount + deliveryLineCount + elToroLineCount + elToroArrivalLineCount + elToroInterludeLineCount + elToroDepartureLineCount + elToroClosingLineCount + vanIntroLineCount + vanBriefingLineCount + vanArrivalLineCount + vanReentryLineCount + vanSecondArrivalLineCount + vanHandshakeLineCount + vanHandshakeBriefingLineCount + vanPoliceLineCount + vanEscapeLineCount + vanFourthArrivalLineCount + vanClosingLineCount + script19LineCount + script19ArrivalLineCount + script19InterludeLineCount + script19SecondDebriefLineCount + script19ClosingLineCount + script20LineCount + script20ArrivalLineCount + script20InterludeLineCount + script20RetreatLineCount + script20ClosingLineCount + script32LineCount + script33LineCount + script33ClosingLineCount + script36LineCount + script36ArrivalLineCount + script36DebriefLineCount + script36ReinforcementLineCount + script36ClosingLineCount +
                                              hasPayphoneObjective + (next ? 54 : 0) +
@@ -1447,11 +1532,13 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
                                              objectiveFrames[0].size() + objectiveFrames[1].size() +
                                              titleTextures + city.portraits.size() +
                                              (minimap ? city.minimapTextures.size() + minimap->checkpointAnimation.size() : 0));
-    const VkDescriptorPoolSize size{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, count};
+    const VkDescriptorPoolSize sizes[]{
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, count * 2},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count}};
     VkDescriptorPoolCreateInfo pool{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     pool.maxSets = count;
-    pool.poolSizeCount = 1;
-    pool.pPoolSizes = &size;
+    pool.poolSizeCount = std::size(sizes);
+    pool.pPoolSizes = sizes;
     check(VK_CALL(vkCreateDescriptorPool)(vk.device, &pool, nullptr, &city.texturePool), "vkCreateDescriptorPool");
 
     VkSamplerCreateInfo sampler{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
@@ -1474,31 +1561,23 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
     }
     const auto upload = [&](CityTexture& texture, const Image& pixels, VkSampler textureSampler = VK_NULL_HANDLE) {
         uploadCityTexture(vk, texture, pixels);
-        VkDescriptorSetAllocateInfo descriptor{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-        descriptor.descriptorPool = city.texturePool;
-        descriptor.descriptorSetCount = 1;
-        descriptor.pSetLayouts = &city.textureLayout;
-        check(VK_CALL(vkAllocateDescriptorSets)(vk.device, &descriptor, &texture.descriptor), "vkAllocateDescriptorSets");
-        const VkDescriptorImageInfo image{textureSampler ? textureSampler : city.sampler, texture.view,
-                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        write.dstSet = texture.descriptor;
-        write.descriptorCount = 1;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        write.pImageInfo = &image;
-        VK_CALL(vkUpdateDescriptorSets)(vk.device, 1, &write, 0, nullptr);
+        allocateCityTextureDescriptor(city, texture, city.texturePool, textureSampler ? textureSampler : city.sampler);
     };
     std::set<std::string> districtTextures;
     for (size_t i = 0; i < draw.lowDetailEndSurface; ++i) {
         const auto& path = draw.surfaces[i].texture;
         if (!path.empty()) districtTextures.insert(path);
+        for (const auto& second : draw.surfaces[i].additionalTextures)
+            if (!second.empty()) districtTextures.insert(second);
     }
     for (auto& [path, texture] : city.textures) {
+        bool enabled = false;
         Image pixels{1, 1, {0xffffffff}};
         if (!path.empty()) {
             const std::unique_ptr<IFileStream> file(assets.openResource(path.c_str()));
             if (file) {
                 pixels = readTexture(*file, true);
+                enabled = true;
             } else {
                 // The neutral texel lets the shader use the material's diffuse color.
                 // The asset audit reports the unresolved texture separately.
@@ -1506,6 +1585,33 @@ void prepareCityTextures(CityRender& city, FileSystemBase& assets, const CityDra
             }
         }
         upload(texture, pixels, districtTextures.count(path) ? city.districtSampler : city.sampler);
+        texture.enabled = enabled;
+    }
+    for (auto& [key, binding] : city.materialBindings) {
+        VkDescriptorSetAllocateInfo descriptor{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        descriptor.descriptorPool = city.texturePool;
+        descriptor.descriptorSetCount = 1;
+        descriptor.pSetLayouts = &city.textureLayout;
+        check(VK_CALL(vkAllocateDescriptorSets)(vk.device, &descriptor, &binding.descriptor), "vkAllocateDescriptorSets (material)");
+        const auto& first = std::get<0>(key);
+        const auto& second = std::get<1>(key);
+        const VkDescriptorImageInfo images[]{
+            {districtTextures.count(first) ? city.districtSampler : city.sampler, city.textures.at(first).view,
+             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {districtTextures.count(second) ? city.districtSampler : city.sampler, city.textures.at(second.empty() ? first : second).view,
+             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}};
+        const VkDescriptorBufferInfo matrix{city.uvBuffer, binding.offset, sizeof(CityUvConstants)};
+        VkWriteDescriptorSet writes[3]{};
+        for (uint32_t i = 0; i < 3; ++i) {
+            writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[i].dstSet = binding.descriptor;
+            writes[i].dstBinding = i;
+            writes[i].descriptorCount = 1;
+            writes[i].descriptorType = i == 2 ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            if (i == 2) writes[i].pBufferInfo = &matrix;
+            else writes[i].pImageInfo = &images[i];
+        }
+        VK_CALL(vkUpdateDescriptorSets)(vk.device, std::size(writes), writes, 0, nullptr);
     }
     if (statusHud) {
         for (size_t i = 0; i < statusHud->gauges.size(); ++i) {
@@ -2066,7 +2172,9 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
         {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(CityVertex, position)},
         {1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(CityVertex, uv)},
         {2, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(CityVertex, color)},
-        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(CityVertex, normal)}
+        {3, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(CityVertex, normal)},
+        {4, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(CityVertex, auxiliaryUv)},
+        {5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(CityVertex, reflectionNormal)}
     };
     VkPipelineVertexInputStateCreateInfo input{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     input.vertexBindingDescriptionCount = 1;
@@ -2100,13 +2208,12 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
     blend.attachmentCount = 1;
     blend.pAttachments = &attachment;
     const VkPushConstantRange constants[]{
-        {VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(CityCameraMatrix)},
-        {VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(CityCameraMatrix), sizeof(CityFragmentConstants)}
+        {VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 128}
     };
     VkPipelineLayoutCreateInfo layout{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     layout.setLayoutCount = 1;
     layout.pSetLayouts = &city.textureLayout;
-    layout.pushConstantRangeCount = 2;
+    layout.pushConstantRangeCount = std::size(constants);
     layout.pPushConstantRanges = constants;
     check(VK_CALL(vkCreatePipelineLayout)(vk.device, &layout, nullptr, &city.layout), "vkCreatePipelineLayout");
     VkGraphicsPipelineCreateInfo info{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -2133,18 +2240,22 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
         raster.cullMode = VK_CULL_MODE_NONE;
     }
     city.materialPipelines[0] = {city.pipeline, city.vehicleExteriorPipeline};
-    for (const auto mode : {CityMaterialMode::additive, CityMaterialMode::alphaChannel,
+    for (const auto mode : {CityMaterialMode::lightmap, CityMaterialMode::reflection,
+                            CityMaterialMode::transparentReflection, CityMaterialMode::additive, CityMaterialMode::alphaChannel,
                             CityMaterialMode::alphaReference, CityMaterialMode::textureVertexAlpha}) {
         const bool transparent = cityMaterialTransparent(mode);
         // Retail option 0x40 is clear by default: transparent materials do not write depth.
         depth.depthWriteEnable = transparent ? VK_FALSE : VK_TRUE;
         attachment.blendEnable = transparent ? VK_TRUE : VK_FALSE;
-        attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        attachment.srcColorBlendFactor = mode == CityMaterialMode::transparentReflection
+            ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_SRC_ALPHA;
         attachment.dstColorBlendFactor = mode == CityMaterialMode::additive
-            ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            ? VK_BLEND_FACTOR_ONE : mode == CityMaterialMode::transparentReflection
+            ? VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         // glBlendFunc applies the same factors to color and alpha.
         attachment.srcAlphaBlendFactor = attachment.srcColorBlendFactor;
-        attachment.dstAlphaBlendFactor = attachment.dstColorBlendFactor;
+        attachment.dstAlphaBlendFactor = mode == CityMaterialMode::transparentReflection
+            ? VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA : attachment.dstColorBlendFactor;
         auto& pipelines = city.materialPipelines[static_cast<size_t>(mode)];
         check(VK_CALL(vkCreateGraphicsPipelines)(vk.device, VK_NULL_HANDLE, 1, &info, nullptr, &pipelines[0]),
               "vkCreateGraphicsPipelines (retail material)");
@@ -2171,6 +2282,11 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
 void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D size)
 {
     auto& vk = city.context;
+    struct RestoreStages {
+        Vulkan& context;
+        CityMaterialStageState saved;
+        ~RestoreStages() { context.materialStages = saved; }
+    } restore{vk, vk.materialStages};
     struct Proof {
         Vulkan& context;
         VkImage image = VK_NULL_HANDLE;
@@ -2181,7 +2297,7 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
         VkBuffer buffer = VK_NULL_HANDLE;
         VkDescriptorPool descriptors = VK_NULL_HANDLE;
         VkCommandPool commands = VK_NULL_HANDLE;
-        std::array<CityTexture, 2> textures;
+        std::array<CityTexture, 4> textures;
         ~Proof() {
             auto& vk = context;
             VK_CALL(vkDeviceWaitIdle)(vk.device);
@@ -2201,8 +2317,12 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
             }
         }
     } proof{vk};
-    for (size_t i = 0; i < proof.textures.size(); ++i)
+    for (size_t i = 0; i < 2; ++i)
         uploadCityTexture(vk, proof.textures[i], Image{1, 1, {uint32_t((128 - i) << 24) | 0x00ffffff}});
+    constexpr std::array<uint32_t, 4> basePixels{0x99408020, 0x66802040, 0xcc204080, 0xff102030};
+    constexpr std::array<uint32_t, 4> secondPixels{0x40204080, 0x80602010, 0xc0206040, 0xe0103050};
+    uploadCityTexture(vk, proof.textures[2], Image{2, 2, {basePixels.begin(), basePixels.end()}});
+    uploadCityTexture(vk, proof.textures[3], Image{2, 2, {secondPixels.begin(), secondPixels.end()}});
     VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     image.imageType = VK_IMAGE_TYPE_2D;
     image.format = colorFormat;
@@ -2247,14 +2367,25 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
     frame.layers = 1;
     check(VK_CALL(vkCreateFramebuffer)(vk.device, &frame, nullptr, &proof.frame), "vkCreateFramebuffer (material proof)");
     std::vector<CityVertex> vertices;
-    for (size_t quad = 0; quad < 2; ++quad)
-        for (const auto& xy : std::array<std::array<float, 2>, 6>{{{-1, -1}, {1, -1}, {1, 1}, {-1, -1}, {1, 1}, {-1, 1}}})
-            vertices.push_back({{xy[0], xy[1], quad ? 0.5f : 0.25f}, {0.5f, 0.5f},
-                quad ? std::array<float, 4>{0, 0, 1, 1} : std::array<float, 4>{1, 0, 0, 0.25f}, {-0.35f, -0.45f, 1}});
+    for (size_t quad = 0; quad < 5; ++quad)
+        for (const auto& xy : std::array<std::array<float, 2>, 6>{{{-1, -1}, {1, -1}, {1, 1}, {-1, -1}, {1, 1}, {-1, 1}}}) {
+            CityVertex vertex{{xy[0] + (quad == 3 ? 4.f : 0.f), xy[1], quad == 1 ? 0.5f : 0.25f},
+                quad >= 2 ? std::array<float, 2>{0.25f, 0.25f} : std::array<float, 2>{0.5f, 0.5f},
+                quad == 1 ? std::array<float, 4>{0, 0, 1, 1} : std::array<float, 4>{1, 0, 0, 0.25f},
+                {-0.35f, -0.45f, 1}};
+            vertex.auxiliaryUv = {0.25f, 0.25f};
+            vertex.reflectionNormal = {0.5f, -0.5f, 2.f, quad == 4 ? 0.f : 1.f};
+            vertices.push_back(vertex);
+        }
     const VkDeviceSize pixelOffset = vertices.size() * sizeof(CityVertex);
+    VkPhysicalDeviceProperties properties{};
+    VK_CALL(vkGetPhysicalDeviceProperties)(vk.gpu, &properties);
+    const auto alignment = properties.limits.minUniformBufferOffsetAlignment;
+    const VkDeviceSize matrixStride = (sizeof(CityUvConstants) + alignment - 1) / alignment * alignment;
+    const VkDeviceSize matrixOffset = (pixelOffset + 4 + alignment - 1) / alignment * alignment;
     VkBufferCreateInfo buffer{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    buffer.size = pixelOffset + 4;
-    buffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buffer.size = matrixOffset + 3 * matrixStride;
+    buffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     check(VK_CALL(vkCreateBuffer)(vk.device, &buffer, nullptr, &proof.buffer), "vkCreateBuffer (material proof)");
     VK_CALL(vkGetBufferMemoryRequirements)(vk.device, proof.buffer, &requirements);
     proof.bufferMemory = allocate(vk, requirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -2262,29 +2393,48 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
     void* mapped = nullptr;
     check(VK_CALL(vkMapMemory)(vk.device, proof.bufferMemory, 0, buffer.size, 0, &mapped), "vkMapMemory (material proof)");
     std::memcpy(mapped, vertices.data(), static_cast<size_t>(pixelOffset));
+    for (size_t i = 0; i < 3; ++i) {
+        auto first = cityIdentityTextureTransform, second = cityIdentityTextureTransform;
+        if (i == 1) first[2] = 0.5f;
+        if (i == 2) second[2] = 0.5f;
+        const auto matrices = cityUvConstants(first, second);
+        std::memcpy(static_cast<char*>(mapped) + matrixOffset + i * matrixStride, &matrices, sizeof matrices);
+    }
     VK_CALL(vkUnmapMemory)(vk.device, proof.bufferMemory);
-    const VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2};
+    const VkDescriptorPoolSize poolSizes[]{
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 12}, {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 6}};
     VkDescriptorPoolCreateInfo pool{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    pool.maxSets = 2;
-    pool.poolSizeCount = 1;
-    pool.pPoolSizes = &poolSize;
+    pool.maxSets = 6;
+    pool.poolSizeCount = std::size(poolSizes);
+    pool.pPoolSizes = poolSizes;
     check(VK_CALL(vkCreateDescriptorPool)(vk.device, &pool, nullptr, &proof.descriptors), "vkCreateDescriptorPool (material proof)");
-    const VkDescriptorSetLayout layouts[]{city.textureLayout, city.textureLayout};
+    const VkDescriptorSetLayout layouts[]{city.textureLayout, city.textureLayout, city.textureLayout, city.textureLayout, city.textureLayout};
     VkDescriptorSetAllocateInfo sets{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     sets.descriptorPool = proof.descriptors;
-    sets.descriptorSetCount = 2;
+    sets.descriptorSetCount = 5;
     sets.pSetLayouts = layouts;
-    std::array<VkDescriptorSet, 2> descriptors{};
+    std::array<VkDescriptorSet, 5> descriptors{};
     check(VK_CALL(vkAllocateDescriptorSets)(vk.device, &sets, descriptors.data()), "vkAllocateDescriptorSets (material proof)");
     for (size_t i = 0; i < descriptors.size(); ++i) {
-        const VkDescriptorImageInfo info{city.sampler, proof.textures[i].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        write.dstSet = descriptors[i];
-        write.descriptorCount = 1;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        write.pImageInfo = &info;
-        VK_CALL(vkUpdateDescriptorSets)(vk.device, 1, &write, 0, nullptr);
+        const VkDescriptorImageInfo images[]{
+            {city.sampler, proof.textures[i < 2 ? i : 2].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {city.sampler, proof.textures[i < 2 ? i : 3].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}};
+        const VkDescriptorBufferInfo matrix{i < 2 ? city.uvBuffer : proof.buffer,
+            i < 2 ? 0 : matrixOffset + (i - 2) * matrixStride, sizeof(CityUvConstants)};
+        VkWriteDescriptorSet writes[3]{};
+        for (uint32_t slot = 0; slot < 3; ++slot) {
+            writes[slot].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[slot].dstSet = descriptors[i];
+            writes[slot].dstBinding = slot;
+            writes[slot].descriptorCount = 1;
+            writes[slot].descriptorType = slot == 2 ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            if (slot == 2) writes[slot].pBufferInfo = &matrix;
+            else writes[slot].pImageInfo = &images[slot];
+        }
+        VK_CALL(vkUpdateDescriptorSets)(vk.device, std::size(writes), writes, 0, nullptr);
     }
+    // Exercise the production one-stage descriptor writer with a nonuniform image and its real identity buffer.
+    allocateCityTextureDescriptor(city, proof.textures[2], proof.descriptors, city.sampler);
     VkCommandPoolCreateInfo commands{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     commands.queueFamilyIndex = vk.family;
     check(VK_CALL(vkCreateCommandPool)(vk.device, &commands, nullptr, &proof.commands), "vkCreateCommandPool (material proof)");
@@ -2295,7 +2445,14 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
     VkCommandBuffer command = VK_NULL_HANDLE;
     check(VK_CALL(vkAllocateCommandBuffers)(vk.device, &allocateCommands, &command), "vkAllocateCommandBuffers (material proof)");
     using Mode = CityMaterialMode;
-    struct Case { const char* name; Mode mode; bool lowAlpha, behind, equalDepth; };
+    enum class StageCase { legacy, rgba, rgb, disabledFirst, disabledSecond, firstTransform,
+                           secondTransform, rotatedView, missingNormal, inheritedAlpha, interveningOneStage, carryAlpha, ui };
+    struct Case {
+        const char* name;
+        Mode mode;
+        bool lowAlpha = false, behind = false, equalDepth = false;
+        StageCase stages = StageCase::legacy;
+    };
     constexpr Case cases[]{
         {"solid modulation", Mode::solid}, {"alpha channel", Mode::alphaChannel}, {"additive", Mode::additive},
         {"alpha reference passes", Mode::alphaReference}, {"alpha reference discards", Mode::alphaReference, true},
@@ -2304,12 +2461,36 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
         {"additive depth writes disabled", Mode::additive, false, true},
         {"solid depth writes enabled", Mode::solid, false, true},
         {"alpha reference depth writes enabled", Mode::alphaReference, false, true},
-        {"equal depth passes", Mode::solid, false, true, true}
+        {"equal depth passes", Mode::solid, false, true, true},
+        {"lightmap RGBA ignores primary RGB and stage1 alpha", Mode::lightmap, false, false, false, StageCase::rgba},
+        {"lightmap RGB preserves primary alpha before squaring", Mode::lightmap, false, false, false, StageCase::rgb},
+        {"lightmap disabled first stage", Mode::lightmap, false, false, false, StageCase::disabledFirst},
+        {"lightmap disabled second stage", Mode::lightmap, false, false, false, StageCase::disabledSecond},
+        {"lightmap authored UV1 and static stage1 matrix", Mode::lightmap, false, false, false, StageCase::secondTransform},
+        {"lightmap static stage0 matrix", Mode::lightmap, false, false, false, StageCase::firstTransform},
+        {"reflection fresh alpha and nonunit normal", Mode::reflection, false, false, false, StageCase::rgba},
+        {"reflection camera view rotation", Mode::reflection, false, false, false, StageCase::rotatedView},
+        {"reflection missing float normals retains authored UV1", Mode::reflection, false, false, false, StageCase::missingNormal},
+        {"reflection static stage1 matrix after texgen", Mode::reflection, false, false, false, StageCase::secondTransform},
+        {"reflection inherited lightmap alpha", Mode::reflection, false, false, false, StageCase::inheritedAlpha},
+        {"reflection alpha survives intervening one-stage bind", Mode::reflection, false, false, false, StageCase::interveningOneStage},
+        {"transparent reflection screen RGB and alpha", Mode::transparentReflection, false, false, false, StageCase::rgba},
+        {"transparent reflection inherited alpha", Mode::transparentReflection, false, false, false, StageCase::inheritedAlpha},
+        {"lightmap writes depth", Mode::lightmap, false, true, false, StageCase::rgba},
+        {"reflection writes depth", Mode::reflection, false, true, false, StageCase::rgba},
+        {"transparent reflection does not write depth", Mode::transparentReflection, false, true, false, StageCase::rgba},
+        {"real one-stage UI descriptor and default material constants", Mode::solid, false, false, false, StageCase::ui},
+        {"lightmap primes next command buffer", Mode::lightmap, false, false, false, StageCase::rgba},
+        {"reflection inherits across command buffers", Mode::reflection, false, false, false, StageCase::carryAlpha}
     };
     constexpr std::array<float, 4> background{0.125f, 0.25f, 0.375f, 0.75f};
     const bool bgra = colorFormat == VK_FORMAT_B8G8R8A8_UNORM || colorFormat == VK_FORMAT_B8G8R8A8_SRGB;
     const bool srgb = colorFormat == VK_FORMAT_B8G8R8A8_SRGB || colorFormat == VK_FORMAT_R8G8B8A8_SRGB;
     for (const auto& test : cases) {
+        const bool twoStage = test.stages != StageCase::legacy && test.stages != StageCase::ui;
+        if (test.stages != StageCase::carryAlpha) vk.materialStages = {};
+        const bool previousSquared = test.stages == StageCase::inheritedAlpha ||
+            test.stages == StageCase::interveningOneStage || test.stages == StageCase::carryAlpha;
         check(VK_CALL(vkResetCommandPool)(vk.device, proof.commands, 0), "vkResetCommandPool (material proof)");
         VkCommandBufferBeginInfo start{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         start.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -2327,20 +2508,37 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
         const VkDeviceSize offset = 0;
         VK_CALL(vkCmdBindVertexBuffers)(command, 0, 1, &proof.buffer, &offset);
         const auto draw = [&](Mode mode, uint32_t first, bool equal) {
-            const auto pipeline = city.materialPipelines.at(static_cast<size_t>(mode))[0];
+            const auto pipeline = test.stages == StageCase::ui ? city.captionPipeline :
+                city.materialPipelines.at(static_cast<size_t>(mode))[0];
             VK_CALL(vkCmdBindPipeline)(command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-            const auto descriptor = descriptors[first ? 0 : test.lowAlpha ? 1 : 0];
+            const bool materialQuad = twoStage && first != 6;
+            const auto descriptor = test.stages == StageCase::ui ? proof.textures[2].descriptor : descriptors[materialQuad ?
+                test.stages == StageCase::firstTransform ? 3 : test.stages == StageCase::secondTransform ? 4 : 2 :
+                first ? 0 : test.lowAlpha ? 1 : 0];
             VK_CALL(vkCmdBindDescriptorSets)(command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout,
                                              0, 1, &descriptor, 0, nullptr);
             const CityCameraMatrix camera{{{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, equal ? -0.25f : 0}, {0, 0, 0, 1}}};
-            const CityFragmentConstants fragment{{first ? 1.f : 0.6f, 1, 1, mode == Mode::alphaReference ? 0.5f : 0},
-                                                  1, static_cast<uint32_t>(mode), first ? 1.f : 0.4f};
-            VK_CALL(vkCmdPushConstants)(command, city.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof camera, camera.data());
-            VK_CALL(vkCmdPushConstants)(command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+            CityFragmentConstants fragment{{first == 6 ? 1.f : 0.6f, 1, 1, mode == Mode::alphaReference ? 0.5f : 0},
+                                                  1, static_cast<uint32_t>(mode), first == 6 ? 1.f : 0.4f};
+            if (test.stages == StageCase::ui) fragment = {{0, 1, 1, -1}, 0.8f};
+            vk.materialStages.bind(mode);
+            if (materialQuad) fragment.stageState = (test.stages == StageCase::rgb ? 1u : 0u) |
+                (test.stages == StageCase::disabledSecond ? 0u : 2u) |
+                (vk.materialStages.alpha == CityStageOneAlpha::previousSquared ? 4u : 0u) |
+                (test.stages == StageCase::disabledFirst ? 0u : 8u);
+            VK_CALL(vkCmdPushConstants)(command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof camera, camera.data());
+            auto reflectionView = std::array<std::array<float, 4>, 2>{{{1, 0, 0, 0}, {0, 1, 0, 0}}};
+            if (test.stages == StageCase::rotatedView) reflectionView = {{{0, 1, 0, 0}, {-1, 0, 0, 0}}};
+            VK_CALL(vkCmdPushConstants)(command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                        96, sizeof reflectionView, reflectionView.data());
+            VK_CALL(vkCmdPushConstants)(command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                                         sizeof camera, sizeof fragment, &fragment);
             VK_CALL(vkCmdDraw)(command, 6, 1, first, 0);
         };
-        draw(test.mode, 0, false);
+        if (test.stages == StageCase::inheritedAlpha || test.stages == StageCase::interveningOneStage)
+            draw(Mode::lightmap, 18, false); // Clipped geometry still executes material binding.
+        if (test.stages == StageCase::interveningOneStage) draw(Mode::alphaChannel, 18, false);
+        draw(test.mode, twoStage || test.stages == StageCase::ui ? test.stages == StageCase::missingNormal ? 24 : 12 : 0, false);
         if (test.behind) draw(Mode::solid, 6, test.equalDepth);
         VK_CALL(vkCmdEndRenderPass)(command);
         VkImageMemoryBarrier imageBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
@@ -2386,6 +2584,40 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
             for (size_t channel = 0; channel < expected.size(); ++channel)
                 expected[channel] = expected[channel] * alpha + background[channel] *
                     (test.mode == Mode::additive ? 1.f : 1 - alpha);
+        if (twoStage) {
+            const auto decode = [](uint32_t pixel) {
+                return std::array<float, 4>{float((pixel >> 16) & 255) / 255, float((pixel >> 8) & 255) / 255,
+                                          float(pixel & 255) / 255, float(pixel >> 24) / 255};
+            };
+            const auto base = decode(basePixels[test.stages == StageCase::firstTransform ? 1 : 0]);
+            size_t secondIndex = test.mode == Mode::lightmap || test.stages == StageCase::rotatedView ||
+                test.stages == StageCase::missingNormal ? 0 : 1;
+            if (test.stages == StageCase::secondTransform) secondIndex = 1 - secondIndex;
+            const auto second = decode(secondPixels[secondIndex]);
+            // Independent original GL equations: stage0 clamps, then stage1 clamps, then framebuffer blends.
+            expected = {base[0] * 0.6f, 0, 0, base[3] * 0.1f};
+            if (test.mode == Mode::lightmap) {
+                expected = {base[0], base[1], base[2], test.stages == StageCase::rgb ? 0.1f : base[3]};
+                if (test.stages == StageCase::disabledFirst) expected = {0.6f, 0, 0, 0.1f};
+                if (test.stages != StageCase::disabledSecond) {
+                    for (size_t channel = 0; channel < 3; ++channel) expected[channel] *= second[channel];
+                    expected[3] *= expected[3];
+                }
+            } else if (test.stages != StageCase::disabledSecond) {
+                for (size_t channel = 0; channel < 3; ++channel)
+                    expected[channel] = std::min(1.f, expected[channel] + second[channel]);
+                expected[3] *= previousSquared ? expected[3] : second[3];
+            }
+            if (test.mode == Mode::transparentReflection)
+                for (size_t channel = 0; channel < 4; ++channel)
+                    expected[channel] += background[channel] * (1 - expected[channel]);
+        }
+        if (test.stages == StageCase::ui) {
+            // Real overlay() defaults mode0/diffuseAlpha1/stageState0; caption pipeline replaces alpha.
+            const auto sourceAlpha = (153.f / 255) * 0.25f;
+            expected = {0.8f * (64.f / 255) * sourceAlpha + background[0] * (1 - sourceAlpha),
+                        background[1] * (1 - sourceAlpha), background[2] * (1 - sourceAlpha), sourceAlpha};
+        }
         if (test.behind && (test.equalDepth || cityMaterialTransparent(test.mode))) expected = {0, 0, 1, 128.f / 255};
         for (size_t channel = 0; channel < expected.size(); ++channel) {
             float value = std::clamp(expected[channel], 0.f, 1.f);
@@ -2398,7 +2630,7 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
                     " observed " + std::to_string(actual));
         }
     }
-    std::cout << "Vulkan material pixel checks: " << std::size(cases) << " passed (blend, alpha, cutoff, depth, LEQUAL).\n";
+    std::cout << "Vulkan material pixel checks: " << std::size(cases) << " passed (blend, alpha, cutoff, depth, LEQUAL, two-stage UV/matrices and draw sequences).\n";
 }
 
 void uploadCity(CityRender& city, const CityDrawData& draw)
@@ -3505,11 +3737,20 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             VK_CALL(vkCmdBindPipeline)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.pipeline);
             boundPipeline = draw.pipeline;
         }
-        const auto descriptor = city.textures.at(draw.surface->texture).descriptor;
+        const auto key = cityTextureBinding(*draw.surface);
+        const auto binding = city.materialBindings.find(key);
+        const auto descriptor = binding == city.materialBindings.end()
+            ? city.textures.at(draw.surface->texture).descriptor : binding->second.descriptor;
+        auto fragment = draw.fragment;
+        vk.materialStages.bind(draw.surface->materialMode);
+        fragment.stageState = (city.textures.at(draw.surface->texture).baseFormat == TextureBaseFormat::rgb ? 1u : 0u) |
+            (!std::get<1>(key).empty() && city.textures.at(std::get<1>(key)).enabled ? 2u : 0u) |
+            (vk.materialStages.alpha == CityStageOneAlpha::previousSquared ? 4u : 0u) |
+            (city.textures.at(draw.surface->texture).enabled ? 8u : 0u);
         VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout,
                                          0, 1, &descriptor, 0, nullptr);
-        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-                                    sizeof camera, sizeof draw.fragment, &draw.fragment);
+        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    sizeof camera, sizeof fragment, &fragment);
         if (draw.indexed)
             VK_CALL(vkCmdDrawIndexed)(vk.command, draw.surface->indexCount, 1, draw.surface->firstIndex, 0, 0);
         else VK_CALL(vkCmdDraw)(vk.command, draw.surface->indexCount, 1, draw.surface->firstIndex, 0);
@@ -3530,10 +3771,18 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         for (const auto& draw : transparentSurfaces) emitSurface(draw);
         transparentSurfaces.clear();
     };
+    std::array<std::array<float, 4>, 2> reflectionView{};
+    for (size_t row = 0; row < 2; ++row) {
+        const auto length = std::hypot(camera[row][0], camera[row][1], camera[row][2]);
+        for (size_t axis = 0; axis < 3; ++axis)
+            reflectionView[row][axis] = (row ? -1.f : 1.f) * camera[row][axis] / length;
+    }
+    VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                96, sizeof reflectionView, reflectionView.data());
     city.distantDraws = 0;
     if (distantCamera && city.lowDetailFirstSurface < city.lowDetailEndSurface) {
         const auto distantFrustum = cityFrustum(*distantCamera);
-        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
+        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                     sizeof camera, distantCamera->data());
         for (size_t i = city.lowDetailFirstSurface; i < city.lowDetailEndSurface; ++i) {
             const auto& surface = city.surfaces[i];
@@ -3550,7 +3799,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             VK_CALL(vkCmdClearAttachments)(vk.command, 1, &attachment, 1, &rect);
         }
     }
-    VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof camera,
+    VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof camera,
                                 camera.data());
     bool drewVehicleMarker = false;
     const auto frustum = cityFrustum(camera);
@@ -3773,9 +4022,9 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         VK_CALL(vkCmdBindPipeline)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline ? pipeline : city.captionPipeline);
         VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout, 0, 1,
                                          &descriptor, 0, nullptr);
-        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof screen,
+        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof screen,
                                     screen.data());
-        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof screen,
+        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, sizeof screen,
                                     sizeof fragment, &fragment);
         VK_CALL(vkCmdDraw)(vk.command, vertexCount, 1, firstVertex, 0);
     };
