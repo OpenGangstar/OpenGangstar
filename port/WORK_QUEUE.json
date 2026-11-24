@@ -4408,7 +4408,8 @@
         "CGameFactory and original concrete object constructor/load dispatch"
       ],
       "resources": [
-        "port/build/reviews/OG-098/* (root ignored research only)"
+        "port/build/reviews/OG-098/* (root ignored research only)",
+        "port/OBJECT_FACTORY_COVERAGE.md"
       ],
       "priority": 1,
       "complexity": "high",
@@ -4418,11 +4419,12 @@
       "blockers": [],
       "assigned_agent": "/root",
       "baseline": "530c3b1",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Inspect original decompilation and actual ARM dispatch; enumerate all196raw records against real branch kinds and report constructors/load symbols and missing prerequisites.",
-        "No original source edits, runtime emulator dependency, guessed object types or manufactured callback behavior."
+        "No original source edits, runtime emulator dependency, guessed object types or manufactured callback behavior.",
+        "Root executes193active actual original LoadGameObject/typed-read paths,172valid CreateGameObjectFromMetatype wrappers and5synthetic Camera/signed fallback controls. Captured constructor/Load/WarmUp endpoints are explicit boundaries.200opaque tails accounted; report port/OBJECT_FACTORY_COVERAGE.md; ignored probe port/build/reviews/OG-098."
       ]
     },
     {
