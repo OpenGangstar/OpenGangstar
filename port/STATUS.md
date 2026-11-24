@@ -849,6 +849,19 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   grayscale images. Synthetic fixtures cover both origin axes, alpha, an
   indexed palette with a nonzero base, and malformed run lengths. The
   supplied archive uses ATCA DDS containers for its `.tga` files.
+- [x] Port the original BMP loader variants: BI_RGB 1/4/8/16/24/32-bit,
+  RLE4, and RLE8. Monochrome ignores its unused palette as the original does;
+  indexed palettes retain opaque 555 quantization, and 16-bit pixels preserve
+  A1R5G5B5 alpha. Five-bit channels use nearest BGRA8 UNORM values, with at most
+  half an eight-bit step of representation error. Existing 24/32-bit conversion
+  and keepBitmapAlpha remain unchanged. All five integration CTests and six
+  independently generated pixel fixtures pass; the x64 Vulkan smoke passes.
+  New variants are validated synthetically, not by the supplied retail files.
+  RLE4 packet padding/pointer defects are deliberately corrected; skipped output
+  uses palette index zero instead of uninitialized memory, and malformed streams
+  fail explicitly. These adaptations do not claim legacy malformed-input parity.
+  The full retail audit output remains unchanged, including 98 decoded images
+  and the existing missing-resource failure.
 - [x] Decode the supplied gameplay Ogg audio. All 249 nonempty streams
   decoded through the native reader and matched their declared PCM frame
   counts, totaling 74,515,577 frames. The audit also recognized 25 empty

@@ -36,8 +36,8 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-006",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "feb6317"
     }
   ],
@@ -315,14 +315,33 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "feb6317",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Original code/binary evidence for supported bit depths, palette, orientation and compression.",
         "Independent expected-pixel fixtures for palettes, RLE encoded/absolute/delta/end escapes, odd row padding, truncation and malformed bounds.",
         "Existing texture CTest and full retail texture audit must preserve decoded images and missing-reference failures.",
         "x64 native build; no original ARM changes."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-006.patch",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-006-submission.md",
+        "worker_validation": "Isolated x64 texture CTest passed;98/98 retail images,111 missing paths,2908/2910 district buffers unchanged,exit1.",
+        "deviations": [
+          "Correct legacy RLE4 packet alignment/pointer defects.",
+          "Initialize skipped RLE output to palette index0; reject malformed bounds/streams.",
+          "Represent original normalized5-bit channels with nearest BGRA8 value."
+        ]
+      },
+      "reservations_active": false,
+      "independent_validation": [
+        "Full integration x64 Release build and all5 CTests passed.",
+        "Six independent BMP fixtures rejected before change and matched exact expected BGRA output after change:1/4/8/16-bit,RLE4,RLE8.",
+        "Full retail audit stdout/stderr byte-identical to verified OG003 baseline:98/98 images,111 missing paths,exit1.",
+        "Native Vulkan opening smoke returned0 with temporary assets/saves.",
+        "Game, texture test and audit verified AMD64 PE32+.",
+        "Source and Microsoft RLE specification review found packet alignment and bounds consistent; original malformed-input deviations documented.",
+        "Intervening commits change only queue/docs, not reserved texture sources."
+      ]
     },
     {
       "id": "OG-007",

@@ -42,6 +42,187 @@ private:
     unsigned long long position = 0;
 };
 
+void bitmapWord(std::vector<unsigned char>& bytes, size_t offset, uint32_t value)
+{
+    for (unsigned i = 0; i < 4; ++i) bytes.at(offset + i) = static_cast<unsigned char>(value >> (i * 8));
+}
+
+std::vector<unsigned char> bitmap(unsigned width, int32_t height, unsigned bits,
+                                  const std::vector<uint32_t>& palette,
+                                  const std::vector<unsigned char>& pixels, unsigned compression = 0)
+{
+    std::vector<unsigned char> bytes(54);
+    bytes[0] = 'B'; bytes[1] = 'M';
+    bitmapWord(bytes, 2, static_cast<uint32_t>(54 + palette.size() * 4 + pixels.size()));
+    bitmapWord(bytes, 10, static_cast<uint32_t>(54 + palette.size() * 4));
+    bitmapWord(bytes, 14, 40);
+    bitmapWord(bytes, 18, width);
+    bitmapWord(bytes, 22, static_cast<uint32_t>(height));
+    bytes[26] = 1;
+    bytes[28] = static_cast<unsigned char>(bits);
+    bitmapWord(bytes, 30, compression);
+    bitmapWord(bytes, 34, static_cast<uint32_t>(pixels.size()));
+    bitmapWord(bytes, 46, static_cast<uint32_t>(palette.size()));
+    for (const auto color : palette)
+        for (unsigned i = 0; i < 4; ++i) bytes.push_back(static_cast<unsigned char>(color >> (8 * i)));
+    bytes.insert(bytes.end(), pixels.begin(), pixels.end());
+    return bytes;
+}
+
+Image decodeBitmap(const std::vector<unsigned char>& bytes, bool keepAlpha = false)
+{
+    SampleStream stream(bytes.size(), bytes.data());
+    return readTexture(stream, keepAlpha);
+}
+
+void rejectBitmap(const std::vector<unsigned char>& bytes, const char* message)
+{
+    try {
+        decodeBitmap(bytes);
+    } catch (const std::runtime_error&) {
+        return;
+    }
+    throw std::runtime_error(message);
+}
+
+void checkBitmapRgb()
+{
+    const auto rgb = bitmap(1, 2, 24, {}, {3, 2, 1, 0xcd, 6, 5, 4, 0xef});
+    if (decodeBitmap(rgb).bgra != std::vector<uint32_t>{0xff040506, 0xff010203})
+        throw std::runtime_error("BMP 24-bit channels, bottom-up order, or DWORD row padding changed.");
+    auto rgba = bitmap(1, -2, 32, {}, {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88});
+    if (decodeBitmap(rgba).bgra != std::vector<uint32_t>{0xff332211, 0xff776655} ||
+        decodeBitmap(rgba, true).bgra != std::vector<uint32_t>{0x44332211, 0x88776655})
+        throw std::runtime_error("BMP 32-bit channels, top-down order, or keepBitmapAlpha changed.");
+    // BI_RGB permits biSizeImage zero. Extended information headers retain the same pixels.
+    bitmapWord(rgba, 34, 0);
+    rgba.insert(rgba.begin() + 54, 16, 0);
+    bitmapWord(rgba, 14, 56);
+    bitmapWord(rgba, 10, 70);
+    if (decodeBitmap(rgba, true).bgra != std::vector<uint32_t>{0x44332211, 0x88776655})
+        throw std::runtime_error("Extended BI_RGB header or zero biSizeImage changed existing BMP decoding.");
+
+    const auto rgb555 = bitmap(3, 2, 16, {}, {
+        0x00, 0xfc, 0xe0, 0x03, 0x1f, 0x80, 0xde, 0xad,
+        0x00, 0x80, 0xff, 0xff, 0x07, 0x8f, 0xbe, 0xef});
+    if (decodeBitmap(rgb555).bgra != std::vector<uint32_t>{
+            0xff000000, 0xffffffff, 0xff19c53a, 0xffff0000, 0x0000ff00, 0xff0000ff})
+        throw std::runtime_error("Retail BMP A1R5G5B5 channels, alpha, normalized expansion, or padding changed.");
+    std::vector<unsigned char> ramp;
+    for (unsigned level = 0; level < 32; ++level) {
+        const unsigned pixel = 0x8000 | (level << 10) | (level << 5) | level;
+        ramp.push_back(static_cast<unsigned char>(pixel));
+        ramp.push_back(static_cast<unsigned char>(pixel >> 8));
+    }
+    constexpr std::array<unsigned, 32> normalized{
+        0, 8, 16, 25, 33, 41, 49, 58, 66, 74, 82, 90, 99, 107, 115, 123,
+        132, 140, 148, 156, 165, 173, 181, 189, 197, 206, 214, 222, 230, 239, 247, 255};
+    const auto levels = decodeBitmap(bitmap(32, -1, 16, {}, ramp));
+    for (size_t i = 0; i < normalized.size(); ++i)
+        if (levels.bgra[i] != (0xff000000 | normalized[i] * 0x010101))
+            throw std::runtime_error("A five-bit BMP channel did not select the nearest BGRA8 UNORM value.");
+}
+
+void checkBitmapIndexed()
+{
+    // Retail's 1-bit converter deliberately ignores even a colored BMP palette.
+    const auto mono = decodeBitmap(bitmap(9, 2, 1, {0xffff0000, 0xff0000ff},
+        {0x80, 0x80, 0xaa, 0xbb, 0x7f, 0, 0xcc, 0xdd}));
+    if (mono.width != 9 || mono.height != 2 || mono.bgra != std::vector<uint32_t>{
+            0xff000000, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xff000000,
+            0xffffffff, 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xffffffff})
+        throw std::runtime_error("Retail monochrome BMP bit order, row orientation, or palette bypass changed.");
+    if (decodeBitmap(bitmap(1, 1, 1, {}, {0x80, 0, 0, 0})).bgra != std::vector<uint32_t>{0xffffffff})
+        throw std::runtime_error("Retail monochrome BMP without an unused palette was rejected.");
+    const std::vector<uint32_t> palette{0, 0x12ff0000, 0x3400ff00, 0x560000ff};
+    if (decodeBitmap(bitmap(3, -2, 4, palette, {0x12, 0x3f, 0xde, 0xad, 0x31, 0x2e, 0xbe, 0xef})).bgra !=
+            std::vector<uint32_t>{0xffff0000, 0xff00ff00, 0xff0000ff, 0xff0000ff, 0xffff0000, 0xff00ff00})
+        throw std::runtime_error("Indexed BMP high-first nibbles, palette alpha, or odd-width row padding changed.");
+    auto fullPalette = palette;
+    fullPalette.resize(256);
+    fullPalette[200] = 0x001fc73f;
+    auto indexed = bitmap(3, 2, 8, fullPalette, {2, 1, 0, 0xee, 200, 2, 1, 0xdd});
+    bitmapWord(indexed, 46, 0); // Default full palette size when biClrUsed is zero.
+    if (decodeBitmap(indexed).bgra != std::vector<uint32_t>{
+            0xff19c53a, 0xff00ff00, 0xffff0000, 0xff00ff00, 0xffff0000, 0xff000000})
+        throw std::runtime_error("Indexed BMP default palette, unsigned index, or retail 555 quantization changed.");
+}
+
+void checkBitmapRle()
+{
+    const std::vector<uint32_t> palette{
+        0xff000000, 0xffff0000, 0xff00ff00, 0xff0000ff,
+        0xffffff00, 0xff00ffff, 0xffff00ff, 0xffffffff};
+    const auto rle8 = bitmap(8, 4, 8, palette, {
+        3, 1, 0, 5, 2, 3, 4, 5, 6, 0xee, 0, 0,
+        0, 2, 2, 0, 2, 7, 0, 2, 1, 1, 3, 3, 0, 0,
+        0, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0, 0, 1}, 1);
+    if (decodeBitmap(rle8).bgra != std::vector<uint32_t>{
+            0xffffffff, 0xffff00ff, 0xff00ffff, 0xffffff00, 0xff0000ff, 0xff00ff00, 0xffff0000, 0xff000000,
+            0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff0000ff, 0xff0000ff, 0xff0000ff,
+            0xff000000, 0xff000000, 0xffffffff, 0xffffffff, 0xff000000, 0xff000000, 0xff000000, 0xff000000,
+            0xffff0000, 0xffff0000, 0xffff0000, 0xff00ff00, 0xff0000ff, 0xffffff00, 0xff00ffff, 0xffff00ff})
+        throw std::runtime_error("BMP RLE8 encoded, absolute, padded, delta, or end-of-line packet changed.");
+    const auto rle4 = bitmap(7, 3, 4, palette, {
+        5, 0x12, 2, 0x34, 0, 0,
+        0, 7, 0x76, 0x54, 0x32, 0x1e, 0, 0,
+        0, 5, 0x17, 0x26, 0x3f, 0xab, 0, 2, 1, 0, 1, 0x4f, 0, 1}, 2);
+    if (decodeBitmap(rle4).bgra != std::vector<uint32_t>{
+            0xffff0000, 0xffffffff, 0xff00ff00, 0xffff00ff, 0xff0000ff, 0xff000000, 0xffffff00,
+            0xffffffff, 0xffff00ff, 0xff00ffff, 0xffffff00, 0xff0000ff, 0xff00ff00, 0xffff0000,
+            0xffff0000, 0xff00ff00, 0xffff0000, 0xff00ff00, 0xffff0000, 0xff0000ff, 0xffffff00})
+        throw std::runtime_error("BMP RLE4 nibble alternation, absolute word padding, or delta packet changed.");
+    auto early = bitmap(3, 2, 8, palette, {1, 1, 0, 1}, 1);
+    bitmapWord(early, 34, 0); // Bound the stream by the file when the header omits its size.
+    if (decodeBitmap(early).bgra != std::vector<uint32_t>{
+            0xff000000, 0xff000000, 0xff000000, 0xffff0000, 0xff000000, 0xff000000})
+        throw std::runtime_error("Early BMP RLE end marker did not leave deterministic palette-zero gaps.");
+}
+
+void checkBitmapInvalid()
+{
+    const std::vector<uint32_t> palette{0, 0x00ff0000};
+    auto invalid = bitmap(1, 1, 24, {}, {1, 2, 3, 0});
+    invalid.pop_back();
+    rejectBitmap(invalid, "Truncated uncompressed BMP row was accepted.");
+    invalid.resize(53);
+    rejectBitmap(invalid, "Truncated BMP information header was accepted.");
+    for (const auto dimensions : std::array<std::array<uint32_t, 2>, 4>{{{0, 1}, {4097, 1}, {1, 0}, {1, 0x80000000}}}) {
+        invalid = bitmap(dimensions[0], static_cast<int32_t>(dimensions[1]), 24, {}, {1, 2, 3, 0});
+        rejectBitmap(invalid, "Unsupported BMP dimensions were accepted.");
+    }
+    invalid = bitmap(1, 1, 24, {}, {1, 2, 3, 0});
+    bitmapWord(invalid, 10, 53);
+    rejectBitmap(invalid, "BMP pixels overlapping its header were accepted.");
+    bitmapWord(invalid, 10, 1000);
+    rejectBitmap(invalid, "BMP pixel offset beyond the file was accepted.");
+    invalid = bitmap(1, 1, 8, palette, {2, 0, 0, 0});
+    rejectBitmap(invalid, "BMP index outside a shortened palette was accepted.");
+    bitmapWord(invalid, 46, 257);
+    rejectBitmap(invalid, "Oversized BMP palette was accepted.");
+    bitmapWord(invalid, 46, 3);
+    rejectBitmap(invalid, "Truncated BMP palette was accepted.");
+    invalid = bitmap(1, 1, 16, {}, {0, 0, 0, 0}, 3);
+    rejectBitmap(invalid, "Unevidenced BI_BITFIELDS BMP was accepted.");
+    rejectBitmap(bitmap(1, -1, 8, palette, {1, 1, 0, 1}, 1), "Top-down RLE BMP was accepted.");
+    rejectBitmap(bitmap(1, 1, 4, palette, {1, 1, 0, 1}, 1), "RLE8 BMP with a four-bit depth was accepted.");
+    rejectBitmap(bitmap(1, 1, 8, palette, {1, 1, 0, 1}, 2), "RLE4 BMP with an eight-bit depth was accepted.");
+    for (const auto& packets : std::vector<std::vector<unsigned char>>{
+            {9, 1, 0, 1}, {0, 9, 0, 1}, {0, 2, 9, 0, 0, 1}, {0, 2, 0, 4, 0, 1},
+            {3}, {0, 2, 1}, {0, 5, 1, 0}, {0, 3, 1, 0, 1},
+            {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1}, {1, 2, 0, 1}})
+        rejectBitmap(bitmap(8, 4, 8, palette, packets, 1), "Malformed BMP RLE8 packet was accepted.");
+    for (const auto& packets : std::vector<std::vector<unsigned char>>{
+            {9, 0x11, 0, 1}, {0, 5, 0x11, 0x11, 0x10}, {0, 3, 0x12, 0x10, 0, 1},
+            {0, 2, 0, 4, 0, 1}, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}})
+        rejectBitmap(bitmap(8, 4, 4, palette, packets, 2), "Malformed BMP RLE4 packet was accepted.");
+    invalid = bitmap(2, 1, 8, palette, {2, 1, 0, 1}, 1);
+    bitmapWord(invalid, 34, 3);
+    rejectBitmap(invalid, "BMP RLE read beyond its declared stream size.");
+    bitmapWord(invalid, 34, 5);
+    rejectBitmap(invalid, "Truncated BMP RLE stream size was accepted.");
+}
+
 void checkMipChain()
 {
     std::array<unsigned char, 128 + 4 * 16> bytes{};
@@ -188,6 +369,10 @@ void checkTga()
 
 int main()
 try {
+    checkBitmapRgb();
+    checkBitmapIndexed();
+    checkBitmapRle();
+    checkBitmapInvalid();
     checkMipChain();
     checkAtcVariants();
     checkTga();

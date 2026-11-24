@@ -13,5 +13,7 @@ struct Image {
     std::vector<Image> mipLevels;
 };
 
-// Decode uncompressed BMP, PNG, TGA, or the mip chain of a retail ATC DDS.
+// Decode BMP (BI_RGB 1/4/8/16/24/32-bit or RLE4/RLE8), PNG, TGA, PSD, or retail ATC DDS mip levels.
+// keepBitmapAlpha preserves the existing 32-bit BMP alpha-byte option. New
+// indexed BMP variants use retail opaque palettes; 16-bit pixels retain A1R5G5B5 alpha.
 Image readTexture(IFileStream& file, bool keepBitmapAlpha = false);

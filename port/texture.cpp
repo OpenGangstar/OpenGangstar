@@ -137,32 +137,123 @@ Image readAtcTexture(IFileStream& file)
     return result;
 }
 
+uint32_t bitmap555(unsigned value)
+{
+    // The retail BMP loader stores indexed colors in A1R5G5B5, uploaded as
+    // GL_UNSIGNED_SHORT_5_5_5_1. Choose the nearest BGRA8 UNORM representation.
+    const auto channel = [](unsigned component) { return (component * 255 + 15) / 31; };
+    return ((value & 0x8000) ? 0xff000000u : 0u) |
+        (channel((value >> 10) & 31) << 16) | (channel((value >> 5) & 31) << 8) | channel(value & 31);
+}
+
 Image readBitmap(IFileStream& file, bool keepAlpha)
 {
     std::array<uint8_t, 54> header{};
     if (file.read(header.data(), header.size()) != header.size() ||
         std::memcmp(header.data(), "BM", 2) != 0 || little32(header.data() + 14) < 40 ||
-        little16(header.data() + 26) != 1 || little32(header.data() + 30) != 0)
-        throw std::runtime_error("Expected an uncompressed Windows bitmap.");
+        little16(header.data() + 26) != 1)
+        throw std::runtime_error("Expected a Windows bitmap with an information header.");
 
     const auto width = little32(header.data() + 18);
     const auto signedHeight = static_cast<int32_t>(little32(header.data() + 22));
     const auto bits = little16(header.data() + 28);
+    const auto compression = little32(header.data() + 30);
     const auto pixelOffset = little32(header.data() + 10);
+    const uint64_t paletteOffset = uint64_t(14) + little32(header.data() + 14);
     if (!width || width > 4096 || !signedHeight || signedHeight < -4096 || signedHeight > 4096 ||
-        (bits != 24 && bits != 32) || pixelOffset < uint64_t(14) + little32(header.data() + 14))
+        (bits != 1 && bits != 4 && bits != 8 && bits != 16 && bits != 24 && bits != 32) ||
+        compression > 2 || (compression == 1 && bits != 8) || (compression == 2 && bits != 4) ||
+        (compression && signedHeight < 0) || pixelOffset < paletteOffset)
         throw std::runtime_error("Unsupported bitmap dimensions, pixels, or header.");
+    if (pixelOffset > file.size()) throw std::runtime_error("Bitmap pixel data is truncated.");
 
     const uint32_t height = signedHeight < 0 ? -signedHeight : signedHeight;
-    const uint32_t pixelBytes = bits / 8;
-    const uint32_t stride = (width * pixelBytes + 3) & ~3u;
-    if (uint64_t(pixelOffset) + uint64_t(stride) * height > file.size())
+    std::vector<uint32_t> palette;
+    if (bits == 4 || bits == 8) {
+        const auto colorsUsed = little32(header.data() + 46);
+        const auto count = colorsUsed ? colorsUsed : 1u << bits;
+        if (count > (1u << bits) || uint64_t(count) * 4 > pixelOffset - paletteOffset)
+            throw std::runtime_error("Invalid or truncated bitmap palette.");
+        file.seek(paletteOffset);
+        if (file.tell() != paletteOffset) throw std::runtime_error("Could not seek to the bitmap palette.");
+        palette.reserve(count);
+        for (uint32_t i = 0; i < count; ++i) {
+            std::array<uint8_t, 4> entry{};
+            if (file.read(entry.data(), entry.size()) != entry.size())
+                throw std::runtime_error("Bitmap palette is truncated.");
+            // RGBQUAD's reserved byte is not alpha. Retail converts the upper
+            // five bits of each channel to an opaque A1R5G5B5 palette entry.
+            palette.push_back(bitmap555(0x8000 | (unsigned(entry[2] >> 3) << 10) |
+                                        (unsigned(entry[1] >> 3) << 5) | (entry[0] >> 3)));
+        }
+    }
+    const auto color = [&](unsigned index) {
+        if (index >= palette.size()) throw std::runtime_error("Invalid bitmap palette index.");
+        return palette[index];
+    };
+    const uint32_t stride = ((width * bits + 31) / 32) * 4;
+    if (!compression && uint64_t(stride) * height > file.size() - pixelOffset)
         throw std::runtime_error("Bitmap pixel data is truncated.");
     file.seek(pixelOffset);
     if (file.tell() != pixelOffset)
         throw std::runtime_error("Could not seek to the bitmap pixels.");
 
-    Image result{width, height, std::vector<uint32_t>(size_t(width) * height)};
+    // Legacy RLE gaps exposed uninitialized memory. Use palette index zero for
+    // skipped pixels and validate all packet boundaries instead of reproducing it.
+    Image result{width, height, std::vector<uint32_t>(size_t(width) * height, compression ? palette.front() : 0u)};
+    if (compression) {
+        const auto declaredSize = little32(header.data() + 34);
+        const uint64_t available = file.size() - pixelOffset;
+        const uint64_t encodedSize = declaredSize ? declaredSize : available;
+        if (!encodedSize || encodedSize > available || encodedSize > 64 * 1024 * 1024)
+            throw std::runtime_error("Bitmap RLE data is truncated or too large.");
+        std::vector<uint8_t> encoded(static_cast<size_t>(encodedSize));
+        if (file.read(encoded.data(), encoded.size()) != encoded.size())
+            throw std::runtime_error("Bitmap RLE data is truncated.");
+        size_t cursor = 0;
+        const auto byte = [&]() {
+            if (cursor == encoded.size()) throw std::runtime_error("Bitmap RLE packet or end marker is truncated.");
+            return encoded[cursor++];
+        };
+        uint32_t x = 0, y = 0;
+        const auto checkRun = [&](unsigned count) {
+            if (y >= height || count > width - x) throw std::runtime_error("Bitmap RLE run exceeds its row.");
+        };
+        const auto emit = [&](unsigned index) {
+            result.bgra[size_t(height - 1 - y) * width + x++] = color(index);
+        };
+        for (;;) {
+            const unsigned count = byte(), value = byte();
+            if (count) {
+                checkRun(count);
+                for (unsigned i = 0; i < count; ++i)
+                    emit(bits == 8 ? value : (value >> ((i & 1) ? 0 : 4)) & 15);
+            } else if (value == 0) {
+                if (y >= height) throw std::runtime_error("Bitmap RLE end-of-line exceeds the image.");
+                x = 0;
+                ++y;
+            } else if (value == 1) {
+                return result;
+            } else if (value == 2) {
+                const unsigned dx = byte(), dy = byte();
+                if (y >= height || dx >= width - x || dy >= height - y)
+                    throw std::runtime_error("Bitmap RLE delta exceeds the image.");
+                x += dx;
+                y += dy;
+            } else {
+                checkRun(value);
+                unsigned packed = 0;
+                for (unsigned i = 0; i < value; ++i) {
+                    if (bits == 8 || !(i & 1)) packed = byte();
+                    emit(bits == 8 ? packed : (packed >> ((i & 1) ? 0 : 4)) & 15);
+                }
+                // RLE4 absolute packets align their packed byte count, not the
+                // pixel count used by the defective legacy decompressor.
+                const unsigned bytes = bits == 8 ? value : (value + 1) / 2;
+                if (bytes & 1) byte();
+            }
+        }
+    }
     std::vector<uint8_t> row(stride);
     for (uint32_t y = 0; y < height; ++y) {
         if (file.read(row.data(), stride) != stride)
@@ -170,9 +261,18 @@ Image readBitmap(IFileStream& file, bool keepAlpha)
         const uint32_t targetY = signedHeight < 0 ? y : height - 1 - y;
         auto* dest = result.bgra.data() + size_t(targetY) * width;
         for (uint32_t x = 0; x < width; ++x) {
-            const auto* bgr = row.data() + x * pixelBytes;
-            const uint32_t alpha = keepAlpha && pixelBytes == 4 ? bgr[3] : 255;
-            dest[x] = (alpha << 24) | (uint32_t(bgr[2]) << 16) | (uint32_t(bgr[1]) << 8) | bgr[0];
+            if (bits == 1) {
+                // Retail convert1BitTo16Bit ignores the BMP palette.
+                dest[x] = (row[x / 8] & (0x80 >> (x & 7))) ? 0xffffffff : 0xff000000;
+            } else if (bits == 4 || bits == 8) {
+                dest[x] = color(bits == 8 ? row[x] : (row[x / 2] >> ((x & 1) ? 0 : 4)) & 15);
+            } else if (bits == 16) {
+                dest[x] = bitmap555(little16(row.data() + x * 2));
+            } else {
+                const auto* bgr = row.data() + x * (bits / 8);
+                const uint32_t alpha = keepAlpha && bits == 32 ? bgr[3] : 255;
+                dest[x] = (alpha << 24) | (uint32_t(bgr[2]) << 16) | (uint32_t(bgr[1]) << 8) | bgr[0];
+            }
         }
     }
     return result;
