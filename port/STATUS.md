@@ -1475,3 +1475,6 @@ Root Release/Debug4original positioning and6actual reset/gate cases match54coord
 
 
 2026-11-25 OG075: genuine retained live collision/body binding and steering candidate transformed getters. Exact original metadata/getter/rootHeight/player/jump ordering; actualscene/palette/bounds andclock lifetimes retained through contact Remove. Root R/D41CTests each;34filter+24steering cases10844original component bits/config and events/results/dirty match, native R/Dhashes unchanged. Concrete binder remains actualskin-only, queryactorpoint supplied; no full Player/worldhost claim. Original2969trackedfiles still matchbaseline.
+
+
+2026-11-25 OG081: complete original Character specific-animation request/context/weapon mapping replaces three-request movement subset. Unsupported requests now return original-1 before context/weapon reads. Root R/D41CTests each;10896actualoriginal combinations/config match result and getter access order, signedextremes included; native R/Ddumps identical. Existing commands/body/arrival/rootmotion regressions pass; concrete outerhost still separate.

@@ -18,25 +18,32 @@ void RetailDirectPlayerController::requireOnFoot() {
         throw std::logic_error("Direct player controller has no vehicle-transfer/Stop binding.");
 }
 
-std::int32_t RetailDirectPlayerController::specificMovementAnimation(std::int32_t request) {
-    if (request != 188 && request != 202 && request != 212)
-        throw std::invalid_argument("Unsupported specific movement animation request.");
+std::int32_t RetailDirectPlayerController::specificAnimation(std::int32_t request) {
+    struct Mapping { std::int32_t request, context1, context2, twoHanded, rocket; };
+    static constexpr Mapping mappings[]{
+        {0, 0, 0, 205, 208}, {165, 36, 42, 166, 169}, {179, 179, 179, 167, 170},
+        {180, 38, 43, 168, 171}, {188, 39, 44, 189, 192}, {198, 198, 198, 190, 193},
+        {200, 200, 200, 191, 194}, {202, 40, 48, 203, 206}, {212, 41, 49, 204, 207}};
+    const Mapping* mapping = nullptr;
+    for (const auto& candidate : mappings)
+        if (candidate.request == request) { mapping = &candidate; break; }
+    if (!mapping) return -1; // Original rejects before reading context or weapon.
     const auto context = host.animationContext();
     if (context == 1)
-        return request == 188 ? 39 : request == 202 ? 40 : 41;
+        return mapping->context1;
     if (context == 2)
-        return request == 188 ? 44 : request == 202 ? 48 : 49;
+        return mapping->context2;
     if (context != 0)
         return -1;
     if (host.weaponType() == 7)
-        return request == 188 ? 192 : request == 202 ? 206 : 207;
+        return mapping->rocket;
     if (host.weaponTwoHanded())
-        return request == 188 ? 189 : request == 202 ? 203 : 204;
+        return mapping->twoHanded;
     return request;
 }
 
 void RetailDirectPlayerController::selectSpecific(std::int32_t request, bool loop, bool rootMotion) {
-    const auto animation = specificMovementAnimation(request);
+    const auto animation = specificAnimation(request);
     host.selectAnimation({animation, 1.f, loop, rootMotion, false});
 }
 

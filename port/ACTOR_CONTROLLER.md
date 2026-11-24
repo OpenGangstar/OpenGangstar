@@ -16,7 +16,7 @@ Addresses retain the original Thumb bit.
 | --- | --- | --- |
 | Player walkToLocation/runToLocation | 0x301535 / 0x3014ed | Live death guard; OR0x8000; copy destination and integer10000 limit before base guard |
 | Character walkToLocation/runToLocation | 0x2f400d / 0x2f3fa5 | Second live death guard, run-only down guard; replace low byte2/4, turn, select specific202/188 |
-| Character getSpecificAnimation | 0x2f1a31 | Only requested188/202/212 paths ported; original context word and live weapon operations |
+| Character getSpecificAnimation | 0x2f1a31 | Complete nine-request mapping; original context word and live weapon operations, original-1 sentinel for other requests |
 | Character Stop / Player Stop | 0x2f1d3d / 0x301a3d | Low byte1, specific212, zero real body linear/angular velocity, then clear target |
 | Character startTurn | 0x2f1781 | Strict positive saved direction length, write speed/turning then request201 |
 | Character CheckDestination | 0x2f2135 | Real three-output steering; reachable uses original destination, blocked uses adjusted point |
@@ -24,19 +24,24 @@ Addresses retain the original Thumb bit.
 | Player scripted destination | 0x305104..0x30519c,0x305656 | Reload before live0x8000 test; turn adjusted destination; set original root-motion byte; strict distance; clear0x8000, Stop, startTurn8 |
 | Character updateAnimation | 0x2f3489, application0x2f35d2..0x2f368a | Wake before body velocity, retained rootZ and animated-root local zero |
 
-Specific animation table for this slice:
+Complete specific-animation mapping (`specificAnimation`):
 
-| Character context word | Run188 | Walk202 | Stop212 |
-| --- | --- | --- | --- |
-| 1 | 39 | 40 | 41 |
-| 2 | 44 | 48 | 49 |
-| 0, weapon type7 | 192 | 206 | 207 |
-| 0, other two-handed | 189 | 203 | 204 |
-| 0, other one-handed | 188 | 202 | 212 |
-| Other | -1 | -1 | -1 |
+| Request | Context1 | Context2 | Context0 one-handed | Context0 two-handed | Context0 type7 |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 0 | 0 | 0 | 205 | 208 |
+| 165 | 36 | 42 | 165 | 166 | 169 |
+| 179 | 179 | 179 | 179 | 167 | 170 |
+| 180 | 38 | 43 | 180 | 168 | 171 |
+| 188 | 39 | 44 | 188 | 189 | 192 |
+| 198 | 198 | 198 | 198 | 190 | 193 |
+| 200 | 200 | 200 | 200 | 191 | 194 |
+| 202 | 40 | 48 | 202 | 203 | 206 |
+| 212 | 41 | 49 | 212 | 204 | 207 |
 
-Context1/2 and invalid contexts do not access weapon state. Context0 tests type7
-before two-handed, preserving live access order. The context word is not a
+Other requests return-1 before reading context. Other context words return-1
+without reading weapon state. Context1/2 do not access weapon state. Context0
+tests type7 before querying the current weapon's two-handed state, preserving
+live access order. The context word is not a
 factory tag, LevelObject::s_type classification or physics categoryBits.
 
 Arrival is horizontal for finite destinationZ: the original third subtraction
@@ -130,3 +135,10 @@ These are independent behavioral fixtures, not a full native/original game run.
 The launcher build/play actions remain available, but the existing preview walk
 code is not reclassified as this controller. No gameplay or mission progression
 was used to validate this work.
+
+OG081 expands the selection leaf to its complete original request domain.
+Release and Debug each compare10,896 actual original request/context/weapon
+combinations, including signed extremes, with exact results and context-memory/
+weapon access traces. Native dumps match byte-for-byte across configurations;
+all41 integration tests pass. This does not broaden the outer Player update
+or invent weapon, target or animation-scene hosts.

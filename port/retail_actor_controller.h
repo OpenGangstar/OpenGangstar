@@ -53,8 +53,9 @@ class RetailDirectPlayerController {
     void runTo(const RetailHeightPoint&);
     void stop();
     void startTurn(float speed);
-    // Only requests used by these original commands (188/202/212) are covered.
-    std::int32_t specificMovementAnimation(std::int32_t request);
+    // Complete original request mapping, including the commands188/202/212.
+    // Unrecognized requests return-1 before context/weapon reads.
+    std::int32_t specificAnimation(std::int32_t request);
     // Original CheckDestination; cinematic bypass is a separate Player::Update
     // branch. The caller selects the original outer Update branch, not this leaf.
     void checkDestination(bool inCinematic);

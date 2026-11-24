@@ -28,14 +28,14 @@ struct Host final : RetailDirectPlayerHost {
     RetailHeightPoint position{0, 0, 10};
     std::vector<std::string> calls;
     std::vector<RetailAnimationRequest> requests;
-    std::function<void()> onReload, onClear, onTurn, onSelect;
+    std::function<void()> onReload, onClear, onTurn, onSelect, onWeaponType;
     std::function<void(const RetailHeightPoint&)> onRoot;
     explicit Host(RetailDirectPlayerState& state) : state(state) {}
     bool isDead() override { calls.push_back("dead"); ++deaths; return dead || (dieOnSecond && deaths==2); }
     bool isDown() override { calls.push_back("down"); return down; }
     bool hasVehicle() override { return vehicle; }
     int animationContext() override { calls.push_back("context"); return context; }
-    int weaponType() override { calls.push_back("weapon"); return weapon; }
+    int weaponType() override { calls.push_back("weapon"); if (onWeaponType) onWeaponType(); return weapon; }
     bool weaponTwoHanded() override { calls.push_back("two"); return twoHanded; }
     RetailHeightPoint positionCm() override { calls.push_back("position"); return position; }
     void turnToward(const RetailHeightPoint& point) override {
@@ -133,12 +133,12 @@ void mappingsAndGuards() {
     for (int mode=0;mode<5;++mode) {
         f.host.context=mode>=3?mode-2:0; f.host.weapon=mode==2?7:0; f.host.twoHanded=mode==1;
         for (int i=0;i<3;++i)
-            require(f.controller->specificMovementAnimation(i==0?188:i==1?202:212)==expected[mode][i],
+            require(f.controller->specificAnimation(i==0?188:i==1?202:212)==expected[mode][i],
                     "Original movement-specific context/weapon mapping");
     }
     for (int context : {-1,3,100}) {
         f.host.context=context; f.host.calls.clear();
-        require(f.controller->specificMovementAnimation(202)==-1 &&
+        require(f.controller->specificAnimation(202)==-1 &&
                 f.host.calls==std::vector<std::string>{"context"}, "Unknown context returns-1 without weapon access");
     }
     f.host.context=0; f.host.weapon=0; f.host.twoHanded=false;
@@ -201,6 +201,45 @@ void destination() {
     f.controller->startTurn(99);
     require(!f.state.turning, "NaN turn length fails original strict positive branch");
 }
+void specificSelections(bool dump) {
+    Fixture fixture;
+    auto& host = fixture.host;
+    const auto select = [&](int request, int context, int weapon, bool two) {
+        host.context = context; host.weapon = weapon; host.twoHanded = two; host.calls.clear();
+        return fixture.controller->specificAnimation(request);
+    };
+    require(select(0, 0, 0, true) == 205 && select(0, 0, 7, false) == 208,
+            "Original zero request selects weapon-specific205/208");
+    require(select(179, 2, 7, true) == 179 && host.calls == std::vector<std::string>{"context"},
+            "Context2 preserves179 without weapon reads");
+    require(select(198, 1, 0, true) == 198 && select(200, 2, 7, false) == 200,
+            "Original alternate contexts preserve198/200 requests");
+    require(select(165, 1, 7, true) == 36 && select(180, 2, 0, false) == 43,
+            "Original additional context-specific mappings");
+    require(select(180, 0, 7, true) == 171 && host.calls == std::vector<std::string>{"context", "weapon"},
+            "Rocket branch returns before two-handed query");
+    require(select(200, -1, 7, true) == -1 && host.calls == std::vector<std::string>{"context"},
+            "Invalid context never reads weapon");
+    require(select(166, 0, 7, true) == -1 && host.calls.empty(),
+            "Unrecognized request returns original sentinel before context access");
+    host.onWeaponType = [&] { host.twoHanded = true; };
+    require(select(198, 0, 0, false) == 190 && host.calls == std::vector<std::string>{"context", "weapon", "two"},
+            "Two-handed query observes current weapon state after type operation");
+    host.onWeaponType = {};
+    if (!dump) return;
+    std::vector<int> requests;
+    for (int request = -4; request <= 220; ++request) requests.push_back(request);
+    requests.push_back(std::numeric_limits<int>::min()); requests.push_back(std::numeric_limits<int>::max());
+    for (int context : {-2, -1, 0, 1, 2, 3, std::numeric_limits<int>::min(), std::numeric_limits<int>::max()})
+        for (int weapon : {0, 7, 8})
+            for (bool two : {false, true})
+                for (int request : requests) {
+                    const auto result = select(request, context, weapon, two);
+                    std::cout << "selection " << request << ' ' << context << ' ' << weapon << ' ' << two << ' ' << result;
+                    for (const auto& call : host.calls) std::cout << ' ' << call;
+                    std::cout << '\n';
+                }
+}
 void animationBodyComposition() {
     Fixture f;
     f.controller->walkTo({1000,0,10});
@@ -243,8 +282,10 @@ void animationBodyComposition() {
     require(f.host.calls.empty(), "Unevaluated root does not synthesize scene or rootZ update");
 }
 }
-int main() {
-    try { commands(); mappingsAndGuards(); destination(); animationBodyComposition();
+int main(int argc, char** argv) {
+    try {
+        if (argc == 2 && std::string(argv[1]) == "--specific-dump") { specificSelections(true); return 0; }
+        commands(); mappingsAndGuards(); destination(); specificSelections(false); animationBodyComposition();
         std::cout << "Direct player command/completion/native-body/steering checks passed\n"; return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

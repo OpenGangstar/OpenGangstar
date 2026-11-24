@@ -3729,6 +3729,36 @@
         "Actual original plain animator factory/timeline/bind ownership and both actual Player graph identities/order; source-backed dynamic state access, no unsupportedGenericSet inference.",
         "Concrete next nativehost signatures/resources and exact remaining prerequisites; no original/product edits."
       ]
+    },
+    {
+      "id": "OG-081",
+      "description": "Port complete Character getSpecificAnimation mapping, replacing the movement-only subset.",
+      "scope": "All original recognized requests0/165/179/180/188/198/200/202/212 and return-1 domain, context/weapon access order. Reuse existing real host operations and one mapping implementation; update internal method name/callers, no new clock/weapon substitute or outerUpdate claim.",
+      "symbols": [
+        "Character::getSpecificAnimation0x2f1a31",
+        "RetailDirectPlayerController::specificMovementAnimation"
+      ],
+      "resources": [
+        "port/retail_actor_controller.h",
+        "port/retail_actor_controller.cpp",
+        "port/tests/retail_actor_controller.cpp",
+        "port/ACTOR_CONTROLLER.md"
+      ],
+      "priority": 2,
+      "complexity": "small",
+      "dependencies": [
+        "OG-008"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "73dd8c8",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Native exhaustive bounded int request/context/weapon combinations plus signed extremes compare actual original result/access order.",
+        "Existing command/arrival/rootbody regressions and full R/D tests; no original edits."
+      ],
+      "independent_verification": "Root full R/D41CTests/config.10896actualoriginal request/context/weapon combinations incl signedextremes compare returnvalues and true context-memory/weapon access traces exactly/config. R/D native dump SHAa9a616824c70acb592c695dcb876ebd6a403c618cce7258d1cc11cfb1743e6d7. Existing command/arrival/nativebody/rootmotion controls pass; affectedPE32+AMD64. Onecomplete mapping replaces movement-onlysubset, no outerUpdatehost claim."
     }
   ],
   "orchestrator_resources": [
@@ -3744,7 +3774,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after078:2969original tracked sizes/SHA256 unchanged vs pre-migration baseline; originalsubmodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and userlocaledits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full R/D41CTests/config after075livefilter/body/steering.58actualoriginal cases10844components/config exact; samefrozendump hashes.074deformation,079materialowner,080concreteanimatorhost researchactive."
+    "native_integration": "2026-11-25: Root R/D41CTests/config after081complete Character animationselection;10896actualoriginal results/access traces/config exact.075livegetter cases alreadyverified.074deformation waits079materialsource;079ownership and080timeline/hostresearch active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
