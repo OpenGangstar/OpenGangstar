@@ -90,9 +90,20 @@ RetailDeformationMesh::Ptr
 RetailDeformationMesh::morph(Ptr source,
                              std::shared_ptr<const CityScene> catalogue,
                              std::size_t index, bool defer) {
+  auto result = bindMorph(std::move(source), std::move(catalogue), index, {});
+  result->prepareProxies(defer);
+  return result;
+}
+
+RetailDeformationMesh::Ptr
+RetailDeformationMesh::bindMorph(Ptr source,
+                                 std::shared_ptr<const CityScene> catalogue,
+                                 std::size_t index, std::shared_ptr<RetailMorphState> runtime) {
   if (!source || !catalogue || index >= catalogue->morphControllers.size())
     throw std::invalid_argument(
         "Missing original morph source/controller binding.");
+  if (runtime && (runtime->catalogue().get() != catalogue.get() || runtime->controllerIndex() != index))
+    throw std::invalid_argument("Morph runtime requires its exact catalogue/controller identity.");
   const auto &controller = catalogue->morphControllers[index];
   if (controller.name.empty() || controller.source != source->uid() ||
       controller.source != source->view(0).geometry().name ||
@@ -106,10 +117,45 @@ RetailDeformationMesh::morph(Ptr source,
   result->meshKind = Kind::morph;
   result->identity = controller.name;
   result->underlying = std::move(source);
-  result->morphCatalogue = std::move(catalogue);
-  result->morphState = controller;
+  result->morphState = runtime ? std::move(runtime) : std::make_shared<RetailMorphState>(std::move(catalogue), index);
+  return result;
+}
+
+RetailDeformationMesh::Ptr
+RetailDeformationMesh::morph(Ptr source,
+                             std::shared_ptr<const CityScene> catalogue,
+                             std::size_t index, std::vector<Ptr> targets,
+                             bool defer, std::shared_ptr<RetailMorphState> runtime) {
+  // Bind and validate real target owners before process allocation/publication.
+  auto result = bindMorph(std::move(source), std::move(catalogue), index, std::move(runtime));
+  result->morphTargets = std::move(targets);
+  result->validateMorphTargets();
   result->prepareProxies(defer);
   return result;
+}
+
+void RetailDeformationMesh::validateMorphTargets() const {
+  if (!morphTargets) return;
+  const auto &targets = morphState->current.targets;
+  if (morphTargets->size() != targets.size())
+    throw std::invalid_argument("Missing authored current morph target bindings.");
+  for (std::size_t i = 0; i < targets.size(); ++i) {
+    const auto &target = morphTargets->at(i);
+    if (!target || target->kind() != Kind::source || target->buffers.empty() ||
+        targets[i].mesh >= morphState->source->meshes.size() ||
+        &target->buffers[0].current.geometry() !=
+            &morphState->source->meshes[targets[i].mesh])
+      throw std::invalid_argument("Current morph target requires its exact catalogue source identity.");
+    const auto streams = target->buffers[0].current.streams();
+    for (std::size_t previous = 0; previous < i; ++previous) {
+      if (targets[previous].mesh != targets[i].mesh) continue;
+      const auto other = morphTargets->at(previous)->buffers[0].current.streams();
+      if (&streams.currentPositions != &other.currentPositions ||
+          &streams.currentNormals != &other.currentNormals ||
+          streams.floatNormals != other.floatNormals)
+        throw std::invalid_argument("Repeated morph target index has conflicting current stream bindings.");
+    }
+  }
 }
 
 RetailDeformationMesh::Ptr
@@ -282,10 +328,35 @@ void RetailDeformationMesh::evaluate(std::size_t slot) {
     const RetailVertexStreams effective{streams.sourceName,
                                         streams.currentPositions, normals,
                                         streams.floatNormals};
-    if (meshKind == Kind::morph)
-      retailMorphVertexRange(effective, *morphState, morphCatalogue->meshes,
-                             current.first, current.end, output);
-    else
+    if (meshKind == Kind::morph) {
+      validateMorphTargets();
+      std::vector<RetailVertexStreams> targets;
+      targets.reserve(morphState->source->meshes.size());
+      for (std::size_t index = 0; index < morphState->source->meshes.size(); ++index) {
+        const RetailDeformationView *live = nullptr;
+        if (morphTargets) {
+          const auto &entries = morphState->current.targets;
+          for (std::size_t i = 0; i < entries.size(); ++i)
+            if (entries[i].mesh == index) {
+              live = &morphTargets->at(i)->buffers[0].current;
+              break;
+            }
+        }
+        if (live) {
+          const auto target = live->streams();
+          const auto &targetNormals = borrowedNormals && live->normalStorage == current.normalStorage
+                                        ? output.normals : target.currentNormals;
+          targets.push_back({target.sourceName, target.currentPositions, targetNormals, target.floatNormals});
+        } else if (!morphTargets) {
+          const auto &mesh = morphState->source->meshes[index];
+          targets.push_back({mesh.name, mesh.positions, mesh.normals, mesh.floatNormals});
+        } else {
+          targets.push_back({{}, absent, absent, true});
+        }
+      }
+      retailMorphVertexRange(effective, morphState->current, targets,
+                             current.first, current.end, output, morphState->base);
+    } else
       retailSkinVertexRange(effective, *palette->skin(), *matrices,
                             current.first, current.end, output);
   } catch (...) {
@@ -353,5 +424,17 @@ bool RetailDeformationMesh::skinningEnabled() const {
 void RetailDeformationMesh::setMorphWeight(std::size_t target, float weight) {
   if (!morphState)
     throw std::logic_error("Only an actual morph owner has target weights.");
-  morphState->targets.at(target).weight = weight;
+  morphState->setWeight(target, weight);
+}
+
+float RetailDeformationMesh::morphBaseWeight() const {
+  if (!morphState)
+    throw std::logic_error("Only an actual morph owner has a runtime base weight.");
+  return morphState->baseWeight();
+}
+
+const std::shared_ptr<RetailMorphState>& RetailDeformationMesh::morphRuntime() const {
+  if (!morphState)
+    throw std::logic_error("Only an actual morph owner has runtime weight storage.");
+  return morphState;
 }

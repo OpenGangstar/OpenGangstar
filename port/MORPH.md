@@ -5,7 +5,7 @@
 `setWeightedVertex<vector3df>` (`0x2a54bd`, GOT0x1db4) and
 `addWeightedVertex<vector3df>` (`0x2a53d9`, GOT0x26d0) helpers. It consumes
 the existing decoded `CityMorphController`, genuine current source streams,
-decoded target geometry and the caller's actual source-buffer vertex range.
+current target streams and the caller's actual source-buffer vertex range.
 Output reuses `RetailSkinningOutput`; there is no second source decoder,
 matrix cache, or parallel stream structure.
 
@@ -16,6 +16,30 @@ source order. Every invocation resets the source weight to one. For method 0 it
 subtracts each target weight in order (`((1-w1)-w2)...`). Every nonzero method
 keeps source weight one. It does not clamp weights, divide by total weight, or
 restrict the method to a guessed two-value enum.
+
+The current-stream overload takes a reference to the actual runtime source
+weight (entry0). Its reset and sequential subtraction are observable state
+writes, not a local calculation discarded after processing. Native structural
+and finite-weight preflight occurs first; used stream validation follows those
+state writes. A later checked error leaves the new runtime base weight visible
+while preserving kernel output. There is no transaction/rollback claim. The
+immutable-geometry overloads create borrowed views and delegate this same kernel,
+discarding a local entry0 only for that bounded compatibility/control domain.
+
+Target views use catalogue mesh indices. They borrow the current arrays of
+target buffer0, not immutable base geometry or the current source buffer slot.
+Only used targets are validated/read by the kernel: zero weights and the
+original base-zero initializer's skipped target retain their reference behavior.
+No target stream copy, second weight calculation or alternate arithmetic kernel
+is introduced. The process owner retains actual current target sources and its
+one runtime entry0; see `DEFORMATION.md`.
+
+`RetailMorphState` is the independently retained canonical runtime owner for a
+specific immutable catalogue object and controller source index. It keeps one
+private runtime controller/base entry with fixed source identity. Weight/base
+setters mutate actual storage; they do not invent an animation or damage policy.
+It owns no live scene or process, so its weights can survive process destruction
+and be shared with a future genuine scene morph resource without a cycle.
 
 When the source weight is nonzero, the initializer copies/scales the current
 source stream. If it is zero, the original skips zero target weights to choose
@@ -61,9 +85,10 @@ a new independent morph vertex topology or normalize normals.
 `onPrepareBufferForRendering` (`0x2a58f5`) obtains the driver process buffer,
 and invokes morph only when the returned flags include bit 2 (value 4). The
 existing car subclass (`0x309339`) additionally controls when that preparation
-occurs. Native driver/proxy ownership, per-render-stage flags and the live
-vehicle damage/animation weight producer remain later integration work. This
-CPU function supplies no fake driver callback or vehicle damage policy.
+occurs. The separate native software process owner implements proxy/output
+ownership and per-stage flags. Actual vehicle damage/animation weight production,
+resource factory binding and production rendering remain integration requirements.
+This CPU function supplies no fake driver callback or vehicle damage policy.
 
 The actual morph range comes from the source's requested mesh buffer, using
 `getVertexIndexStart` (`0x2a15dd`) and exclusive `getVertexIndexEnd`
@@ -125,3 +150,12 @@ to the prior baseline (359 BRES, 98 images and the same 111 missing texture path
 Automated menu/opening Vulkan smoke checks also pass. The game does not yet
 call this CPU leaf through a real morph driver/owner; these smoke checks prove
 the existing game path remains usable, not production morph integration.
+
+The current-stream/runtime-state extension passes all 44 CTests in Release and
+Debug. All legacy 48 synthetic and 126 supplied-controller original arithmetic
+comparisons remain exact. Additional process-owner comparisons cover 16 actual
+original current-target/shared-array phases per configuration, including runtime
+entry0 seeded99 before each execution, and native current-target owners consume
+mutated streams from all21 supplied morph controllers. Canonical state sharing
+and survival across process destruction are separately tested; no production
+vehicle factory or weight producer is inferred from those fixture results.

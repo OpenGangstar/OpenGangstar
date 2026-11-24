@@ -264,6 +264,52 @@ void unit(bool emit) {
         f.dump("finite-fixture-" + std::to_string(iteration), emit);
     }
 }
+void currentStreams() {
+    Fixture f;
+    f.controller.targets[0].weight = .25f;
+    f.controller.targets[1].weight = .5f;
+    std::vector<RetailSkinningOutput> storage;
+    for (const auto &mesh : f.geometry)
+        storage.push_back({mesh.positions, mesh.normals});
+    std::vector<RetailVertexStreams> targets;
+    for (size_t i = 0; i < storage.size(); ++i)
+        targets.push_back({f.geometry[i].name, storage[i].positions, storage[i].normals, true});
+    const RetailVertexStreams source{f.source.name, f.source.positions, f.source.normals, true};
+    float base = 99.f;
+    storage[0].positions.assign(4, {100, 200, 300});
+    storage[1].positions.assign(4, {200, 400, 600});
+    storage[0].normals.assign(4, {0, 4, 0});
+    retailMorphVertexRange(source, f.controller, targets, 0, 4, f.output, base);
+    require(base == .25f && f.output.positions[0] == Vec{125.25f, 250.5f, 375.75f} &&
+                f.output.normals[0] == Vec{.5f, 1, .25f},
+            "Actual runtime base99 reset/subtraction and current target position/normal streams");
+    storage[0].positions[0] = {400, 800, 1200};
+    retailMorphVertexRange(source, f.controller, targets, 0, 4, f.output, base);
+    require(base == .25f && f.output.positions[0] == Vec{200.25f, 400.5f, 600.75f} &&
+                f.geometry[0].positions[0] == Vec{10, 20, 30},
+            "Borrowed target views observe subsequent mutation without immutable fallback");
+    f.controller.method = 7;
+    base = -23;
+    retailMorphVertexRange(source, f.controller, targets, 1, 1, f.output, base);
+    require(base == 1, "Even empty ranges and all nonzero methods write runtime entry0 one");
+    f.controller.method = 0;
+    for (auto &entry : f.controller.targets) entry.weight = .1f;
+    retailMorphVertexRange(source, f.controller, targets, 1, 1, f.output, base);
+    require(bits(base) == 0x3f333332u, "Runtime entry preserves literal sequential subtraction bits");
+    f.controller.targets[0] = {999, 1.f};
+    f.controller.targets[1].weight = f.controller.targets[2].weight = 0;
+    retailMorphVertexRange(source, f.controller, targets, 0, 4, f.output, base);
+    require(base == 0 && f.output.positions[0] == f.source.positions[0],
+            "Base-zero first-target quirk never reads its invalid target stream reference");
+    f.controller.targets[0].weight = .25f;
+    base = 99; const auto previous = f.output.positions;
+    rejects([&] { retailMorphVertexRange(source, f.controller, targets, 0, 4, f.output, base); });
+    require(base == .75f && f.output.positions == previous,
+            "Later used-target failure retains observable base write but no output writes");
+    base = 99;
+    rejects([&] { retailMorphVertexRange(source, f.controller, targets, 3, 2, f.output, base); });
+    require(base == 99, "Native structural preflight precedes runtime base mutation");
+}
 void retail(const std::filesystem::path &root, bool emit) {
     ResourceFileSystem files(root);
     // Exhaustive supplied local morph-controller model set, independently
@@ -346,6 +392,7 @@ int wmain(int argc, wchar_t **argv) {
     try {
         const bool dump = argc > 1 && std::wstring(argv[1]) == L"--oracle-dump";
         unit(dump);
+        currentStreams();
         if (argc > 1 && !dump)
             retail(argv[1], argc > 2 && std::wstring(argv[2]) == L"--oracle-dump");
         std::cout << "Original morph stream/weight/range checks passed.\n";

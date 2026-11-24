@@ -61,8 +61,18 @@ public:
   static Ptr source(std::shared_ptr<RetailActorScene> scene,
                     RetailActorSceneMesh &sourceOwner,
                     std::shared_ptr<RetailSkinningOutput> current);
+  // Immutable-target compatibility/control domain; production current targets
+  // must use the explicit retained source overload below.
   static Ptr morph(Ptr source, std::shared_ptr<const CityScene> catalogue,
                    std::size_t controllerIndex, bool defer);
+  // Actual current target sources, one per authored target in exact order.
+  // Each must be Kind::source and use the exact catalogue geometry object at
+  // that target's mesh index. Repeated indices require identical current
+  // position/normal vector and format identities; conflicting bindings reject.
+  // Target buffer0 is borrowed anew on every evaluation, without preparing it.
+  static Ptr morph(Ptr source, std::shared_ptr<const CityScene> catalogue,
+                   std::size_t controllerIndex, std::vector<Ptr> currentTargets,
+                   bool defer, std::shared_ptr<RetailMorphState> runtime = {});
   static Ptr skin(Ptr source, std::shared_ptr<RetailActorScene> scene,
                   RetailActorSceneMesh &paletteOwner, bool defer);
 
@@ -92,6 +102,12 @@ public:
   // Runtime target weights only; the real animation/damage producer is
   // external.
   void setMorphWeight(std::size_t target, float weight);
+  // Actual runtime entry0 written by the one CPU kernel, not recomputed from
+  // target weights by this getter. Remains unchanged when no kernel runs.
+  float morphBaseWeight() const;
+  // Retain the canonical state independently of process outputs. A supplied
+  // state must have the exact same catalogue object and controller index.
+  const std::shared_ptr<RetailMorphState>& morphRuntime() const;
 
 private:
   struct Binding {
@@ -104,15 +120,18 @@ private:
     std::shared_ptr<RetailSkinningOutput> transient;
   };
   RetailDeformationMesh() = default;
+  static Ptr bindMorph(Ptr source, std::shared_ptr<const CityScene> catalogue,
+                       std::size_t controllerIndex, std::shared_ptr<RetailMorphState> runtime);
   void prepareProxies(bool defer);
   void evaluate(std::size_t slot);
+  void validateMorphTargets() const;
   std::uint32_t requestedStreams(std::size_t slot) const;
 
   Kind meshKind = Kind::source;
   std::string identity;
   Ptr underlying;
-  std::shared_ptr<const CityScene> morphCatalogue;
-  std::optional<CityMorphController> morphState;
+  std::shared_ptr<RetailMorphState> morphState;
+  std::optional<std::vector<Ptr>> morphTargets;
   std::shared_ptr<RetailActorScene> scene;
   RetailActorSceneMesh *runtimeSource =
       nullptr; // Actual constructed source, not shared decoded geometry

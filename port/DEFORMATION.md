@@ -45,6 +45,48 @@ that catalogue; a same-named geometry in another resource is rejected. Runtime
 target weights are owned separately from immutable catalogue data and change
 only when the caller supplies them. There is no guessed vehicle damage policy.
 
+The explicit current-target overload retains one `Kind::source` owner per
+authored target, in exact authored order. Its geometry address must be the exact
+catalogue geometry at that target's mesh index; equal names or copied values
+do not establish a binding. A target buffer0 supplies its current arrays on each
+evaluation, including when the source is evaluating buffer1 or another slot.
+The owner does not prepare/animate targets or substitute immutable target data.
+Constructed bindings must exist even for initially zero weights, like the actual
+resource target array; the kernel still reads component values only when used.
+
+Catalogue-indexed borrowed views require repeated target indices to identify
+the same current position vector, normal vector and format. Different source
+objects sharing those exact arrays are accepted. Conflicting current arrays for
+one index are explicitly rejected, never overwritten by the last target. This
+is a checked boundary of the indexed-view API; an independently mutable resource
+per repeated index would require a future authored-entry view interface.
+
+The older factory overload is retained only as an explicit immutable-target
+compatibility/control domain. It does not prove actual production target binding.
+Both paths delegate the same arithmetic kernel. One retained `RetailMorphState`
+contains the runtime controller weights and source entry0 initialized to one. The kernel
+writes this actual entry0 on evaluation; `morphBaseWeight()` observes it without
+recomputation. A target-weight setter or preparation returning flags without4
+does not change it. Structural/finite-weight native preflight precedes that
+write; later used-stream failure leaves the new entry0 visible. No rollback of
+allocation/present state or earlier side effects is promised on failure.
+
+The explicit factory accepts an optional canonical runtime handle. An omitted
+handle constructs one standalone state; a supplied handle must match the exact
+immutable catalogue object and controller source index. `morphRuntime()` returns
+that same handle; no second runtime controller copy is made by a process. State
+identity is fixed, and static controller fields are not publicly mutable. Both
+process setters and independently retained handles address the same weights/base.
+Construction of another process does not reset an existing state's base entry.
+
+The state retains only immutable decoded catalogue storage, never a live scene
+or process. Its catalogue handle must therefore retain the decoded source owner,
+not alias-retain a live `RetailActorScene`. A future scene morph resource may
+retain state while a process retains that scene and the same state, without a
+reverse scene-to-process edge. Actual factory integration remains separate;
+the lifetime test retains canonical state, destroys the process, verifies its
+weights/base survive, and binds a later process to that exact same state.
+
 Proxies borrow the real source buffer's topology, original indices, material
 handle and all non-deformed metadata. UV0, auxiliary UVs, primary/secondary
 colors, normal-format declaration and static source identity are not replaced
@@ -140,6 +182,16 @@ mask1 instead has no output normal stream and takes the original positions-only
 branch. Original raw normal transforms and repeated in-place effects remain;
 there is no bind-pose reset or copied-normal approximation.
 
+Current morph targets can genuinely share this same normal allocation with the
+source. While it is transferred to the output container, target views with that
+exact storage identity refer to the moved vector too. The initializer's normal
+writes therefore affect subsequent target additions in the original order.
+For source weight .75 and target weight .25 on a shared unit normal, eager mask1
+produces .9375, then .87890625 on the next evaluation, rather than restoring a
+unit normal or reading the temporarily emptied owner vector. Reference identity
+is checked without copying component values; unused target arrays retain their
+zero-weight/base-zero skip behavior.
+
 ## Preparation, palette and release
 
 For a skin, the underlying source prepares first using the same step/slot. Its
@@ -232,3 +284,13 @@ kernel comparison. It does not establish the original production source-array
 sharing policy or implement that factory producer. Shared-storage controls
 separately prove that callers can bind one mutable array to multiple source
 owners and observe the original in-place normal effects.
+
+Additional current-target validation executes 16 original software
+allocation/proxy/onPrepare/morph phases against native results in each
+configuration. Target position/normal mutations between preparations and shared
+source/target arrays match 960 stream component bits plus 16 runtime base-entry
+words per configuration. The original runtime source entry is seeded99 before
+each invocation to prove its actual reset/subtraction stores. All prior 56
+deformation snapshots and the legacy synthetic/supplied morph arithmetic cases
+remain independently compared; the typed original ordinary-resource/driver
+receivers and import isolation remain explicit reference-fixture boundaries.

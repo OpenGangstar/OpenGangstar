@@ -2,8 +2,10 @@
 #include "filesystem.h"
 #include "retail_actor_graph.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -302,6 +304,141 @@ void sourceSharingAndValidation() {
   invalid->buffers[0].indices[2] = 32768;
   rejects([&] { base(invalid, true); },
           "Original signed16 used-range boundary is checked");
+}
+
+void currentMorphTargets() {
+  auto catalogue = morphCatalogue(*geometry());
+  auto source = base(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes[0]), true);
+  auto target = base(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes[1]), true);
+  auto process = Mesh::morph(source.mesh, catalogue, 0, {target.mesh}, false);
+  require(process->morphBaseWeight() == 1, "Original constructor runtime base entry starts at one");
+  target.storage->positions.assign(16, {100, 200, 300});
+  target.storage->normals.assign(16, {0, 4, 0});
+  require(process->prepare(0, 0) == 4 && process->morphBaseWeight() == .75f &&
+              process->view(0).streams().currentPositions[2] == std::array<float, 3>{27.25f, 53, 78.75f} &&
+              process->view(0).streams().currentNormals[2] == std::array<float, 3>{.75f, 1, 0},
+          "Real current target streams and sole runtime entry0 feed the morph kernel");
+  target.storage->positions[2] = {200, 400, 600};
+  target.storage->normals[2] = {0, 8, 0};
+  process->prepare(0, 0);
+  require(process->view(0).streams().currentPositions[2] == std::array<float, 3>{52.25f, 103, 153.75f} &&
+              process->view(0).streams().currentNormals[2] == std::array<float, 3>{.75f, 2, 0} &&
+              catalogue->meshes[1].positions[2] == std::array<float, 3>{40, 50, 60},
+          "Next preparation observes live target mutation rather than immutable geometry");
+  process->setMorphWeight(0, .5f);
+  require(process->morphBaseWeight() == .75f, "Weight setter does not recompute entry0 before actual CPU execution");
+  process->prepare(0, 0);
+  require(process->morphBaseWeight() == .5f &&
+              process->view(0).streams().currentPositions[2] == std::array<float, 3>{101.5f, 202, 302.5f},
+          "One kernel updates runtime base weight on preparation");
+  process->setMorphWeight(0, 0);
+  target.storage->positions.clear(); target.storage->normals.clear();
+  process->prepare(0, 0);
+  require(process->morphBaseWeight() == 1 && process->view(0).streams().currentPositions[2] == source.storage->positions[2],
+          "Zero target component arrays remain unread even after current storage becomes unusable");
+  process->setMorphWeight(0, 1);
+  process->prepare(0, 0);
+  require(process->morphBaseWeight() == 0 && process->view(0).streams().currentPositions[2] == source.storage->positions[2],
+          "Base-zero initializer skips actual target arrays as in original");
+  process->setMorphWeight(0, .25f);
+  const auto before = process->view(0).streams().currentPositions;
+  rejects([&] { process->prepare(0, 0); }, "Used short current target stream rejects");
+  require(process->morphBaseWeight() == .75f && process->view(0).streams().currentPositions == before,
+          "Late target validation failure retains runtime base write and preserves kernel output");
+  target.storage->positions = catalogue->meshes[1].positions;
+  target.storage->normals = catalogue->meshes[1].normals;
+  auto foreign = base(std::make_shared<CityMesh>(catalogue->meshes[1]), true);
+  rejects([&] { Mesh::morph(source.mesh, catalogue, 0, {foreign.mesh}, true); },
+          "Equal target name/values never replace exact catalogue geometry identity");
+  rejects([&] { Mesh::morph(source.mesh, catalogue, 0, {}, true); }, "Every authored target requires a source binding");
+  rejects([&] { Mesh::morph(source.mesh, catalogue, 0, {process}, true); }, "A morph target is not an ordinary source binding");
+  catalogue->morphControllers[0].targets.push_back({1, .125f});
+  auto independent = base(target.metadata, true);
+  rejects([&] { Mesh::morph(source.mesh, catalogue, 0, {target.mesh, independent.mesh}, true); },
+          "Duplicate catalogue index cannot select the last of conflicting current arrays");
+  auto sharing = Mesh::source(target.metadata, target.storage, target.materials);
+  auto duplicates = Mesh::morph(source.mesh, catalogue, 0, {target.mesh, sharing}, true);
+  require(duplicates->prepare(1, 0) == 4 && duplicates->morphBaseWeight() == .625f,
+          "Separate source objects sharing identical streams support repeated target indices");
+  std::weak_ptr<Mesh> retained = target.mesh;
+  target.mesh.reset(); sharing.reset(); duplicates.reset();
+  require(!retained.expired(), "Actual target resource stays owned by live morph");
+  process.reset();
+  require(retained.expired(), "Last morph releases its retained current target source");
+  rejects([&] { source.mesh->morphBaseWeight(); }, "Ordinary source has no invented morph weight state");
+
+  // Eager mask1 borrows source normals. Here the target genuinely shares the
+  // same mutable current allocation, so output writes must affect later adds.
+  auto sharedSource = base(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes[0]), false);
+  auto alias = Mesh::source(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes[1]),
+                            sharedSource.storage, target.materials);
+  catalogue->morphControllers[0].targets = {{1, .25f}};
+  auto aliased = Mesh::morph(sharedSource.mesh, catalogue, 0, {alias}, false);
+  aliased->prepare(0, 0);
+  require(sharedSource.storage->normals[2] == std::array<float, 3>{.9375f, 0, 0} &&
+              &aliased->view(0).streams().currentNormals == &sharedSource.storage->normals,
+          "Shared source/target normal allocation follows original in-place weighted operation order");
+  aliased->prepare(0, 0);
+  require(sharedSource.storage->normals[2] == std::array<float, 3>{.87890625f, 0, 0},
+          "Repeated eager alias evaluation consumes genuine modified target normals");
+
+  // Source buffer1 still reads target buffer0, whose material/range may differ.
+  auto two = morphCatalogue(*geometry());
+  two->meshes[0].buffers.push_back({"second", {8, 9, 12}});
+  auto multi = base(std::shared_ptr<const CityMesh>(two, &two->meshes[0]), true);
+  auto oneTarget = base(std::shared_ptr<const CityMesh>(two, &two->meshes[1]), true);
+  auto secondBuffer = Mesh::morph(multi.mesh, two, 0, {oneTarget.mesh}, true);
+  require(secondBuffer->prepare(1, 1) == 4 && secondBuffer->view(1).streams().currentPositions[8] ==
+              std::array<float, 3>{16.75f, 20, 23.25f},
+          "Actual target buffer0 serves nonzero source buffer slot/range without guessed slot matching");
+  auto ordered = morphCatalogue(*geometry());
+  ordered->meshes.push_back(ordered->meshes[1]); ordered->meshes[2].name = "other-target";
+  ordered->morphControllers[0].targets.push_back({2, .125f});
+  auto orderedSource = base(std::shared_ptr<const CityMesh>(ordered, &ordered->meshes[0]), true);
+  auto a = base(std::shared_ptr<const CityMesh>(ordered, &ordered->meshes[1]), true);
+  auto b = base(std::shared_ptr<const CityMesh>(ordered, &ordered->meshes[2]), true);
+  rejects([&] { Mesh::morph(orderedSource.mesh, ordered, 0, {b.mesh, a.mesh}, true); },
+          "Current target binding order must match exact authored target indices");
+  auto inOrder = Mesh::morph(orderedSource.mesh, ordered, 0, {a.mesh, b.mesh}, true);
+  require(inOrder->prepare(1, 0) == 4 && inOrder->morphBaseWeight() == .625f,
+          "Distinct actual current targets bind in authored order");
+}
+
+void sharedMorphRuntime() {
+  auto catalogue = morphCatalogue(*geometry());
+  catalogue->morphControllers.push_back(catalogue->morphControllers[0]);
+  auto source = base(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes[0]), true);
+  auto target = base(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes[1]), true);
+  auto runtime = std::make_shared<RetailMorphState>(catalogue, 0);
+  runtime->setBaseWeight(99);
+  auto process = Mesh::morph(source.mesh, catalogue, 0, {target.mesh}, true, runtime);
+  auto secondHandle = process->morphRuntime();
+  require(secondHandle.get() == runtime.get() && process->morphBaseWeight() == 99 &&
+              &runtime->controller() == &secondHandle->controller(),
+          "Canonical runtime controller/base identity survives absent process output");
+  process->setMorphWeight(0, .5f);
+  require(runtime->controller().targets[0].weight == .5f && secondHandle->controller().targets[0].weight == .5f &&
+              catalogue->morphControllers[0].targets[0].weight == .25f,
+          "Both retained handles observe one runtime weight without mutating immutable source");
+  runtime->setWeight(0, .25f);
+  require(process->prepare(1, 0) == 4 && runtime->baseWeight() == .75f && secondHandle->baseWeight() == .75f,
+          "One actual kernel writes canonical entry0 from99 to .75");
+  std::weak_ptr<Mesh> expired = process;
+  process.reset();
+  require(expired.expired() && runtime->baseWeight() == .75f && runtime->controller().targets[0].weight == .25f,
+          "No process/state ownership cycle and state survives process destruction");
+  auto again = Mesh::morph(source.mesh, catalogue, 0, {target.mesh}, true, secondHandle);
+  require(again->morphRuntime().get() == runtime.get() && again->morphBaseWeight() == .75f,
+          "A later process binds actual retained runtime without reinitialization or a weight copy");
+  auto foreignCatalogue = std::make_shared<CityScene>(*catalogue);
+  auto foreign = std::make_shared<RetailMorphState>(foreignCatalogue, 0);
+  rejects([&] { Mesh::morph(source.mesh, catalogue, 0, {target.mesh}, true, foreign); },
+          "Equal source/controller values in a foreign catalogue cannot substitute canonical state");
+  auto wrongIndex = std::make_shared<RetailMorphState>(catalogue, 1);
+  rejects([&] { Mesh::morph(source.mesh, catalogue, 0, {target.mesh}, true, wrongIndex); },
+          "Same-named equal controller at a different source index is not the same runtime identity");
+  rejects([&] { (void)std::make_shared<RetailMorphState>(catalogue, 9); }, "Unknown canonical controller index rejects");
+  rejects([&] { source.mesh->morphRuntime(); }, "No invented ordinary-source runtime");
 }
 
 void multipleBuffers() {
@@ -644,6 +781,79 @@ void retail(const char *root) {
     }
   }
 }
+void currentMorphDump() {
+  for (bool sharing : {false, true})
+    for (bool lighting : {false, true}) {
+      auto catalogue = morphCatalogue(*geometry());
+      auto source = base(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes[0]), lighting);
+      auto target = base(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes[1]), lighting);
+      if (sharing) {
+        target.storage = source.storage;
+        target.mesh = Mesh::source(target.metadata, target.storage, target.materials);
+      }
+      auto process = Mesh::morph(source.mesh, catalogue, 0, {target.mesh}, false);
+      for (unsigned phase = 1; phase <= 4; ++phase) {
+        if (phase == 2) {
+          target.storage->positions[2] = {100, -200, 300};
+          target.storage->normals[2] = {0, 8, -4};
+        }
+        if (phase == 3) process->setMorphWeight(0, .5f);
+        const auto flags = process->prepare(0, 0);
+        const auto view = process->view(0);
+        float weight = phase < 3 ? .25f : .5f;
+        uint32_t weightBits, baseBits;
+        std::memcpy(&weightBits, &weight, 4);
+        const float base = process->morphBaseWeight(); std::memcpy(&baseBits, &base, 4);
+        std::cout << "live-morph {\"sharing\":" << sharing << ",\"lighting\":" << lighting
+                  << ",\"phase\":" << phase << ",\"flags\":" << flags << ",\"weightBits\":"
+                  << weightBits << ",\"baseBits\":" << baseBits << ",\"positions\":";
+        dumpRange(view.streams().currentPositions);
+        std::cout << ",\"normals\":"; dumpRange(view.streams().currentNormals);
+        std::cout << ",\"sourceNormals\":"; dumpRange(source.storage->normals);
+        std::cout << ",\"targetNormals\":"; dumpRange(target.storage->normals);
+        std::cout << "}\n";
+      }
+    }
+}
+void retailMorphTargets(const char* root) {
+  ResourceFileSystem files(root);
+  std::size_t count = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(root)) {
+    if (entry.path().extension() != ".bdae" || entry.path().filename().string().rfind("car_", 0) != 0) continue;
+    auto catalogue = std::make_shared<CityScene>(loadCityScene(files, entry.path().filename().string()));
+    for (std::size_t index = 0; index < catalogue->morphControllers.size(); ++index) {
+      const auto& controller = catalogue->morphControllers[index];
+      const auto found = std::find_if(catalogue->meshes.begin(), catalogue->meshes.end(),
+                                    [&](const auto& geometry) { return geometry.name == controller.source; });
+      require(found != catalogue->meshes.end() && controller.targets.size() == 2, "Actual local morph source/targets");
+      auto source = base(std::shared_ptr<const CityMesh>(catalogue, &*found), true);
+      std::vector<Base> targets;
+      std::vector<Mesh::Ptr> bindings;
+      for (const auto& target : controller.targets) {
+        targets.push_back(base(std::shared_ptr<const CityMesh>(catalogue, &catalogue->meshes.at(target.mesh)), true));
+        bindings.push_back(targets.back().mesh);
+      }
+      auto process = Mesh::morph(source.mesh, catalogue, index, bindings, false);
+      process->setMorphWeight(0, .25f); process->setMorphWeight(1, .5f);
+      const auto first = process->view(0).firstVertex();
+      targets[0].storage->positions[first][0] += 128.f;
+      targets[0].storage->normals[first][1] += .25f;
+      for (std::size_t slot = 0; slot < process->bufferCount(); ++slot)
+        require(process->prepare(0, slot) == 4, "Actual vehicle current target owner preparation");
+      const auto output = process->view(0).streams();
+      for (std::size_t axis = 0; axis < 3; ++axis) {
+        const float position = (source.storage->positions[first][axis] * .25f + targets[0].storage->positions[first][axis] * .25f) + targets[1].storage->positions[first][axis] * .5f;
+        const float normal = (source.storage->normals[first][axis] * .25f + targets[0].storage->normals[first][axis] * .25f) + targets[1].storage->normals[first][axis] * .5f;
+        require(output.currentPositions[first][axis] == position && output.currentNormals[first][axis] == normal,
+                "Real supplied controller consumes mutated current targets with original weighted order");
+      }
+      require(process->morphBaseWeight() == .25f, "Actual supplied runtime base entry");
+      ++count;
+    }
+  }
+  require(count == 21, "All21 supplied morph controllers have explicit current target source owners");
+  std::cout << count << " supplied morph owners consumed live mutated target streams\n";
+}
 } // namespace
 int main(int argc, char **argv) {
   try {
@@ -651,15 +861,19 @@ int main(int argc, char **argv) {
     morphOwnership();
     skinOwnership();
     sourceSharingAndValidation();
+    currentMorphTargets();
+    sharedMorphRuntime();
     multipleBuffers();
     liveSourceMaterial();
     extractedShadowLifetime();
     if (argc == 2) {
-      if (std::string(argv[1]) == "--dump")
+      if (std::string(argv[1]) == "--dump") {
         comparisonDump();
-      else
+        currentMorphDump();
+      } else
         retail(argv[1]);
     }
+    if (argc == 3 && std::string(argv[1]) == "--current-retail") retailMorphTargets(argv[2]);
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';
     return 1;
