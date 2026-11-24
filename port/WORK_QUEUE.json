@@ -27,8 +27,8 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-002",
-      "status": "AWAITING_REVIEW"
+      "assignment": null,
+      "status": "AVAILABLE"
     },
     {
       "slot": 3,
@@ -93,7 +93,8 @@
         "Retail city_collision_test passed; full audit output byte-identical to verified OG-003.",
         "Game, collision test and audit verified AMD64 PE32+.",
         "Intervening changes touch only scheduler, asset-audit diagnostics and port documentation."
-      ]
+      ],
+      "integration_commit": "25f9a53"
     },
     {
       "id": "OG-002",
@@ -121,7 +122,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "6d454d1",
-      "status": "AWAITING_REVIEW",
+      "status": "MERGED",
       "validation": [
         "Original source or binary evidence tied to exact changed behavior.",
         "Compile GLSL with glslc and isolated x64 game build for runtime changes.",
@@ -134,6 +135,14 @@
       },
       "findings": [
         "Original VERTEX_COLOR_ALPHA is opaque and uses GL_DECAL; native material decoding lacks the selection. Decoder/header expansion awaits OG-001 reservation release. Worker continues independent renderer investigation."
+      ],
+      "reservations_active": false,
+      "independent_validation": [
+        "Retail ELF SHA-256, eight-entry depth comparison table and SMaterial MOVS/STR instructions verified directly.",
+        "Intervening scripting and asset-audit changes do not alter prepareCityPipeline.",
+        "Integration x64 Release game rebuild passed.",
+        "Independent native Vulkan opening smoke returned0 using temporary assets/saves.",
+        "All5 integration CTests passed immediately before this isolated Vulkan-only edit; pixel parity remains unverified."
       ]
     },
     {

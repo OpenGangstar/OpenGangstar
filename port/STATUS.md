@@ -18,6 +18,13 @@ mission playthroughs for discovery or verification.
   renderer supports startup presentation, selected BRES meshes, textured city
   surfaces, alpha cutouts, and CPU skinning. Lighting is approximate. Shaders,
   effects, decals, and other retail material modes need coverage.
+- [x] Match the original default depth comparison with Vulkan LESS_OR_EQUAL.
+  Retail SMaterial construction selects comparison index 3, and the original
+  GL driver maps it to GL_LEQUAL. The x64 game rebuild and automated opening
+  smoke passed after the change. Equal-depth pixel parity and material-specific
+  depth overrides remain unverified. The custom VERTEX_COLOR_ALPHA renderer
+  uses opaque GL_DECAL; its original selection path, native decoding and shader
+  dispatch remain unresolved.
 - [x] Decode and preserve BRES node user properties through the retail
   property record. The audit found 2,092 tagged nodes, including 592
   billboards and 2,081 LOD tags. Vulkan applies authored `lodmax` cutoffs
