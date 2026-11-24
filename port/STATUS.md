@@ -782,9 +782,17 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
   `props_alpha_02.tga` and `props_alpha_01.tga`. The audit checks both.
   The asset audit resolves 1,404 of 1,409 secondary mesh-buffer bindings.
   The retail alpha-reference renderer disables later texture stages and
-  uses stage-zero texture alpha for the 0.5 cutoff. The hospital sign
-  selects this material mode, which the Vulkan shader already implements.
-  Other multi-texture material modes and pixel parity remain open.
+  uses stage-zero texture alpha for the 0.5 cutoff. However, original Collada
+  construction selects alpha-channel blending (type 14) for the hospital base
+  material, not alpha-reference (type 15); its layer-0 props_alpha_02 texture
+  does not match the game override for props_alpha/props_alpha_01. The prior
+  claim that this base material inherently selects alpha-reference was incorrect.
+  The native effect flag currently conflates blending with a cutoff. Original
+  initial catalog selection is 1178 solid, 169 alpha-channel, and 19 additive
+  material records before game/instance overrides. See MATERIAL_MODES.md for
+  selector precedence, fixups, exact blend behavior, and remaining caveats.
+  Correct native mode propagation/blending, other multi-texture modes, dynamic
+  material updates, and pixel parity remain open.
 - [ ] Validate every district texture binding using the same material resolver
   as the Vulkan renderer. The supplied archive covers 2,908 of 2,910 textured
   mesh buffers across the 13 district and low-detail scenes. The only missing

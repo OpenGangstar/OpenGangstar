@@ -20,8 +20,8 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-004",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "feb6317"
     },
     {
@@ -223,13 +223,26 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "feb6317",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Trace s_materialRenderer references and concrete setMaterialType/use sites using original relocations and disassembly.",
         "Account for original RGB versus RGBA texture base formats and GL_DECAL equations.",
         "Provide exact selection evidence, occurrence counts if provable, and bounded implementation dependencies."
       ],
-      "submission": null
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-004.patch",
+        "files": [
+          "port/MATERIAL_MODES.md"
+        ],
+        "evidence": "Original registration/fixups/selector branches and blend/format paths; custom renderer selection remains unresolved."
+      },
+      "reservations_active": false,
+      "independent_validation": [
+        "Reviewed documented original registration, selector, game override and rendering state distinctions.",
+        "Independent direct ZIP/BRES parsing confirms359 scenes,1366 material records:1178solid,169alpha-channel,19additive; hospital base selects14.",
+        "Corrected contradicted prior STATUS claim about hospital alpha-reference selection.",
+        "Documentation-only change; no new build or gameplay claim."
+      ]
     },
     {
       "id": "OG-005",
@@ -406,7 +419,8 @@
         "Retail collision fixture passed; full audit stdout/stderr unchanged from verified OG003.",
         "Automated native Vulkan opening smoke returned0 with temporary assets/saves.",
         "Intervening BMP implementation and documentation changes do not overlap submitted files."
-      ]
+      ],
+      "integration_commit": "d90f1d5"
     },
     {
       "id": "OG-008",
