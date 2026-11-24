@@ -20,9 +20,9 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-044",
+      "assignment": "OG-049",
       "status": "IN_PROGRESS",
-      "baseline": "826b613"
+      "baseline": "72345dd"
     },
     {
       "slot": 2,
@@ -36,9 +36,9 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-045",
+      "assignment": "OG-047",
       "status": "IN_PROGRESS",
-      "baseline": "826b613"
+      "baseline": "72345dd"
     }
   ],
   "unavailable_worker": {
@@ -2319,7 +2319,8 @@
         "Root checked frozen patch hash and original scalar operation/getter/setter order, cached absolute semantics, shared quaternion reuse and native ownership boundaries.",
         "Root complete Release/Debug game builds and all 21 CTests pass. Each root native dump matches 465 actual original point/incremental cases with exact quaternion bits/booleans; independent original reference/copy mutation probes pass.",
         "New heading test executables verified AMD64 PE32+; genuine production actor scene adapter remains unimplemented."
-      ]
+      ],
+      "integration_commit": "72345dd"
     },
     {
       "id": "OG-044",
@@ -2343,11 +2344,22 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "9c504f0",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Preserve original operation order and source identities; document native safety adaptations and unresolved dependencies.",
         "Provide complete reviewable changes and independent original-reference evidence; no manual gameplay."
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-044.patch",
+        "sha256": "55b4f44d807878dcec854ae55b17d1a7777d1906b73a2900fc4342829141ebb0"
+      },
+      "independent_validation": [
+        "Root reviewed source against original behavior and checked intervening baseline interfaces.",
+        "Root full Release/Debug builds and all 23 CTests pass; both retail fixtures, 31 Vulkan material checks and temporary-save opening smokes pass.",
+        "All 98 supplied images decode; exact unresolved-reference diagnostics and 111 missing texture paths are unchanged; new subsystem tests are AMD64 PE32+.",
+        "Root reran actual original code for all 5000 native transition/state/callback-mutation cases and 92 Path::Load/getSize/getWaypoint fixtures, 1371 exact points, in both configurations.",
+        "Retail enumeration independently reads all 84 supplied type14 records/1364 waypoints; research-only parser is not shipped. Typed world catalogue and live NPC host remain production prerequisites."
       ]
     },
     {
@@ -2370,17 +2382,29 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "9c504f0",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Preserve original operation order and source identities; document native safety adaptations and unresolved dependencies.",
         "Provide complete reviewable changes and independent original-reference evidence; no manual gameplay."
+      ],
+      "submission": {
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-3\\port\\build\\OG-045-report.md",
+        "sha256": "84658bde4150a7f67d0f9b70a04afba89da77609b4b5fe36e9f5724a003d4e97"
+      },
+      "independent_validation": [
+        "Root read complete report and checked DefaultFactory pointer directly from original instruction literals and GOT symbol identity.",
+        "Original live probe is reference-only; constructor/target/frame/skin-pointer findings guide new implementation reservations without claiming full native pose or CPU skin."
+      ],
+      "source_refinements": [
+        "FindAMesh has no visibility/option test; it updates cached state, filters runtime type and Plane/Jump UID substrings, then recurses in order.",
+        "Skin matrix GOT468c is the original collada wrapper, which calls rowMatrixProduct34 at0x002b0e15 through GOT498; parity with the shared scene affine helper requires literal comparison and must not be assumed."
       ]
     },
     {
       "id": "OG-046",
       "description": "Port original random navigation-position selection needed by NPC path fallback.",
-      "scope": "Trace and implement the complete original GetNextRandomPos selection, parameters, RNG, candidate order, markers and resource coordinates using the existing native terrain/navigation state. Do not invent nearest-triangle or capped fallback semantics. Request shared terrain reservations before extending existing APIs; no second BRES parser.",
+      "scope": "Trace and implement the complete original GetNextRandomPos selection, parameters, RNG, candidate order, markers and resource coordinates using the existing native terrain/navigation state. Do not invent nearest-triangle or capped fallback semantics. Request shared terrain reservations before extending existing APIs; no second BRES parser. Approved shared header reservation: named trailing per-slot random-edge state with original Reset defaults; friend RetailRandomPosition borrows actual terrain/navigation/slot state. No retail_height.cpp edits reserved.",
       "symbols": [
         {
           "signature": "PhysicAttributes::GetNextRandomPos(int,int,vector3df)",
@@ -2391,7 +2415,8 @@
         "port/retail_random_position.h",
         "port/retail_random_position.cpp",
         "port/tests/retail_random_position.cpp",
-        "port/RANDOM_POSITION.md"
+        "port/RANDOM_POSITION.md",
+        "port/retail_height.h"
       ],
       "priority": 1,
       "complexity": "high",
@@ -2407,6 +2432,118 @@
       "validation": [
         "Actual original execution with deterministic RNG and controlled navigation, including every meaningful branch and parameter.",
         "Release/Debug subsystem tests, retail navigation enumeration where relevant; explicit unsupported domains rather than fabricated random navigation."
+      ]
+    },
+    {
+      "id": "OG-048",
+      "description": "Port original PCX image decoding into the native texture loader.",
+      "scope": "Trace original PCX loader and converters, implement original accepted bit-depth/plane/RLE/palette behavior with explicit bounded native input handling. Reuse existing texture output and audit routing. No original ARM edits or guessed format fallback.",
+      "symbols": [
+        {
+          "signature": "CImageLoaderPCX::loadImage",
+          "address": "0x002bd345"
+        }
+      ],
+      "resources": [
+        "port/texture.cpp",
+        "port/texture.h",
+        "port/tests/texture_pcx.cpp",
+        "port/tests/retail_asset_audit.cpp",
+        "port/IMAGE_FORMATS.md"
+      ],
+      "priority": 5,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-037"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "72345dd",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Actual original loader/converter comparisons for accepted PCX bit depths, planes, palette, row stride and RLE.",
+        "Release/Debug native fixtures, unchanged texture/PNG/JPEG gates and automatic PCX audit enumeration."
+      ],
+      "independent_validation": [
+        "Root reviewed source against original behavior and checked intervening baseline interfaces.",
+        "Root full Release/Debug builds and all 23 CTests pass; both retail fixtures, 31 Vulkan material checks and temporary-save opening smokes pass.",
+        "All 98 supplied images decode; exact unresolved-reference diagnostics and 111 missing texture paths are unchanged; new subsystem tests are AMD64 PE32+.",
+        "Root executes actual original PCX loadImage and 8-to-16/24-to-24 color converters; 278 accepted pixels agree in both configurations, including all256 palette outputs and unusual plane/padding behavior.",
+        "Native bounded-input, zero-run, TGA ten-byte-comment regression and automatic PCX/JPEG enumeration tests pass; signature-only routing and original malformed-input safety differences are documented."
+      ]
+    },
+    {
+      "id": "OG-047",
+      "description": "Port original quaternion and typed animation-track evaluation required by the retained actor pose.",
+      "scope": "Implement original quaternion slerp and type-specific channel sampling with exact original track boundary/interpolation semantics. Reuse existing clock, catalogue, source keys and equivalent bracketing logic. Preserve current root sampling behavior and expose whole-pose evaluation seam at actual selected sample points only if original evidence requires it. No renderer rewrite or guessed full actor host. Approved scene.cpp-only consolidation: existing public scene normalization wrapper delegates to unchanged literal normalization in lower assets animation layer, preserving API and eliminating physics/asset dependency inversion. No scene.h edits. Approved actor binding reservation: trailing defaulted real pose-evaluator argument forwarded by advance only; selection/catalogue/lifecycle behavior remains unchanged.",
+      "symbols": [
+        {
+          "signature": "quaternion::slerp; CQuaternionEx track interpolation; original typed animation channel application",
+          "address": "0x00221e15;0x0028fce9;0x0028fc65 and traced dispatch"
+        }
+      ],
+      "resources": [
+        "port/retail_animation.h",
+        "port/retail_animation.cpp",
+        "port/tests/retail_animation_pose.cpp",
+        "port/ANIMATION_POSE.md",
+        "port/retail_scene.cpp",
+        "port/retail_actor_animation.h",
+        "port/retail_actor_animation.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-018",
+        "OG-036",
+        "OG-045"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "72345dd",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original quaternion and track comparisons including exact keys, interpolation, before/after bounds, negative dot, near-unit, nonunit and signed-zero cases.",
+        "Reuse existing translation/root clock and preserve all prior clock/selection/sampler regressions; Release/Debug gates and retail track comparisons.",
+        "No placeholder runtime actor graph, second decoder or duplicate clock. Request reservations before other shared-file edits."
+      ]
+    },
+    {
+      "id": "OG-049",
+      "description": "Implement genuine retained mutable default-factory Player scene and skin identities.",
+      "scope": "Own stable live root/source/generated ordinary and skinned nodes, exact UID/scope traversal, mutable local TRS and original cached/dirty transform updates, ordered frame/visibility semantics and real skin joint pointer/matrix ownership. Reuse shared scene arithmetic and authoritative decoder. Minimal city_assets seam retains controller UID and exports existing decoded skin data. Do not supply a decorative or partial fake full animation/renderer host.",
+      "symbols": [
+        {
+          "signature": "Original actor scene constructors/updateAbsolutePosition/OnAnimate/onBind/skin attach and matrix cache",
+          "address": "OG045 source-address table; DefaultFactory Player path"
+        }
+      ],
+      "resources": [
+        "port/retail_actor_scene.h",
+        "port/retail_actor_scene.cpp",
+        "port/tests/retail_actor_scene.cpp",
+        "port/ACTOR_SCENE.md",
+        "port/city_assets.h",
+        "port/city_assets.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-035",
+        "OG-036",
+        "OG-045"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "72345dd",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Two actual Player models, source/generated/controller identities, shared immutable source with independent live instances and exact first UID/scope lookup.",
+        "Actual original mutable dirty/cache/frame-order and skin pointer/matrix comparisons; nonidentity/signed-zero and missing joint safety boundaries.",
+        "Stable native full-width ownership and teardown; no source pointer impersonation, second BRES parser, renderer math assumptions or whole-game completion claim."
       ]
     }
   ],

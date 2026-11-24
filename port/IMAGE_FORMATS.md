@@ -1,8 +1,8 @@
 # Native image loading
 
-The native loader dispatches by file signature. It supports BMP, PNG, JPEG, TGA,
+The native loader dispatches by file signature. It supports BMP, PNG, JPEG, PCX, TGA,
 PSD and retail ATC DDS mip chains. The automated retail asset audit enumerates
-`.bmp`, `.tga`, `.psd`, `.png`, `.dds`, `.jpg` and `.jpeg`; no gameplay progression
+`.bmp`, `.tga`, `.psd`, `.png`, `.dds`, `.jpg`, `.jpeg` and `.pcx`; no gameplay progression
 is needed to find or decode those resources.
 
 ## JPEG source and behavior
@@ -108,3 +108,50 @@ with binary distributions. If distributing IJG source, include its unaltered
 README and clearly document changes; this integration changes no upstream source
 files and supplies its own C wrapper and build configuration. The release's
 `ansi2knr.c` utility is not part of the compiled library.
+
+
+## PCX source and behavior
+
+The PCX signature probe at 0x002bd2cd recognizes manufacturer byte 0x0a. The
+original loadImage at 0x002bd345 accepts only bits-per-pixel 8 and 24. It ignores
+version and always executes its RLE loop, including when encoding is zero.
+Eight-bit images read the final 768 bytes as an RGB palette without checking a
+palette marker, then convert through opaque A1R5G5B5 at 0x002b968d. Native output
+uses the already verified original bit-replication upload expansion. Palette
+precision loss is intentional original behavior.
+
+The literal 24-bit path uses convert24BitTo24Bit at 0x002b9dad without channel
+swapping or vertical inversion. Both paths retain the original decoded size
+`height * planes * bytesPerLine * (bits / 8)` and absolute row padding
+`abs(bytesPerLine - planes * width * (bits / 8))`. In particular, 8-bit multi-plane
+files follow the original indexed path; they are not reinterpreted as planar
+RGB. The unusual literal 24-bit layout is not a claim that the original engine
+correctly supports every modern PCX encoding. Header origin affects dimensions,
+not a placement offset.
+
+RLE runs can cross rows. A zero-length run consumes its value and continues;
+encoded bytes with high bits 11 are escaped in the ordinary way. Native checks
+reject truncated headers, palettes and runs, allocation overflow, decoded run
+overflow and row access outside the allocated buffer. Original unchecked reads
+and writes for those malformed inputs are not reproduced. Dimensions remain
+limited to 4096 per axis; encoded files and decoded buffers are limited to
+64 MiB. Original loadImage can accept a different manufacturer when explicitly
+selected by filename and encoding is one; the signature-only native API uses
+the original manufacturer probe. When PCX loading fails, the existing TGA
+fallback still accepts a TGA whose comment length is ten.
+
+Root Release and Debug tests cover all 256 original palette outputs, padding,
+RLE across rows, zero-length runs, ignored header fields, multi-plane indexed
+behavior, literal 24-bit rows and malformed-input bounds. Actual original
+loadImage and both original color converters were executed for reference;
+278 accepted image pixels match each native configuration exactly. Four original
+unsupported bit depths are rejected. The reference-only harness supplies file
+I/O, allocations and a CImage storage/lock capture; it does not replace the PCX
+RLE or color-conversion algorithms. Default A1R5G5B5 upload expansion reuses the
+separately verified bitmap conversion contract. No retail PCX is present in the
+supplied asset inventory; generated fixtures establish format coverage without
+claiming otherwise.
+
+Remaining original loader work includes PPM, WAL and DDS variants beyond the
+supported retail ATC family. Missing retail texture paths remain asset inventory
+findings rather than substituted images.

@@ -1339,3 +1339,14 @@ Combined integration validation: all 20 CTests pass in Release and Debug, both o
 ## OG-043: original actor heading
 
 Point-facing and incremental direction turning preserve original scalar/quaternion conventions, signed-zero behavior, strict thresholds and live getter/setter order. They reuse the existing shared EulerZ and quaternion normalization helpers. The setter marks local rotation dirty without refreshing the cached absolute matrix; final Front reads retain that original behavior. Root complete Release/Debug builds and all 21 CTests pass. Each configuration matches all 465 actual original cases bitwise, including booleans, dirty bits, stale matrices and getter traces; separate original reference/copy mutation probes pass. New test executables are AMD64 PE32+. See ACTOR_HEADING.md. A genuine retained production scene/pose adapter remains required; these bounded operations do not complete player or NPC updates.
+
+
+## OG-044: original NPC paths
+
+Owned path coordinates retain original fixed-width scalar identity and direct signed XYZ-to-float conversion, without applying common object placement. NPC path selection, loop/repeat, current-waypoint timing, live flags and required common/location/idle/random dispatch preserve original order. Root compared all 5,000 transition/state/callback cases and 92 load/access fixtures with actual original execution in both configurations: 1,371 exact points, including all 84 supplied paths and 1,364 retail waypoints. See NPC_PATH.md. The production world-object catalogue, genuine live NPC dispatch and full arrival/AI update remain prerequisites; no simulated arrival was introduced.
+
+## OG-048: original PCX decoding
+
+PCX now uses the original accepted 8-bit indexed and literal 24-bit paths, RLE, raw row/plane arithmetic and palette quantization through A1R5G5B5. It reuses the existing verified bitmap upload expansion. Root actual original loader/converter comparisons match 278 pixels in Release and Debug, including all 256 palette entries and the original unusual multi-plane behavior. Bounded input checks replace original out-of-range reads/writes; zero-length runs still consume input and continue. A regression fixture preserves TGA with a ten-byte comment. Automatic PCX/JPEG audit enumeration passes 3/3 generated images. No PCX exists in the supplied retail inventory; PPM, WAL and additional DDS variants remain unresolved. See IMAGE_FORMATS.md.
+
+Combined NPC/PCX validation: complete Release/Debug builds and all 23 CTests pass; both retail fixtures, 31 Vulkan material checks and temporary-save opening smokes pass. All 98 supplied images decode and the exact unresolved-reference diagnostics, including 111 missing texture paths, remain unchanged. New subsystem executables are AMD64 PE32+. Original ARM code and source-layout contracts were not modified. Full native actor pose/skin/AI and production world integration remain incomplete.

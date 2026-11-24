@@ -439,6 +439,73 @@ Image readPsd(IFileStream& file)
     return result;
 }
 
+Image readPcx(IFileStream& file)
+{
+    std::array<uint8_t, 128> header{};
+    if (file.read(header.data(), header.size()) != header.size() || header[0] != 10)
+        throw std::runtime_error("Invalid or truncated PCX header.");
+    const unsigned bits = header[3], planes = header[65];
+    const int width = int(little16(header.data() + 8)) + 1 - int(little16(header.data() + 4));
+    const int height = int(little16(header.data() + 10)) + 1 - int(little16(header.data() + 6));
+    const unsigned line = little16(header.data() + 66);
+    if ((bits != 8 && bits != 24) || width <= 0 || height <= 0 || width > 4096 || height > 4096 ||
+        !planes || !line || file.size() > 64ull * 1024 * 1024)
+        throw std::runtime_error("Unsupported PCX dimensions, bit depth, planes, or file size.");
+
+    std::array<uint16_t, 256> palette{};
+    if (bits == 8) {
+        // Original 0x2bd526 reads the final 768 bytes, without checking a marker.
+        if (file.size() < header.size() + 768)
+            throw std::runtime_error("PCX palette is truncated.");
+        file.seek(file.size() - 768);
+        std::array<uint8_t, 768> rgb{};
+        if (file.read(rgb.data(), rgb.size()) != rgb.size())
+            throw std::runtime_error("PCX palette is truncated.");
+        for (size_t i = 0; i < palette.size(); ++i)
+            palette[i] = uint16_t(0x8000u | ((unsigned(rgb[i * 3]) & 0xf8u) << 7) |
+                                  ((unsigned(rgb[i * 3 + 1]) & 0xf8u) << 2) |
+                                  (unsigned(rgb[i * 3 + 2]) >> 3));
+        file.seek(header.size());
+    }
+
+    // Preserve the retail loader's unusual bits*planes*line allocation and
+    // absolute padding formula. Eight-bit multi-plane data remains indexed;
+    // it is not silently reinterpreted as modern planar RGB PCX.
+    const uint64_t decodedSize = uint64_t(height) * planes * line * (bits / 8);
+    const uint64_t rowBytes = uint64_t(width) * (bits / 8);
+    const int64_t difference = int64_t(line) - int64_t(planes) * int64_t(rowBytes);
+    const uint64_t padding = difference < 0 ? uint64_t(-difference) : uint64_t(difference);
+    const uint64_t rowStride = rowBytes + padding;
+    if (!decodedSize || decodedSize > 64ull * 1024 * 1024 ||
+        uint64_t(height - 1) * rowStride + rowBytes > decodedSize)
+        throw std::runtime_error("PCX row layout exceeds the decoded buffer.");
+    std::vector<uint8_t> decoded(static_cast<size_t>(decodedSize));
+    const auto byte = [&]() {
+        uint8_t value;
+        if (file.read(&value, 1) != 1)
+            throw std::runtime_error("PCX RLE data is truncated.");
+        return value;
+    };
+    for (size_t output = 0; output < decoded.size();) {
+        const auto code = byte();
+        const unsigned count = (code & 0xc0) == 0xc0 ? code & 0x3f : 1;
+        const auto value = (code & 0xc0) == 0xc0 ? byte() : code;
+        if (count > decoded.size() - output)
+            throw std::runtime_error("PCX RLE run exceeds the decoded buffer.");
+        std::fill_n(decoded.data() + output, count, value);
+        output += count;
+    }
+    Image result{static_cast<uint32_t>(width), static_cast<uint32_t>(height),
+                 std::vector<uint32_t>(size_t(width) * height)};
+    for (size_t y = 0; y < size_t(height); ++y)
+        for (size_t x = 0; x < size_t(width); ++x) {
+            const auto* pixel = decoded.data() + size_t(y * rowStride + x * (bits / 8));
+            result.bgra[y * size_t(width) + x] = bits == 8 ? bitmap555(palette[*pixel]) :
+                0xff000000u | (uint32_t(pixel[0]) << 16) | (uint32_t(pixel[1]) << 8) | pixel[2];
+        }
+    return result;
+}
+
 Image readJpeg(IFileStream& file)
 {
     const auto length = file.size();
@@ -528,5 +595,13 @@ Image readTexture(IFileStream& file, bool keepBitmapAlpha)
         return readAtcTexture(file);
     if (std::memcmp(signature.data(), "8BPS", 4) == 0)
         return readPsd(file);
+    if (signature[0] == 10) {
+        try { return readPcx(file); }
+        catch (const std::runtime_error&) {
+            // TGA's comment length can also be ten. Retain the existing TGA
+            // fallback when the PCX loader does not accept that stream.
+            file.seek(0);
+        }
+    }
     return readTga(file);
 }
