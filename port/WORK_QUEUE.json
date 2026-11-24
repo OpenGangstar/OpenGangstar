@@ -28,9 +28,9 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-005",
+      "assignment": "OG-007",
       "status": "IN_PROGRESS",
-      "baseline": "feb6317"
+      "baseline": "ff9b048"
     },
     {
       "slot": 3,
@@ -258,19 +258,31 @@
       "complexity": "high",
       "dependencies": [
         "OG-001",
-        "OG-002"
+        "OG-002",
+        "OG-007",
+        "OG-008"
       ],
-      "blockers": [],
+      "blockers": [
+        "Compiled timelines omit original command order at equal timestamps and freeze actor motion during held dialogue. Static movement-duration delays would be incorrect.",
+        "Requires original ordered movement dispatch (OG-007), then independent actor advancement and an ordered cinematic host."
+      ],
       "assigned_agent": "/root/worker_2",
       "baseline": "feb6317",
-      "status": "IN_PROGRESS",
+      "status": "BLOCKED",
       "validation": [
         "Focused timeline tests for ordering at equal timestamps, completion, skip and actor reset/disable precedence.",
         "Retail scripts32,33,36 resource validation; preserve NPC semantics and scripted player movement.",
         "x64 build and appropriate automated startup/checkpoint smoke; no manual progression.",
         "If architecture prevents faithful bounded implementation, report exact blocker rather than a fabricated duration or partial silent workaround."
       ],
-      "submission": null
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-005-report.md",
+        "production_edits": false,
+        "evidence": "Script33 original commands42 WalkTo(Player),46 held Dialogue,47 Wait400,48 StopObject(Player),49 MoveActorTo.48/49 have same nominal10700ms timestamp; dropping48 lets49 supersede movement.",
+        "review": "No unsafe static-delay change integrated."
+      },
+      "reservations_active": false,
+      "reservation_release_reason": "Orchestrator explicitly cancelled this no-edit implementation assignment after reviewing the scheduler blocker; resources reallocated to prerequisite OG-007."
     },
     {
       "id": "OG-006",
@@ -311,12 +323,120 @@
         "x64 native build; no original ARM changes."
       ],
       "submission": null
+    },
+    {
+      "id": "OG-007",
+      "description": "Port original actor movement command decoding and shared script executor dispatch as prerequisite for ordered cinematic execution.",
+      "scope": "ActorWalkTo25, ActorRunTo26, ActorRunPath34, ActorWalkPath35; preserve original skip distinctions and explicit native host ownership of world movement. No invented movement flags, duration guesses or path completion.",
+      "symbols": [
+        {
+          "signature": "Structs::ActorWalkTo::Read(DataStream&)",
+          "address": "0x0033dc85",
+          "dispatch": "0x0033b37c"
+        },
+        {
+          "signature": "Structs::ActorRunTo::Read(DataStream&)",
+          "address": "0x0033dce9",
+          "dispatch": "0x0033b1e4"
+        },
+        {
+          "signature": "Structs::ActorRunPath::Read(DataStream&)",
+          "address": "0x0033dd0d",
+          "dispatch": "0x0033b0ec"
+        },
+        {
+          "signature": "Structs::ActorWalkPath::Read(DataStream&)",
+          "address": "0x0033dca9",
+          "dispatch": "0x0033b084"
+        }
+      ],
+      "resources": [
+        "port/city_assets.cpp",
+        "port/city_assets.h",
+        "port/retail_mission.cpp",
+        "port/retail_mission.h",
+        "port/tests/city_collision.cpp"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-001"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "ff9b048",
+      "status": "IN_PROGRESS",
+      "validation": [
+        "Validate original actor/target string order and all4 opcode payloads.",
+        "Original skip relocates only destination25/26 via ScriptManager::moveObject; path34/35 still starts NPC path/AI state.",
+        "Test dispatch order, skip variants, malformed payloads and missing-host fallback.",
+        "Isolated x64 build, relevant native tests and retail audit; clearly identify production world binding as unresolved."
+      ],
+      "submission": null
+    },
+    {
+      "id": "OG-008",
+      "description": "Port original actor movement and completion with world advancement independent of blocked script execution.",
+      "scope": "Evidence-backed native actor controller for destinations, paths, placement resets, animation/root motion and original completion predicates. No completion flags fabricated from scene duration.",
+      "symbols": [
+        {
+          "signature": "PlayerTest::walkToLocation(...)",
+          "address": "0x00301535"
+        },
+        {
+          "signature": "Character::walkToLocation(...)",
+          "address": "0x002f400d"
+        },
+        {
+          "signature": "Character::Stop()",
+          "address": "0x002f1d3d"
+        },
+        {
+          "signature": "Character::updatePosition(...)",
+          "address": "0x002f42cd"
+        },
+        {
+          "signature": "PlayerTest::UpdateSceneNode()",
+          "address": "0x00302685"
+        },
+        {
+          "signature": "GS3DStuff::update(...)",
+          "address": "0x002e078d"
+        }
+      ],
+      "resources": [
+        "port/city_view.cpp",
+        "port/city_view.h",
+        "port/vulkan.cpp",
+        "port/tests/city_collision.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-007"
+      ],
+      "blockers": [
+        "Ordered original movement dispatch must be integrated first.",
+        "Requires precise original movement/physics/animation ownership and a real native object-state binding; not a timestamp-derived approximation."
+      ],
+      "assigned_agent": null,
+      "baseline": null,
+      "status": "BLOCKED",
+      "reservations_active": false,
+      "validation": [
+        "Actor movement continues while script dialogue/waits block.",
+        "Original placement/reset and destination/path completion behavior with independent subsystem tests.",
+        "No fabricated flags or no-op unsupported movement.",
+        "Automated x64 subsystem/build/runtime validation; no manual progression."
+      ],
+      "submission": null
     }
   ],
   "orchestrator_resources": [
     "port/WORK_QUEUE.json",
     "port/WORK_SCHEDULING.md",
-    "port/STATUS.md"
+    "port/STATUS.md",
+    "port/CINEMATIC_SCHEDULER.md"
   ],
   "validation": {
     "original_arm_preservation": "2969 tracked files retain their pre-migration SHA-256 values; pre-existing local submodule changes preserved. Checked 2026-11-24."
