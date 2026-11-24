@@ -40,7 +40,7 @@ include(cmake/GameSWF.cmake)
 include(cmake/Vorbis.cmake)
 include(cmake/Box2D.cmake)
 
-add_library(opengangstar_physics STATIC retail_physics.cpp retail_height.cpp retail_steering.cpp retail_contacts.cpp retail_jump.cpp)
+add_library(opengangstar_physics STATIC retail_physics.cpp retail_height.cpp retail_steering.cpp retail_contacts.cpp retail_jump.cpp retail_actor_physics.cpp)
 target_include_directories(opengangstar_physics PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(opengangstar_physics PUBLIC opengangstar_box2d)
 if(MSVC)
@@ -92,6 +92,13 @@ target_link_libraries(gangstar-wch PRIVATE gdi32 mfplat mfreadwrite mfuuid ole32
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_actor_physics_test tests/retail_actor_physics.cpp)
+    target_link_libraries(retail_actor_physics_test PRIVATE opengangstar_physics opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_actor_physics_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_actor_physics COMMAND retail_actor_physics_test)
+
     add_executable(retail_jump_test tests/retail_jump.cpp)
     target_link_libraries(retail_jump_test PRIVATE opengangstar_physics opengangstar_assets)
     if(MSVC)

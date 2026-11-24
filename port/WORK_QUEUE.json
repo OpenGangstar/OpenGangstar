@@ -20,25 +20,25 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-027",
+      "assignment": "OG-031",
       "status": "IN_PROGRESS",
-      "baseline": "141928a"
+      "baseline": "330d2de"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-026",
-      "status": "AWAITING_REVIEW",
-      "baseline": "141928a"
+      "assignment": "OG-032",
+      "status": "IN_PROGRESS",
+      "baseline": "330d2de"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-025",
-      "status": "AWAITING_REVIEW",
-      "baseline": "141928a"
+      "assignment": "OG-033",
+      "status": "IN_PROGRESS",
+      "baseline": "330d2de"
     }
   ],
   "unavailable_worker": {
@@ -474,11 +474,13 @@
         "OG-018",
         "OG-020",
         "OG-021",
-        "OG-025"
+        "OG-025",
+        "OG-030"
       ],
       "blockers": [
         "Verify and integrate the real on-foot actor body backend OG025, then implement live actor/world and independent advancement with the completed native clock/steering/height/jump/contact components.",
-        "Production host operations and original actor update/animation selection/scene ownership must be implemented; no empty adapters or average-speed cancellation."
+        "Production host operations and original actor update/animation selection/scene ownership must be implemented; no empty adapters or average-speed cancellation.",
+        "Complete original point/node height initialization contracts OG030 before claiming production terrain binding."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -1150,7 +1152,8 @@
         "Root independently reran original840selection560clock72sampler comparisons against drivers linked to the actual integration assets library, with return-sentinel assertions.",
         "PeerOG024 reproduced signedzero defect; root independently rebuilt revisedfixture against initial source(exit1), then final source(pass).",
         "Supplied213clips/444profiles pass in Release+Debug. Reload ordering and original duplicate-time behavior remain explicit external/compatibility boundaries."
-      ]
+      ],
+      "integration_commit": "330d2de"
     },
     {
       "id": "OG-019",
@@ -1240,7 +1243,8 @@
         "Root independently reran135snapshot/query+12fullwrapper+1cache-mutatingmiss original comparisons in each configuration; nativeexports identical.",
         "PeerOG026 found no actionable issue; additional300cases perconfiguration covered signedzero/subnormal/NaN/radius boundaries, with eight NaN results compared byclass only.",
         "Ordinary12998heightbits/identities and254range diagnostics unchanged from OG015 in both configurations; production body producers/binding remain unimplemented."
-      ]
+      ],
+      "integration_commit": "330d2de"
     },
     {
       "id": "OG-021",
@@ -1321,7 +1325,8 @@
           "port/tests/retail_contacts.cpp",
           "port/CONTACT_LISTENER.md"
         ]
-      }
+      },
+      "integration_commit": "330d2de"
     },
     {
       "id": "OG-022",
@@ -1450,8 +1455,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "141928a",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Exact source-derived worldcm/bodym conversion, circle0.5m/density1/friction0.3/restitution0, original awake/sleep/rotation settings and shape group/filter behavior.",
         "Real native body mass/transform/velocity/refilter/contact tests for genuine player and NPC identities, metadata lifecycle and sharedpool ownership.",
@@ -1462,10 +1467,24 @@
         "Critical published-audit correction: originalradius0.5m/friction0.3, not0.3m/0.2. Root independently verified literalwords and stackstores; originalARM5argumentcaptures confirmactualCircleDef. ACTOR_COLLISION.md corrected before backend integration."
       ],
       "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-3\\port\\build\\OG-025-revision.patch",
+        "sha256": "33e7183148c2e2266c21aca3516da5592929c9175e42243f28f7d5ca1b13564c",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-3\\port\\build\\OG-025-revision-report.md"
+      },
+      "review_findings": [
+        "OG028 originalcleanPhysic storesNULL at0x2f3012 before attrsdestructor0x2f301c. Native destructor leaves actorBody dangling while ownedHeight local bodies emit destruction callbacks. ClearactorBody immediately after DestroyBody; preserve metadata during that call. Real nonthrowing native destruction-listener reproduction failsR+D."
+      ],
+      "initial_submission": {
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-025.patch",
         "sha256": "585df8c875813361a9d01b9b5889df7002f977d93d05f08bf94a1f23dcc35d3a",
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-025-report.md"
-      }
+      },
+      "independent_validation": [
+        "Root copied revised real-listener regression into initial source build; Release+Debug both exit1 with ownedcliff callback stale-body diagnostic. Revised source clearspointer afterDestroyBody and before ownedheight teardown.",
+        "Full integration Release and Debug builds and all14 CTests passed after cleanup revision.",
+        "Root reran original five-case initPhysic captures, placement/filter and cleanup-order oracle successfully; both body tests are genuine PE32+ AMD64.",
+        "Intervening main changes do not alter submitted body implementation; metadata remains valid during DestroyBody, pointer cleared before owned-height teardown."
+      ]
     },
     {
       "id": "OG-026",
@@ -1507,7 +1526,7 @@
     {
       "id": "OG-027",
       "description": "Reconstruct and implement remaining original lightmap/reflection material modes3/12/17.",
-      "scope": "Begin with complete original texture-stage/state/coordinate equations and actual native vertex/texture availability. Do not infer modes from textures or silently reuse solid rendering. After an evidence-backed implementation plan, request exact source reservations and implement native Vulkan pipelines/shaders/fixtures. Custom GL_DECAL remains separate unless genuine selection is proved.",
+      "scope": "Begin with complete original texture-stage/state/coordinate equations and actual native vertex/texture availability. Do not infer modes from textures or silently reuse solid rendering. After an evidence-backed implementation plan, request exact source reservations and implement native Vulkan pipelines/shaders/fixtures. Custom GL_DECAL remains separate unless genuine selection is proved. Root grants the requested source scope including static per-stage texture matrices, indexed diffuse/lightmap samplers, explicit original texture base-format metadata, UV1/raw linear normals and persistent driver-lifetime stagealpha state. Dynamic material animation/render-target flips/external-library images remain explicit separate boundaries.",
       "symbols": [
         {
           "signature": "Original material renderers for lightmap3,reflection12,transparentReflection17",
@@ -1515,7 +1534,19 @@
         }
       ],
       "resources": [
-        "port/REMAINING_MATERIALS.md"
+        "port/REMAINING_MATERIALS.md",
+        "port/city_assets.h",
+        "port/city_assets.cpp",
+        "port/city_view.h",
+        "port/city_view.cpp",
+        "port/vulkan.cpp",
+        "port/shaders/city.vert",
+        "port/shaders/city.frag",
+        "port/tests/city_collision.cpp",
+        "port/tests/retail_asset_audit.cpp",
+        "port/texture.h",
+        "port/texture.cpp",
+        "port/tests/texture_png.cpp"
       ],
       "priority": 4,
       "complexity": "high",
@@ -1525,14 +1556,207 @@
       ],
       "blockers": [],
       "assigned_agent": "/root/worker_1",
-      "baseline": "141928a",
-      "status": "IN_PROGRESS",
+      "baseline": "330d2de",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Original selector and complete texture-combiner/UV/reflection/lighting/alpha/depth/blend contracts with original addresses.",
         "Identify existing decoded primary/auxiliaryUV/normals/texture resources; consolidate genuine shared paths, no fabricated lighting or customrenderer routing.",
         "Request source/header/shader/test reservations before edits; CMake remains root-owned.",
         "Independent synthetic selection/assets and actual Vulkan pixel fixtures; fullregression and suppliedassets audit. No fabricated retail occurrence of modesabsent from suppliedcatalog."
+      ]
+    },
+    {
+      "id": "OG-028",
+      "description": "Independently review original actor-body creation, placement, filter helpers and ownership.",
+      "scope": "Read-only peer review of frozen OG025 against original initPhysic/SetPosition/remove/reset/clean. No product/CMake/other-workspace writes; own ignored review artifacts only.",
+      "symbols": [
+        {
+          "signature": "Character::initPhysic()",
+          "address": "0x002f4465"
+        },
+        {
+          "signature": "Character::SetPosition(vector3df const&)",
+          "address": "0x002f2c61"
+        },
+        {
+          "signature": "Character::removeCollisions()",
+          "address": "0x002f2b69"
+        },
+        {
+          "signature": "Character::resetCollisions()",
+          "address": "0x002f3091"
+        }
+      ],
+      "resources": [],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "330d2de",
+      "status": "MERGED",
+      "reservations_active": false,
+      "review_target": "OG-025",
+      "validation": [
+        "Exact original body/circle/metadata/group/creation order; root independently verified correctedradius0.5/friction0.3.",
+        "Native initialization/partialfailure/destruction lifetime, every-shaperefilter, maskzeroexceptions, placementfreeze and ordinaryborrowedheight/counter ownership.",
+        "Originalcapture/test independence and explicit fullscene/vehicle/controller limits; report actionable source locations."
+      ],
+      "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-028-review.md",
+      "report_sha256": "2b14bec7ebe49e947a85513eb17cfc319d6640bf5785ac5f070bc972ad8abfa4",
+      "findings_forwarded_to": "OG-025"
+    },
+    {
+      "id": "OG-029",
+      "description": "Find and port original authored jump-surface body production and scene-data binding.",
+      "scope": "Identify actual writers of jump metadata flag24,opaque25,fourheights and nativepolygon geometry before implementing. Do not infer from existing approximate jumpRamps. Begin with evidence/data contract and request exact code resources after tracing original producer/loader identities; implement supported original producers using real native Box2D and decodedassets.",
+      "symbols": [
+        {
+          "signature": "GS3DStuff::CreateStaticBodies(node,ownerNode,placementNode,fourthNode)",
+          "address": "0x002ddf79"
+        },
+        {
+          "signature": "GS3DStuff::updateVisibility(...)",
+          "address": "0x002dd7e1"
+        },
+        {
+          "signature": "GS3DStuff::AddXRef(...)",
+          "address": "0x002deebd"
+        }
+      ],
+      "resources": [
+        "port/JUMP_SURFACE_PRODUCER.md",
+        "port/retail_jump_surface.h",
+        "port/retail_jump_surface.cpp",
+        "port/tests/retail_jump_surface.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-013",
+        "OG-015",
+        "OG-020"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "330d2de",
+      "status": "AWAITING_REVIEW",
+      "reservations_active": true,
+      "validation": [
+        "Complete source/ELF evidence for producer identities and exact vertexorder/heights/rawflag/localtransform/filter/group/ownership.",
+        "Map original fields to decoded scene data and expose unsupported or absent data explicitly; no guessed ramps or genericmeshprojection.",
+        "Request native source/header/test reservations before edits; CMake remains root-owned.",
+        "Real native created-body/snapshot/filter tests and suppliedasset enumeration with independent original expectations; no manual gameplay."
+      ],
+      "findings": [
+        "Metadata byte25 is a wrapping uint8 producer ID fromstaticELF0x4b6a8c, postincremented perJump. Two rawJump meshes among359BRES:jump_00_01 andjump_01_01. Preserve current-node/body matrix versus placement-node linear transform andworldheightZ; activation creates staticbodywithoutSetMassFromShapes."
+      ]
+    },
+    {
+      "id": "OG-030",
+      "description": "Port original point-based height attributes and scene-height initialization prerequisites.",
+      "scope": "Implement the distinct point-overlap helper and original node-scene reseeding used at core miss sites. Wrapper unselected-info behavior stays cache-only; it does not lazily choose scene nodes. Use typed borrowed node identities/rawboxes/translations/meshes/orderedchildren, preserving parent-success earlyreturn, later-sibling overwrite and mixed old-node translation/global-mesh neighbor fetches. Keep canonical AddCollisionShapes unchanged and the existing mesh-only input path compatible. Production rawbox/runtime-type scene binding remains explicit where not available.",
+      "symbols": [
+        {
+          "signature": "PhysicAttributes::SetHeightAttributes(vector3df const&,PhysicInfo*)",
+          "address": "0x0031ad31"
+        },
+        {
+          "signature": "PhysicAttributes::SetHeightAttributes(ISceneNode*,vector3df const&,PhysicInfo&)",
+          "address": "0x0031b3e9"
+        },
+        {
+          "signature": "PhysicAttributes::GetHeight(vector3df const&,int,bool)",
+          "address": "0x0031ff49"
+        }
+      ],
+      "resources": [
+        "port/HEIGHT_INITIALIZATION.md",
+        "port/retail_height.h",
+        "port/retail_height.cpp",
+        "port/tests/retail_height.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-014",
+        "OG-015",
+        "OG-020"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "330d2de",
+      "status": "AWAITING_REVIEW",
+      "reservations_active": true,
+      "validation": [
+        "Exact seed/classification/overlap/ordered scene-node/box/translation/cache semantics and native input ownership from original code.",
+        "Reuse verified native height identities/core rather than duplicate triangle search or fabricated generic terrain callback.",
+        "Actual decoded asset and synthetic nonempty scene fixtures, original oracle where useful with hooks explicitly separated.",
+        "No shared header/source/CMake edits until extra reservations are granted; preserve ARM and no gameplay."
+      ],
+      "findings": [
+        "Original executable16cases prove wrapperno-lazy-selection, real nonemptychildlistlastsuccesswins, full pointoverlap includingfinalpair/extrapolation/recursive-retarget, and globalneighbor mesh with savedold-node translation. Canonical AddCollision remainsglobal."
+      ]
+    },
+    {
+      "id": "OG-031",
+      "description": "Independent read-only peer review of OG-030 original fidelity, ownership and regression risks.",
+      "scope": "Review submitted patch and original evidence; no implementation modifications. Write only the ignored review report in the assigned worktree.",
+      "symbols": [],
+      "resources": [
+        "port/build/OG-031-review.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "330d2de",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Source-backed findings with precise location and reproducible evidence; distinguish implemented component from unbound production behavior."
+      ]
+    },
+    {
+      "id": "OG-032",
+      "description": "Independent read-only peer review of OG-029 original fidelity, ownership and regression risks.",
+      "scope": "Review submitted patch and original evidence; no implementation modifications. Write only the ignored review report in the assigned worktree.",
+      "symbols": [],
+      "resources": [
+        "port/build/OG-032-review.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "330d2de",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Source-backed findings with precise location and reproducible evidence; distinguish implemented component from unbound production behavior."
+      ]
+    },
+    {
+      "id": "OG-033",
+      "description": "Independent read-only peer review of OG-027 original fidelity, ownership and regression risks.",
+      "scope": "Review submitted patch and original evidence; no implementation modifications. Write only the ignored review report in the assigned worktree.",
+      "symbols": [],
+      "resources": [
+        "port/build/OG-033-review.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "330d2de",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Source-backed findings with precise location and reproducible evidence; distinguish implemented component from unbound production behavior."
       ]
     }
   ],

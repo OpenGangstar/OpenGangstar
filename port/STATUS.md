@@ -1291,3 +1291,7 @@ saved achievement and stat indices against the catalog.
 ```powershell
 & .\port\build\x64\Release\retail_save_test.exe 'C:\path\to\Gangstar2.sav'
 ```
+
+## OG-025: native on-foot actor body backend
+
+Implemented original body/circle/mass/filter creation, body placement/refilter and saved-filter operations using the shared Box2D world and terrain pool. Original circle radius is 0.5m, friction 0.3. Metadata survives destruction callbacks; the body pointer is cleared before owned-height teardown. Root reproduced the former stale-pointer regression in Release and Debug, then verified the correction, all14 CTests in both configurations, original initialization/placement/cleanup captures, and AMD64 PE32+ body tests. See ACTOR_BODY.md. Full scene, controller, vehicle and production actor binding remain incomplete.
