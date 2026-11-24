@@ -1,4 +1,5 @@
 #include "retail_actor_pose.h"
+#include "retail_timeline.h"
 
 #include <cmath>
 #include <limits>
@@ -32,6 +33,18 @@ RetailActorPose::RetailActorPose(std::shared_ptr<const CityAnimationLibrary> sou
     }
     if (!period) throw std::runtime_error("Detached actor animator has zero modulo period.");
     bindings.resize(library->tracks.size());
+}
+bool RetailActorPose::boundTo(const RetailActorScene& scene) const
+{
+    const auto live = owner.lock();
+    return live.get() == &scene && root == &scene.root();
+}
+void RetailActorPose::setTimeline(std::shared_ptr<RetailTimeline> timeline)
+{
+    // Original0x288249 drops the prior attachment before assigning/grabbing the
+    // new one. The native parameter is the caller's explicit retained reference.
+    attachedTimeline.reset();
+    attachedTimeline = std::move(timeline);
 }
 void RetailActorPose::bind(std::shared_ptr<RetailActorScene> scene)
 {

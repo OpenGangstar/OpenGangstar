@@ -1,4 +1,5 @@
 #include "retail_actor_graph.h"
+#include "retail_actor_pose.h"
 
 #include <algorithm>
 #include <functional>
@@ -162,6 +163,14 @@ RetailActorSubtree &RetailActorGraph::registerShadow(RetailActorScene &actor, Re
 }
 RetailActorSubtree &RetailActorGraph::registerShadow(std::shared_ptr<RetailActorScene> actor,
                                                      RetailActorSceneNode &shadow) {
+    return registerShadowImpl(std::move(actor), shadow, nullptr);
+}
+RetailActorSubtree &RetailActorGraph::registerShadow(std::shared_ptr<RetailActorScene> actor,
+                                                     RetailActorSceneNode &shadow, RetailActorPose &pose) {
+    return registerShadowImpl(std::move(actor), shadow, &pose);
+}
+RetailActorSubtree &RetailActorGraph::registerShadowImpl(std::shared_ptr<RetailActorScene> actor,
+                                                       RetailActorSceneNode &shadow, RetailActorPose *pose) {
     checkMutation();
     if (!actor)
         throw std::invalid_argument("Shadow registration requires its genuine retained actor owner.");
@@ -170,8 +179,19 @@ RetailActorSubtree &RetailActorGraph::registerShadow(std::shared_ptr<RetailActor
     if (shadow.childNodes.empty() || !shadow.childNodes.front()->runtimeMesh ||
         shadow.childNodes.front()->runtimeMesh->skin())
         throw std::logic_error("Authored ordinary shadow needs its genuine first mesh child.");
-    auto owned = actor->extractOrdinarySubtree(shadow);
-    owned->root().childNodes.front()->setRenderingLayer(1);
+    if (pose) {
+        if (!pose->boundTo(*actor))
+            throw std::logic_error("Shadow pose must belong to this genuine live actor.");
+        bool actualTarget = false;
+        for (std::size_t i = 0; i < pose->bindingCount(); ++i)
+            actualTarget = actualTarget || pose->target(i) == &shadow;
+        if (!actualTarget)
+            throw std::logic_error("Bound shadow must be an actual target of the supplied plain pose.");
+    }
+    auto owned = actor->extractOrdinarySubtree(shadow, pose);
+    // The legacy standalone operation includes its layer setup. Character's
+    // bound-pose path already writes that actual child before color/flags.
+    if (!pose) owned->root().childNodes.front()->setRenderingLayer(1);
     RetailActorGraphReference reference;
     reference.subtree = std::move(owned);
     append(reference);

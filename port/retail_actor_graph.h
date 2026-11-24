@@ -61,6 +61,10 @@ class RetailActorGraph {
     // Character binds/registers shadow before Player attaches its actor root.
     // Caller supplies the genuine retained actor; this never appends that root.
     RetailActorSubtree &registerShadow(std::shared_ptr<RetailActorScene>, RetailActorSceneNode &actualShadow);
+    // Character has already force-bound its actual plain pose before reparent.
+    // Preserve that exact target/list ownership; no generic animator transfer.
+    RetailActorSubtree &registerShadow(std::shared_ptr<RetailActorScene>, RetailActorSceneNode &actualShadow,
+                                      RetailActorPose &);
     RetailActorGraphReference retain(RetailActorSceneNode &) const;
     void addChild(RetailActorSceneNode *);
     void addChild(const RetailActorGraphReference &);
@@ -87,6 +91,8 @@ class RetailActorGraph {
     static void inheritManager(RetailActorSceneNode &, RetailActorGraph *ignored);
     static void detachOwnedRoot(RetailActorSceneNode &) noexcept;
     void append(const RetailActorGraphReference &);
+    RetailActorSubtree &registerShadowImpl(std::shared_ptr<RetailActorScene>, RetailActorSceneNode &,
+                                         RetailActorPose *);
     void checkMutation() const;
     void collect(RetailActorSceneNode &);
     std::shared_ptr<RetailActorGraphState> state;

@@ -13,6 +13,7 @@ class RetailActorScene;
 class RetailActorSceneNode;
 class RetailActorGraph;
 class RetailActorSubtree;
+class RetailActorPose;
 struct RetailActorGraphState;
 
 // Ordinary frame dispatch and target-retention are separate original lists.
@@ -137,6 +138,9 @@ public:
   // Original skin-node getter aliases its mesh box. Ordinary/container getters
   // use the distinct cached-absolute transformBoxEx and dirty0x200 contract.
   const RetailSkinBoundingBox &transformedBoundingBox();
+  // Original CSceneNode helper, including its literal return/merge behavior.
+  // Calls current child getters; does not update absolute transforms.
+  bool computeBoundingBox(RetailSkinBoundingBox &) const;
   const RetailSceneMatrix &relative();
   std::uint32_t transformFlags() const { return flags; }
   void setPosition(const std::array<float, 3> &);
@@ -215,6 +219,8 @@ public:
   RetailActorScene &operator=(const RetailActorScene &) = delete;
   RetailActorSceneNode &root() const { return *rootNode; }
   const RetailActorSceneSource &source() const { return *decoded; }
+  // Separate CRootSceneNode+480 finalizer cache, not the root's public cube.
+  const RetailSkinBoundingBox &postLoadBoundingBox() const { return postLoadBox; }
   const std::vector<std::unique_ptr<RetailActorSceneNode>> &nodes() const {
     return liveNodes;
   }
@@ -227,7 +233,8 @@ public:
 
 private:
   friend class RetailActorGraph;
-  std::unique_ptr<RetailActorSubtree> extractOrdinarySubtree(RetailActorSceneNode &);
+  std::unique_ptr<RetailActorSubtree> extractOrdinarySubtree(RetailActorSceneNode &,
+                                                           RetailActorPose *allowedPose = nullptr);
   RetailActorSceneNode &add(std::uint32_t, RetailActorSceneNode *,
                             std::string uid = {}, std::string scope = {},
                             std::string name = {});
@@ -238,5 +245,6 @@ private:
   std::vector<std::unique_ptr<RetailActorSceneNode>> liveNodes;
   std::vector<std::unique_ptr<RetailActorSceneMesh>> liveMeshes;
   std::vector<std::shared_ptr<RetailActorMaterial>> materials;
+  RetailSkinBoundingBox postLoadBox{{{-1, -1, -1}, {1, 1, 1}}};
   RetailActorSceneNode *rootNode = nullptr;
 };

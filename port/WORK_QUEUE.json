@@ -36,9 +36,9 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-095",
+      "assignment": "OG-097",
       "status": "IN_PROGRESS",
-      "baseline": "cf7d176"
+      "baseline": "5a4b73b"
     }
   ],
   "unavailable_worker": {
@@ -4000,13 +4000,24 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "3b9bf01",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Reuse original080completed nonzero scenes and whole bind traces.",
         "One authoritative timeline/pose/material/graph state; demonstrate lifetimes, first timeline retain, subsequent local drops and shared cleanup.",
         "Public production host must implement real owned operations, not no-op callbacks.",
         "Root finalizer separate stored aggregate/type traversal and exact dirty-cache effects match original completed factory; public fixed cube getter remains source-correct."
+      ],
+      "submission": {
+        "patch": "../OpenGangstar-workers/worker-2/port/build/OG-087.patch",
+        "sha256": "58b5183a47c91a08faf21304ee8018bcf7b44eb5a65af8f2a55f88f81c46a5d1"
+      },
+      "independent_validation": [
+        "Root reviewed concrete existing SceneHost operations, actual optional Pose timeline ownership, same-pose bound-shadow transfer and omitted real root box finalization. Intervening088/089/091/093 preserve compatible interfaces.",
+        "Full root Release/Debug game builds and50CTest/config pass; eight legacy real-asset executables/config pass. Game/host/finalizer tests AMD64PE32+.",
+        "Fresh actual whole Character binds on both completed nonzero Player scenes:48target identities/72nodes/1872TRS+cachedmatrixwords and all masks/lists/layers/materials/relations exact/config. Original23to1to destruction and first timeline cleanup/fists retention traces match.",
+        "Actual finalizer helper10controls and6realassetcachephases match/config; separate root private/public boxes preserved, strict NaN/signedzero/MAX-first alias behavior and literal false-return merge quirk retained, no bit masking.",
+        "Legacy pose original replay includes genuine2aef15setup phase:47160complete node records/31440track applications/31440scratch entries plus288sampler controls exact/config. Root fixed only own ignored reference asset path before replay, no product change."
       ]
     },
     {
@@ -4307,7 +4318,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "cf7d176",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "All196original records and37788source bytes retained,193names/3invalidslots/source lengths preserved with full payloads.",
@@ -4318,7 +4329,7 @@
     {
       "id": "OG-096",
       "description": "Port the common borrowed Character target state and distinct original Player rich target setter.",
-      "scope": "Research/API only until canonical entity/lease seam reviewed. One common Character target state feeds086lookup; raw setter remains separate from rich NPC/camera/combat/Lock side effects. No stale scene-snapshot entity registry, hidden strong target ownership, fake NULL/default callbacks or duplicate target store.",
+      "scope": "Bounded canonical target Entity interface and owner-bound common weak store feeding086, distinct raw setter and actual rich Player setter with required typed camera/Lock/NPC/combat endpoints, live canonical flags and explicit unknown opaque bytes. No entity registry/fake Scene proxy/default callbacks or extra target field.",
       "symbols": [
         "Character::SetTarget0x2f147d",
         "PlayerTest::_GetTarget0x300db9",
@@ -4326,7 +4337,10 @@
         "Common Character target+260/Player+264"
       ],
       "resources": [
-        "port/build/OG-096-* (worker-1 ignored research only)"
+        "port/retail_character_target.h",
+        "port/retail_character_target.cpp",
+        "port/tests/retail_character_target.cpp",
+        "port/CHARACTER_TARGET.md"
       ],
       "priority": 1,
       "complexity": "medium",
@@ -4334,9 +4348,7 @@
         "OG-084",
         "OG-086"
       ],
-      "blockers": [
-        "Canonical entity/borrowed weak lifetime and exact producer API/resources require review before product implementation."
-      ],
+      "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "cf7d176",
       "status": "IN_PROGRESS",
@@ -4345,6 +4357,34 @@
         "Reproduce084source raw/rich setter complete branches/side-effect order, repeated same target, callback-mutated current target and opaque byte stores.",
         "KnownNULL distinct expired nonnull; no strong target retention outside serial endpoint leases; source common target identity and two086fresh queries use same store.",
         "Required real NPC/camera/combat/Lock producer endpoints explicit; no whole manager/entity implementation claim from leaf."
+      ]
+    },
+    {
+      "id": "OG-097",
+      "description": "Port genuine intrusive game-object lists and their original iteration/lifetime semantics.",
+      "scope": "Research/API first. Source GameObjectList and manager list selection form the actual ordered040entity update/lookup foundation. Use one real intrusive hook on canonical objects, no copied scene registry/order or fake entity/manager callbacks. Exact callbacks/prefetch/destruction/condition/name/respawn and undefined-context boundaries need reviewed interfaces before implementation.",
+      "symbols": [
+        "GameObjectList::Add/InsertAfter/Remove/RemoveAndDestroy/Clear",
+        "GameObjectList::UpdateGameObjects/ForEach/GetFirst/GetNext/ForEachIf/FillList/GetGameObjectByName",
+        "GameObjectManager::Add/GetFirst/getObjectList"
+      ],
+      "resources": [
+        "port/build/OG-097-* (worker-3 ignored research only)"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [],
+      "blockers": [
+        "Canonical intrusive hook/actual operation and ownership interface/API review required before product code."
+      ],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "5a4b73b",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original list/manager selector methods execute with actual typed links and controlled callbacks, preserving prefetch versus reread order and all fields/events.",
+        "One actual entity/one link per membership, native full-width pointers, no source pointer overlays or fake creation/destruction/name/death/default callbacks.",
+        "Explicit original FillList uninitialized context and invalid iterator domains; meaningful native/original cases and full R/D after API approval."
       ]
     }
   ],
@@ -4361,7 +4401,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after091:2969original baseline file sizes/SHA256 unchanged; original submodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and6userlocaledit/untracked paths preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root Release/Debug48CTest/config after093P1-P6images. Original1095unchanged+70deliberately repairedPBMpixels/config exact;98retail/104generatedasset audit same111missing paths.087genuine finalizer/host and094Characterreload frozenreview;092factory research,095fullmetatypes and096targetstate active."
+    "native_integration": "2026-11-25: Root Release/Debug50CTest/config after087genuine Character factory/timeline/boundPose/material/shadow host and real root finalizer phase. Whole source bind/finalizer/legacy pose exact.092factory research advances to implementation next;094/095frozenreview and096/097active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

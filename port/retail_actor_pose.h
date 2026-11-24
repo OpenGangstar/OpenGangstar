@@ -3,7 +3,9 @@
 #include "retail_actor_scene.h"
 #include "retail_animation.h"
 
-// Detached original plain animator, manually evaluated by Character. Nodes
+class RetailTimeline;
+
+// Original plain animator, manually evaluated by Character after timeline detach. Nodes
 // retain this animator; the animator keeps only a weak scene owner. Create via
 // create(), then bind a genuine shared scene. There is no ownership cycle.
 class RetailActorPose final : public RetailActorSceneAnimator,
@@ -25,6 +27,11 @@ public:
     const RetailActorSceneNode* target(size_t index) const { return bindings.at(index).node; }
     int32_t keyIndex(size_t index) const { return bindings.at(index).keyIndex; }
     const RetailActorSceneNode* boundRoot() const { return root; }
+    bool boundTo(const RetailActorScene&) const;
+    // The actual factory attachment. Character retains the first object then
+    // clears this sole field before binding. apply/animateNode do not read it.
+    const std::shared_ptr<RetailTimeline>& timeline() const { return attachedTimeline; }
+    void setTimeline(std::shared_ptr<RetailTimeline>);
     void setMode(int32_t value) { mode = value; }
     void setWeight(float value) { weight = value; }
     int32_t getMode() const { return mode; }
@@ -39,6 +46,7 @@ private:
         int32_t keyIndex = 0;
     };
     std::shared_ptr<const CityAnimationLibrary> library;
+    std::shared_ptr<RetailTimeline> attachedTimeline;
     std::weak_ptr<RetailActorScene> owner;
     RetailActorSceneNode* root = nullptr;
     RetailActorSceneNode* rootMotion = nullptr;

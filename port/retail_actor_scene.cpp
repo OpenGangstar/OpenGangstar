@@ -1,5 +1,6 @@
 #include "retail_actor_scene.h"
 #include "retail_actor_graph.h"
+#include "retail_actor_pose.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,6 +10,20 @@
 #include <utility>
 
 namespace {
+void addOriginalBox(RetailSkinBoundingBox &output, const RetailSkinBoundingBox &input) {
+  // Original aabbox3d::addInternalBox0x20eaad adds MAX first, then reads MIN.
+  // Keep strict comparisons, signed-zero/NaN behavior and possible alias timing.
+  const auto maximum = input[1];
+  for (std::size_t i = 0; i < 3; ++i)
+    if (maximum[i] > output[1][i]) output[1][i] = maximum[i];
+  for (std::size_t i = 0; i < 3; ++i)
+    if (maximum[i] < output[0][i]) output[0][i] = maximum[i];
+  const auto minimum = input[0];
+  for (std::size_t i = 0; i < 3; ++i)
+    if (minimum[i] > output[1][i]) output[1][i] = minimum[i];
+  for (std::size_t i = 0; i < 3; ++i)
+    if (minimum[i] < output[0][i]) output[0][i] = minimum[i];
+}
 bool originalIdentity(const RetailSceneMatrix &matrix) {
   constexpr float epsilon = 0.000001f;
   for (std::size_t i = 0; i < 4; ++i)
@@ -100,6 +115,24 @@ const RetailSkinBoundingBox &RetailActorSceneNode::transformedBoundingBox() {
     flags &= ~0x200u;
   }
   return transformedBox;
+}
+bool RetailActorSceneNode::computeBoundingBox(RetailSkinBoundingBox &output) const {
+  bool found = false;
+  for (auto *child : childNodes) {
+    if (child->type() == retailSceneMeshType) {
+      const auto &box = child->transformedBoundingBox();
+      // Literal source0x2aef41/0x2aefc1: this ordinary branch never sets found.
+      if (found) output = box;
+      else addOriginalBox(output, box);
+    } else if (child->type() == 0x6e656164) {
+      RetailSkinBoundingBox box{{{-1, -1, -1}, {1, 1, 1}}};
+      if (child->computeBoundingBox(box)) {
+        if (found) addOriginalBox(output, box);
+        else { output = box; found = true; }
+      }
+    }
+  }
+  return found;
 }
 RetailActorGraph *RetailActorSceneNode::sceneManager() const {
   if (manager && managerState.expired())
@@ -545,6 +578,10 @@ RetailActorScene::RetailActorScene(
     throw std::runtime_error("Missing actor active visual-scene grouping.");
   rootNode->updateAbsolutePosition(
       true); // Default root postLoad precedes attachSkin.
+  // Actual CRootSceneNode::onPostLoad0x293da9 computes this separate private
+  // cache before attaching skins. Getter side effects remain observable even
+  // when the helper's literal false return prevents descendant aggregation.
+  rootNode->computeBoundingBox(postLoadBox);
   for (auto &mesh : liveMeshes) {
     if (!mesh->sourceSkin)
       continue;
@@ -569,9 +606,11 @@ RetailActorScene::~RetailActorScene() {
 }
 
 std::unique_ptr<RetailActorSubtree>
-RetailActorScene::extractOrdinarySubtree(RetailActorSceneNode &root) {
+RetailActorScene::extractOrdinarySubtree(RetailActorSceneNode &root, RetailActorPose *allowedPose) {
   if (&root == rootNode)
     throw std::logic_error("Actor root is not an ordinary detachable subtree.");
+  if (allowedPose && !allowedPose->boundTo(*this))
+    throw std::logic_error("Bound shadow transfer requires this actor's genuine live plain pose.");
   std::set<RetailActorSceneNode *> nodes;
   std::set<RetailActorSceneMesh *> meshes;
   std::function<void(RetailActorSceneNode &)> visit = [&](auto &node) {
@@ -580,9 +619,19 @@ RetailActorScene::extractOrdinarySubtree(RetailActorSceneNode &root) {
     if (std::none_of(liveNodes.begin(), liveNodes.end(),
                      [&](const auto &owned) { return owned.get() == &node; }))
       throw std::logic_error("External borrowed subtree ownership is unsupported.");
-    if (!node.animators.empty() || !node.boundAnimators.empty())
+    if (!node.animators.empty())
       throw std::logic_error(
-          "Animator-bound subtree ownership requires a proved target transfer.");
+          "Ordinary frame-animator subtree transfer is unsupported.");
+    if (!node.boundAnimators.empty()) {
+      if (!allowedPose || std::any_of(node.boundAnimators.begin(), node.boundAnimators.end(),
+                                     [&](const auto &entry) { return entry.get() != allowedPose; }))
+        throw std::logic_error("Only the genuine explicitly supplied plain pose may move with its shadow.");
+      bool actualTarget = false;
+      for (std::size_t i = 0; i < allowedPose->bindingCount(); ++i)
+        actualTarget = actualTarget || allowedPose->target(i) == &node;
+      if (!actualTarget)
+        throw std::logic_error("Moved node retains a plain pose without its actual live target binding.");
+    }
     if (node.runtimeMesh) {
       if (node.runtimeMesh->sourceSkin || node.runtimeMesh->base)
         throw std::logic_error(
