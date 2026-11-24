@@ -70,3 +70,9 @@ Player teleport resets and ordinary NPC placement have different effects; a
 non-player transform copy must not universally cancel destination/animation
 state. Native body/root-motion/collision binding remains an implementation
 prerequisite, including strict horizontal player completion below 100 cm.
+
+ACTOR_COLLISION.md specifies the body/filter/terrain prerequisites. Steering
+queries exclude ownerless local cliff shapes even though physical contacts can
+block against them. An unobstructed destination query therefore does not prove
+that a body can move through the terrain. Core height-state transitions, local
+cliff construction, and blocker adjustment still require native implementation.

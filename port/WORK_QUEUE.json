@@ -36,8 +36,8 @@
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-012",
-      "status": "IN_PROGRESS",
+      "assignment": null,
+      "status": "AVAILABLE",
       "baseline": "670e056"
     }
   ],
@@ -666,7 +666,8 @@
         "BothRelease/Debug staticarchives contain exactly31AMD64COFFobjects; game/physicstests AMD64PE32+.",
         "Automated native Vulkan opening smoke returned0 with temporary assets/saves.",
         "Intervening original-category correction/docs do not overlap submitted build/testfiles."
-      ]
+      ],
+      "integration_commit": "cf37e23"
     },
     {
       "id": "OG-012",
@@ -709,14 +710,21 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "670e056",
-      "status": "IN_PROGRESS",
+      "status": "MERGED",
       "validation": [
         "Trace exact collision predicate/classification/height and contact side effects with original addresses and fixed data contracts.",
         "Identify smallest faithful on-foot controller collision slice and required real native bindings.",
         "Provide concrete positive/negative collision cases and source-derived thresholds; no fabricated placeholder adapters.",
         "Keep original ARM layouts read-only and document unresolved branches; no gameplay."
       ],
-      "submission": null,
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-012.patch",
+        "files": [
+          "port/ACTOR_COLLISION.md"
+        ],
+        "implementation": false,
+        "limits": "Coreheightsearch,cliffeligibility/widths,andpolygonadjustment not fully reconstructed; no production collision adapter implemented."
+      },
       "findings": [
         "Critical correction: original s_type category5 is NPC, category3 is vehicle; category5 StopObject queriesNPCflags356 bit0x4000, so inherited NPC GetSpeed()==0 does not imply immediate readiness.",
         "ContactListener::Persist explicitly checks category5 then callsNPC::getPathToFollow; original contact sensor handling classifies vehicles as3."
@@ -725,9 +733,17 @@
         {
           "description": "Correct prior NPC/vehicle s_type labels and readiness inference in ACTOR_MOVEMENT.md.",
           "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-012-category-correction.patch",
-          "status": "VERIFIED",
-          "independent_review": "ContactListener::Persist category5 test followed by directNPC::getPathToFollow confirmed in ARM;NPCarrival flag0x4000 write and matchedmovement helpers inspected. Numeric generic VM predicate unchanged."
+          "status": "MERGED",
+          "independent_review": "ContactListener::Persist category5 test followed by directNPC::getPathToFollow confirmed in ARM;NPCarrival flag0x4000 write and matchedmovement helpers inspected. Numeric generic VM predicate unchanged.",
+          "integration_commit": "3383cf8"
         }
+      ],
+      "reservations_active": false,
+      "independent_validation": [
+        "Reviewed original category5/NPC and category3/vehicle branches and NPCarrival flags; earlier category correction already integrated3383cf8.",
+        "Inspected matched ContactListener::Remove and original body/query/height dependencies against the documented ownership boundaries.",
+        "Reviewed complete document and explicit unimplemented branches; no runtime/test completion claimed.",
+        "Patch applicability and whitespace checked; only newcollisiondocument integrated."
       ]
     }
   ],
