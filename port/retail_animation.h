@@ -36,9 +36,20 @@ struct RetailAnimationSelectionResult {
 };
 
 bool retailAnimationCanBeInterrupted(int32_t animation);
+// Original guards only. Clear/defer apply their original state mutations;
+// accepted leaves clock/flags untouched and does no interval/rate validation.
+// A host must perform required live reload before accepted-transition commit.
+RetailAnimationSelection guardRetailAnimationSelection(RetailAnimationClock&,
+    const RetailAnimationRequest&, uint32_t& movementFlags, bool inCinematic);
 RetailAnimationSelectionResult selectRetailAnimation(RetailAnimationClock& clock,
     const RetailAnimationRequest& request, int32_t startMs, int32_t endMs,
     uint32_t& movementFlags, bool inCinematic, int32_t weaponType = -1);
+// Accepted branch only, after the host has evaluated guards and performed any
+// required live reload callback. Does not rerun guards or reload. Reads the
+// CURRENT speed multiplier/cache/flags so callback effects survive the commit.
+void commitAcceptedRetailAnimation(RetailAnimationClock& clock,
+    const RetailAnimationRequest& request, int32_t startMs, int32_t endMs,
+    uint32_t& movementFlags);
 bool retailAnimationLastFrame(const RetailAnimationClock& clock, float advance);
 
 // The original Character root is a local translation, not a sampled skeleton.

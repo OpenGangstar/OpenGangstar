@@ -30,27 +30,44 @@ bool retailAnimationCanBeInterrupted(int32_t animation)
     return !(animation >= 1 && animation <= 23) && animation != 86 && animation != 164 && animation != 175;
 }
 
-RetailAnimationSelectionResult selectRetailAnimation(RetailAnimationClock& clock,
-    const RetailAnimationRequest& request, int32_t startMs, int32_t endMs,
-    uint32_t& movementFlags, bool inCinematic, int32_t weaponType)
+RetailAnimationSelection guardRetailAnimationSelection(RetailAnimationClock& clock,
+    const RetailAnimationRequest& request, uint32_t& movementFlags, bool inCinematic)
 {
     using Selection = RetailAnimationSelection;
-    if (movementFlags & 0x800u) return {Selection::rejected};
+    if (movementFlags & 0x800u) return Selection::rejected;
     if (request.animation == -1) {
         clock.animation = -1;
         clock.startMs = clock.endMs = 0;
         clock.cursor = clock.rate = 0;
         clock.loop = clock.rootMotion = clock.directionalMotion = false;
-        return {Selection::cleared};
+        return Selection::cleared;
     }
-    if (request.animation == clock.animation) return {Selection::repeated};
+    if (request.animation == clock.animation) return Selection::repeated;
     if (!clock.loop && clock.animation != -1 && clock.cursor < float(clipLength(clock)) &&
         !retailAnimationCanBeInterrupted(clock.animation) && !inCinematic) {
-        if (retailAnimationCanBeInterrupted(request.animation)) return {Selection::rejected};
+        if (retailAnimationCanBeInterrupted(request.animation)) return Selection::rejected;
         // The original base setNextAnimation ignores the other request fields.
         clock.nextAnimation = request.animation;
-        return {Selection::deferred};
+        return Selection::deferred;
     }
+    return Selection::accepted;
+}
+
+RetailAnimationSelectionResult selectRetailAnimation(RetailAnimationClock& clock,
+    const RetailAnimationRequest& request, int32_t startMs, int32_t endMs,
+    uint32_t& movementFlags, bool inCinematic, int32_t weaponType)
+{
+    const auto selection = guardRetailAnimationSelection(clock, request, movementFlags, inCinematic);
+    if (selection != RetailAnimationSelection::accepted) return {selection};
+    const bool reload = clock.animation == 67 && weaponType == 7;
+    commitAcceptedRetailAnimation(clock, request, startMs, endMs, movementFlags);
+    return {RetailAnimationSelection::accepted, reload};
+}
+
+void commitAcceptedRetailAnimation(RetailAnimationClock& clock,
+    const RetailAnimationRequest& request, int32_t startMs, int32_t endMs,
+    uint32_t& movementFlags)
+{
     if (request.animation < 0 || !std::isfinite(request.speed) || request.speed < 0 || clock.speedMultiplier < 0)
         throw std::runtime_error("Unsupported negative or nonfinite animation request.");
     RetailAnimationClock accepted = clock;
@@ -59,7 +76,6 @@ RetailAnimationSelectionResult selectRetailAnimation(RetailAnimationClock& clock
     clipLength(accepted);
     accepted.rate = float(clock.speedMultiplier) * request.speed;
     if (!std::isfinite(accepted.rate)) throw std::runtime_error("Animation rate overflow.");
-    const bool reload = clock.animation == 67 && weaponType == 7;
     accepted.animation = request.animation;
     accepted.nextAnimation = -1;
     accepted.cursor = 0;
@@ -68,7 +84,6 @@ RetailAnimationSelectionResult selectRetailAnimation(RetailAnimationClock& clock
     accepted.directionalMotion = request.directionalMotion;
     clock = accepted; // Root cache and retained height are intentionally unchanged.
     if (request.animation == 164) movementFlags |= 0x80000000u;
-    return {Selection::accepted, reload};
 }
 
 bool retailAnimationLastFrame(const RetailAnimationClock& clock, float advance)

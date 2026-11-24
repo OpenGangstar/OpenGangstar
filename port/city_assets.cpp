@@ -612,6 +612,11 @@ CityMesh readMesh(const BresReader& bres, uint32_t geometry)
     result.name = bres.string(bres.word(geometry));
     const auto mesh = bres.word(geometry + 12);
     bres.checkSpan(mesh, 1, 44);
+    std::array<std::array<float, 3>, 2> bounds;
+    for (uint32_t side = 0; side < 2; ++side)
+        for (uint32_t axis = 0; axis < 3; ++axis)
+            bounds[side][axis] = bres.scalar(mesh + 20 + side * 12 + axis * 4);
+    result.rawBoundsCm = bounds;
     // City SMesh records store their vertex streams in one interleaved buffer.
     if (bres.word(mesh) != 1) bres.fail();
     const auto vertexCount = bres.word(mesh + 4);
@@ -878,6 +883,7 @@ void readNodes(const BresReader& bres, CityScene& scene, uint32_t count, uint32_
             if (const auto joint = bres.word(node + 8)) result.jointName = bres.string(joint);
         }
         result.parent = parent;
+        result.factorySelector = bres.word(node + 76);
         // SNode points to a user-property record whose first field is the text pointer.
         if (const auto properties = bres.word(node + 72)) {
             if (const auto text = bres.word(properties)) result.userProperties = bres.string(text);
@@ -895,6 +901,14 @@ void readNodes(const BresReader& bres, CityScene& scene, uint32_t count, uint32_
         for (uint32_t j = 0; j < instanceCount; ++j) {
             const auto instance = instances + j * 8;
             const auto kind = bres.word(instance);
+            result.instances.push_back(CityNodeInstance{kind, std::nullopt, {}, {}, false});
+            auto& authoredInstance = result.instances.back();
+            if (kind == 4) { // Original constructNode resolves SInstanceLight's fragment locally.
+                const auto reference = bres.word(instance + 4);
+                bres.checkSpan(reference, 1, 8);
+                if (const auto path = bres.word(reference)) authoredInstance.sourcePath = bres.string(path);
+                authoredInstance.target = readFragment(bres, bres.word(reference + 4));
+            }
             if (kind == 9) { // SInstanceEmitter
                 const auto reference = bres.word(instance + 4);
                 bres.checkSpan(reference, 1, 8);
@@ -907,7 +921,12 @@ void readNodes(const BresReader& bres, CityScene& scene, uint32_t count, uint32_
             CityGeometryRef geometry;
             if (const auto library = bres.word(reference)) geometry.sourcePath = bres.string(library);
             geometry.meshName = readFragment(bres, bres.word(reference + 4));
-            if (kind == 3 && geometry.sourcePath.empty() && splines.count(geometry.meshName)) continue;
+            authoredInstance.sourcePath = geometry.sourcePath;
+            authoredInstance.target = geometry.meshName;
+            if (kind == 3 && geometry.sourcePath.empty() && splines.count(geometry.meshName)) {
+                authoredInstance.localSpline = true;
+                continue;
+            }
             if (kind == 2) {  // SInstanceController
                 // Follow skin and morph sources to the bind-pose mesh.
                 size_t remaining = controllers.size();
@@ -932,6 +951,7 @@ void readNodes(const BresReader& bres, CityScene& scene, uint32_t count, uint32_
                     return mesh.name == geometry.meshName;
                 }))
                 bres.fail();
+            authoredInstance.geometry = result.geometry.size();
             result.geometry.push_back(std::move(geometry));
         }
         if (scene.nodes.size() == maxNodes) bres.fail();
@@ -1008,7 +1028,11 @@ void readVisualScenes(const BresReader& bres, CityScene& scene, bool includeCont
         for (; j < sceneCount; ++j) {
             const auto record = sceneTable + j * 16;
             if (bres.string(bres.word(record)) != name) continue;
+            const auto firstNode = scene.nodes.size();
             readNodes(bres, scene, bres.word(record + 8), bres.word(record + 12), -1, 0, controllers, splines);
+            const auto display = bres.word(record + 4);
+            scene.visualScenes.push_back({name, display ? bres.string(display) : std::string{},
+                                          firstNode, scene.nodes.size() - firstNode});
             break;
         }
         if (j == sceneCount) bres.fail();
@@ -1270,6 +1294,10 @@ CityScene loadScene(FileSystemBase& assets, const std::string& path, bool includ
         else if (type == 1) splines.insert(bres.string(bres.word(geometry)));
         else bres.fail();
     }
+    scene.hasSceneAnimations = bres.word(scene.rootOffset + 16) != 0;
+    const auto lightCount = bres.word(scene.rootOffset + 44), lights = bres.word(scene.rootOffset + 48);
+    bres.checkSpan(lights, lightCount, 24);
+    for (uint32_t i = 0; i < lightCount; ++i) scene.lightUids.push_back(bres.string(bres.word(lights + i * 24)));
     readMaterials(bres, scene);
     readParticleEmitters(bres, scene);
     if (includeNodes) readVisualScenes(bres, scene, includeControllers, splines);

@@ -1,5 +1,6 @@
 #include "texture.h"
 #include "IFileStream.h"
+#include "jpeg_decode.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -438,6 +439,28 @@ Image readPsd(IFileStream& file)
     return result;
 }
 
+Image readJpeg(IFileStream& file)
+{
+    const auto length = file.size();
+    if (!length || length > 64 * 1024 * 1024)
+        throw std::runtime_error("JPEG file size is outside the supported range.");
+    std::vector<unsigned char> bytes(static_cast<size_t>(length));
+    if (file.read(bytes.data(), length) != length)
+        throw std::runtime_error("Could not read the JPEG file.");
+    OpenGangstarJpeg decoded{};
+    if (!opengangstar_decode_jpeg(bytes.data(), bytes.size(), &decoded))
+        throw std::runtime_error(decoded.error);
+    struct ReleasePixels {
+        OpenGangstarJpeg& image;
+        ~ReleasePixels() { opengangstar_free_jpeg(&image); }
+    } release{decoded};
+    Image result{decoded.width, decoded.height, std::vector<uint32_t>(size_t(decoded.width) * decoded.height)};
+    for (size_t i = 0; i < result.bgra.size(); ++i)
+        result.bgra[i] = 0xff000000u | (uint32_t(decoded.rgb[i * 3]) << 16) |
+            (uint32_t(decoded.rgb[i * 3 + 1]) << 8) | uint32_t(decoded.rgb[i * 3 + 2]);
+    return result;
+}
+
 Image readPng(IFileStream& file)
 {
     const auto length = file.size();
@@ -499,6 +522,8 @@ Image readTexture(IFileStream& file, bool keepBitmapAlpha)
         return readBitmap(file, keepBitmapAlpha);
     if (std::memcmp(signature.data(), "\x89PNG", 4) == 0)
         return readPng(file);
+    if (signature[0] == 0xff && signature[1] == 0xd8 && signature[2] == 0xff)
+        return readJpeg(file);
     if (std::memcmp(signature.data(), "DDS ", 4) == 0)
         return readAtcTexture(file);
     if (std::memcmp(signature.data(), "8BPS", 4) == 0)

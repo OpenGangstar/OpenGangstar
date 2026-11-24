@@ -29,6 +29,9 @@ struct CityMesh {
     std::vector<std::array<float, 2>> auxiliaryTexCoords;
     std::vector<std::array<float, 4>> secondaryColors;
     bool floatNormals = true; // Original software reflection texgen accepts only float32 normals.
+    // Exact serialized SMesh+20 box, copied by original CColladaMesh construction.
+    // Missing on hand-built mesh fixtures; do not substitute vertex extrema for scene binding.
+    std::optional<std::array<std::array<float, 3>, 2>> rawBoundsCm;
 };
 
 struct CityGeometryRef {
@@ -80,6 +83,13 @@ struct CityMaterial {
         cityIdentityTextureTransform, cityIdentityTextureTransform};
 };
 
+struct CityNodeInstance {
+    uint32_t kind = 0;
+    std::optional<size_t> geometry; // Index into this node's decoded geometry, when constructed.
+    std::string sourcePath, target;
+    bool localSpline = false; // Geometry kind1 returns NULL from original constructGeometry.
+};
+
 struct CityNode {
     std::string name;
     std::string jointName;
@@ -90,6 +100,8 @@ struct CityNode {
     std::vector<CityGeometryRef> geometry;
     std::vector<std::string> particleEmitters;
     std::string userProperties;
+    uint32_t factorySelector = 0; // Original SNode+76, separate from user-property billboard selection.
+    std::vector<CityNodeInstance> instances; // Authored instance order, including skipped nonmesh records.
 
     std::optional<std::string_view> property(std::string_view key) const;
 };
@@ -143,6 +155,11 @@ struct CityMorphController {
     std::vector<Target> targets;
 };
 
+struct CityVisualSceneInstance {
+    std::string uid, displayName;
+    size_t firstNode = 0, nodeCount = 0; // Decoded preorder range for this active instance.
+};
+
 struct CityScene {
     std::string path;
     std::vector<unsigned char> bytes;
@@ -154,6 +171,9 @@ struct CityScene {
     std::vector<CityParticleEmitter> particleEmitters;
     std::vector<CityDiffuseColorKey> diffuseColors;
     std::vector<CityMorphController> morphControllers;
+    std::vector<CityVisualSceneInstance> visualScenes;
+    std::vector<std::string> lightUids; // SCollada+44, 24-byte SLight records.
+    bool hasSceneAnimations = false; // Static scene binding rejects unported animator behavior.
 };
 
 struct CityLodGroup {

@@ -39,8 +39,9 @@ FetchContent_MakeAvailable(zlib)
 include(cmake/GameSWF.cmake)
 include(cmake/Vorbis.cmake)
 include(cmake/Box2D.cmake)
+include(cmake/Jpeg.cmake)
 
-add_library(opengangstar_physics STATIC retail_physics.cpp retail_height.cpp retail_steering.cpp retail_contacts.cpp retail_jump.cpp retail_actor_physics.cpp retail_jump_surface.cpp retail_world.cpp retail_actor_controller.cpp)
+add_library(opengangstar_physics STATIC retail_physics.cpp retail_height.cpp retail_steering.cpp retail_contacts.cpp retail_jump.cpp retail_actor_physics.cpp retail_jump_surface.cpp retail_world.cpp retail_actor_controller.cpp retail_scene.cpp)
 target_include_directories(opengangstar_physics PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(opengangstar_physics PUBLIC opengangstar_box2d opengangstar_assets)
 if(MSVC)
@@ -51,6 +52,7 @@ add_library(opengangstar_assets STATIC
     city_assets.cpp
     city_particles.cpp
     retail_animation.cpp
+    retail_actor_animation.cpp
     filesystem.cpp
     retail_audio.cpp
     retail_radio.cpp
@@ -66,7 +68,7 @@ add_library(opengangstar_assets STATIC
     "${WCH_SOURCE}/persistence/StreamReader.cpp")
 target_compile_features(opengangstar_assets PUBLIC cxx_std_17)
 target_include_directories(opengangstar_assets PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${WCH_SOURCE}/persistence")
-target_link_libraries(opengangstar_assets PRIVATE ole32 shell32 uuid windowscodecs vorbisfile winmm)
+target_link_libraries(opengangstar_assets PRIVATE ole32 shell32 uuid windowscodecs vorbisfile winmm opengangstar_jpeg6b)
 
 add_executable(gangstar-wch
     city_view.cpp
@@ -90,8 +92,24 @@ target_include_directories(gangstar-wch PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "$
 target_link_libraries(gangstar-wch PRIVATE gdi32 mfplat mfreadwrite mfuuid ole32 user32 winmm xinput9_1_0
     ZLIB::ZLIBSTATIC gameswf_core opengangstar_assets opengangstar_physics)
 
+opengangstar_copy_jpeg_notice(gangstar-wch)
+
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_scene_test tests/retail_scene.cpp)
+    target_link_libraries(retail_scene_test PRIVATE opengangstar_physics opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_scene_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_scene COMMAND retail_scene_test)
+
+    add_executable(retail_actor_animation_test tests/retail_actor_animation.cpp)
+    target_link_libraries(retail_actor_animation_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_actor_animation_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_actor_animation COMMAND retail_actor_animation_test)
+
     add_executable(animation_catalog_test tests/animation_catalog.cpp)
     target_link_libraries(animation_catalog_test PRIVATE opengangstar_assets)
     if(MSVC)
@@ -207,4 +225,8 @@ if(MSVC)
     foreach(target opengangstar_assets gangstar-wch gameswf_core)
         target_compile_options(${target} PRIVATE /we4302 /we4311 /we4312)
     endforeach()
+endif()
+
+if(MSVC)
+    set_source_files_properties(retail_actor_animation.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict;/we4302;/we4311;/we4312")
 endif()

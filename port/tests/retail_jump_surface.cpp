@@ -123,6 +123,13 @@ void descriptorAndNativeSnapshot() {
             "Subsequent ID0 remains a real enabled jump, not a boolean clear");
 }
 void skipsAndFirstVertex() {
+    RetailJumpSurfaceSequence nonmeshSequence(42);
+    RetailJumpSurfaceCatalog nonmeshCatalog(nonmeshSequence);
+    auto nonmesh = source();
+    nonmesh.runtimeType = retailSceneEmptyType;
+    require(!nonmeshCatalog.append(nonmesh) && nonmeshSequence.nextID() == 42,
+            "Unrecognized original runtime node type skips the direct leaf producer without consuming ID");
+
     RetailJumpSurfaceSequence sequence;
     RetailJumpSurfaceCatalog catalog(sequence);
     auto input = source();
@@ -263,6 +270,23 @@ void decodedBinding(bool emit = false) {
     inst.scale = {5, 6, 7};
     inst.geometry.push_back({"model", "visible", {}});
     scene.nodes.push_back(inst);
+    city.geometryLibraries.at("model").path = "road_sign.bdae";
+    for (uint32_t kind : {1u, 2u, 11u}) {
+        city.geometryLibraries.at("model").nodes[1].instances.push_back(
+            {kind, std::nullopt, {}, "Jump-controller", false});
+        bool rejected = false;
+        try {
+            collectRetailJumpSurfaceSources(city, scene);
+        } catch (const std::runtime_error& error) {
+            rejected = std::string(error.what()).find("node/controller/modular-skin") != std::string::npos;
+        }
+        require(rejected, "Ordinary filename predicate cannot silently discard unsupported recognized "
+                          "controller/node classes");
+        city.geometryLibraries.at("model").nodes[1].instances.clear();
+    }
+    require(collectRetailJumpSurfaceSources(city, scene).empty(),
+            "Original database-path sign marker makes generated mesh type empty, so no Jump collider");
+    city.geometryLibraries.at("model").path = "model";
     const auto result = collectRetailJumpSurfaceSources(city, scene);
     require(result.size() == 1, "External scene binds authored Jump mesh exactly once");
     require(result[0].uid == "Jump-mesh",
@@ -355,7 +379,7 @@ void rawSceneChildIdentity(bool emit) {
             word(instance, 3);
             word(instance + 4, reference);
             if (external)
-                word(reference, text("signed-model.bdae"));
+                word(reference, text("zero-model.bdae"));
             word(reference + 4, text("#" + mesh));
         }
         void mesh(uint32_t geometry, const std::string& uid) {
@@ -431,8 +455,8 @@ void rawSceneChildIdentity(bool emit) {
             if (!owned)
                 return;
             std::error_code ignored;
-            std::filesystem::remove(directory / "signed-model.bdae", ignored);
-            std::filesystem::remove(directory / "signed-root.bdae", ignored);
+            std::filesystem::remove(directory / "zero-model.bdae", ignored);
+            std::filesystem::remove(directory / "zero-root.bdae", ignored);
             std::filesystem::remove(directory, ignored);
         }
     } temporary{std::filesystem::temp_directory_path() /
@@ -440,12 +464,12 @@ void rawSceneChildIdentity(bool emit) {
                  std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()))};
     require(std::filesystem::create_directory(temporary.directory),
             "Create raw generated-child fixture folder");
-    library.write(temporary.directory / "signed-model.bdae");
-    outer.write(temporary.directory / "signed-root.bdae");
+    library.write(temporary.directory / "zero-model.bdae");
+    outer.write(temporary.directory / "zero-root.bdae");
     ResourceFileSystem files(temporary.directory);
     CityAssets assets;
-    assets.geometryLibraries.emplace("signed-model.bdae", loadCityScene(files, "signed-model.bdae"));
-    const auto scene = loadCityScene(files, "signed-root.bdae");
+    assets.geometryLibraries.emplace("zero-model.bdae", loadCityScene(files, "zero-model.bdae"));
+    const auto scene = loadCityScene(files, "zero-root.bdae");
     const auto sources = collectRetailJumpSurfaceSources(assets, scene);
     require(sources.size() == 1 && sources[0].uid == "Jump-mesh", "Raw mesh UID qualification");
     // Independent actual original generated-child update+producer capture: all

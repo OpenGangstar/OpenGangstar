@@ -20,25 +20,25 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-036",
+      "assignment": "OG-044",
       "status": "IN_PROGRESS",
-      "baseline": "64ea54f"
+      "baseline": "9c504f0"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-037",
+      "assignment": "OG-043",
       "status": "IN_PROGRESS",
-      "baseline": "71a7de5"
+      "baseline": "9c504f0"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-035",
+      "assignment": "OG-045",
       "status": "IN_PROGRESS",
-      "baseline": "64ea54f"
+      "baseline": "9c504f0"
     }
   ],
   "unavailable_worker": {
@@ -518,7 +518,8 @@
         "Root independently reran the original73-case mapping/wrapper/arrival oracle with return-sentinel checking; all passed. Real native tests exercise actual body velocity/WakeUp, rootZ, steering and shared-world displacement, with no duplicate Step loop.",
         "Both configuration retail geometry fixtures, exact expected missing-resource audit,31GPU readbacks and opening smokes passed after catalog integration. New images are AMD64PE32+.",
         "Production actor/VM bindings remain incomplete; existing presentation movement is not relabeled as this controller. Intervening source changes do not overlap the four submitted files."
-      ]
+      ],
+      "integration_commit": "9c504f0"
     },
     {
       "id": "OG-010",
@@ -1939,8 +1940,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "64ea54f",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original constructor/global-selection/load-chain evidence for actual type, raw bbox, hierarchy and absolute positions; no nearest-Z or assumed zero-translation replacement.",
         "Actual decoded source fixtures and original matrix/scene oracle comparisons, including signed-zero child regression; stable ownership and existing height/jump tests preserved.",
@@ -1948,6 +1949,15 @@
       ],
       "findings": [
         "Original runtime type depends on database-path substrings. The synthetic signed-model.bdae path contains sign and selects an empty-tag factory path; rename the geometry-child matrix fixture to a neutral zero-model.bdae path and qualify the collector through the same original-backed runtime-type helper. Preserve its exact signed-zero expectations. Original direct child oracle remains a bounded math proof rather than full factory execution."
+      ],
+      "independent_validation": [
+        "Root reviewed the frozen revised patch and intervening shared interfaces; no original ARM source edits.",
+        "Root Release and Debug complete builds and all 20 CTests pass on the combined integration.",
+        "Root retail asset gates and 31 Vulkan material pixel readbacks plus temporary-save opening smoke pass in both configurations.",
+        "All 98 supplied images decode; exact 111 missing texture-reference set remains; no false complete-assets claim.",
+        "Root executed actual original constructors/factories and full 141-node hierarchy/type/matrix/bbox/global selection comparisons; 16 query states and 18 shared quaternion cases match.",
+        "Root enumerated 12998 actual loaded-placement centroids and 17086 real native cliff body instances, maximum 12, with no range/capacity/frozen failures and complete teardown.",
+        "Root reran original 23 synthetic/15 retail jump producer and child-transform/binding comparisons in both configurations. Static height binding is not a full actor or dynamic scene implementation."
       ]
     },
     {
@@ -1981,8 +1991,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "64ea54f",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original catalog/range/root/cache/callback evidence with actual asset enumeration and original-backed fixtures.",
         "No inferred animation identity from clip name or movement duration. Real host ordering and changed live-state behavior must be tested.",
@@ -1990,7 +2000,29 @@
       ],
       "findings": [
         "The original accepted path does not rerun guards after live reload. It reads live speedMultiplier and preserves callback mutations to root/cache/flags before selected-field commit. Share accepted-transition commit with the pure selector; keep existing API behavior/tests."
-      ]
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-036.patch",
+        "sha256": "fcabc6b02e0266bc73888ddfd0ae247670662eed319df38bcee0560720a04ca7",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-036-report.md"
+      },
+      "review_findings": [
+        "Binding preview invokes the accepted-commit rate checks before the original live reload callback. Finite speed FLT_MAX with old multiplier2 can throw although reload changes multiplier1 and original continuation would accept a finite rate. Author requested to reproduce original/native and share guard-only selection before reload, retaining accepted validation afterward."
+      ],
+      "independent_validation": [
+        "Root reviewed the frozen revised patch and intervening shared interfaces; no original ARM source edits.",
+        "Root Release and Debug complete builds and all 20 CTests pass on the combined integration.",
+        "Root retail asset gates and 31 Vulkan material pixel readbacks plus temporary-save opening smoke pass in both configurations.",
+        "All 98 supplied images decode; exact 111 missing texture-reference set remains; no false complete-assets claim.",
+        "Root reproduced initial accepted-rate/reload ordering regression in both configurations and verified revised live guard/reload/commit ordering, including FLT_MAX mutation and accepted-overflow boundaries.",
+        "Root actual original lifecycle probes and 213 indexed clip/639 global-track sample comparisons per actor model pass; root rebuilt and reran 560 clock, 840 selection and 72 sampler reference cases plus duplicate-time boundary.",
+        "Root diagnosed stale MSBuild objects caused by preserved copy timestamps; refreshed exact affected inputs, verified actual archive guard symbols, then rebuilt and reran all gates. Required live pose/skin/shadow host remains incomplete."
+      ],
+      "initial_submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-036.patch",
+        "sha256": "527ae9c92d8e32ac6b62659cd6a26f18a8e5ab3de2fef95c90ad87920f36a804",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-036-report.md"
+      }
     },
     {
       "id": "OG-037",
@@ -2017,7 +2049,8 @@
         "port/IMAGE_FORMATS.md",
         "port/jpeg_decode.c",
         "port/jpeg_decode.h",
-        "port/cmake/Jpeg.cmake"
+        "port/cmake/Jpeg.cmake",
+        "port/tests/retail_asset_audit.cpp (JPEG extension filter and format label only)"
       ],
       "priority": 5,
       "complexity": "medium",
@@ -2027,8 +2060,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "71a7de5",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original JPEG loader source/binary evidence, opaque RGB output, supported baseline/progressive/grayscale/CMYK behavior accounted for.",
         "Independent synthetic fixtures and malformed rejection; preserve all existing PNG/BMP/TGA/PSD/ATC tests and exact supplied-image audit/missing-reference behavior.",
@@ -2038,6 +2071,20 @@
         "OG038 actual original codec shows WIC fancy chroma interpolation differs on 186/187 nonconstant pixels, maximum channel error76; forcing only original fancy flagtrue reproduces WIC exactly.",
         "WIC accepts missing EOI while original decoder raises error68. No speculative pixel filtering or undocumented fallback is acceptable. Original ELF embeds6b27-Mar-1998.",
         "Correction from original source trace: fill_input_buffer returnsTRUE without supplying bytes and skip_input_data is unbounded. Observed missing-EOI error68 depended on deterministic research heap bytes; bounded native EOF errors are an explicit safety adaptation, not guaranteed original failure-code parity."
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-037.patch",
+        "sha256": "f7b19a620c21ca3177607f14ee4ef62313a1eb8476e039ea6c82262e76bc7146",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-037-report.md"
+      },
+      "independent_validation": [
+        "Root reviewed the frozen revised patch and intervening shared interfaces; no original ARM source edits.",
+        "Root Release and Debug complete builds and all 20 CTests pass on the combined integration.",
+        "Root retail asset gates and 31 Vulkan material pixel readbacks plus temporary-save opening smoke pass in both configurations.",
+        "All 98 supplied images decode; exact 111 missing texture-reference set remains; no false complete-assets claim.",
+        "Root reran actual original full JPEG codec and drivers imported from root libraries: 15 fixtures, 7 accepted images/199 RGB pixels, exact output and warnings, 5 matching fatal codes; 2 EOF safety adaptations documented.",
+        "Root verified pinned archive hash, all 145 upstream files unchanged, all 47 C objects AMD64 in each configuration, exact supplied Windows config and full README notices beside both game executables.",
+        "Root automatic .jpg/.jpeg enumeration fixture decodes 2/2 and passes audit; PNG and other format gates remain enabled. Native bounded EOF handling is not claimed as original unsafe-buffer parity."
       ]
     },
     {
@@ -2072,7 +2119,7 @@
       ],
       "submission": {
         "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-038-review.md",
-        "sha256": "f4050e96d21119a786a6a7d6fefbfdd1ec85c1dbfe13acb30716b34c31582d76"
+        "sha256": "dd0c8732efee9ac636c3ae93c8adc2690ac1fbd65febd739e3634c3bc2d59674"
       }
     },
     {
@@ -2114,7 +2161,8 @@
         "Root focused metadata fixtures pass Release and Debug, including case variants/duplicates, signed ranges, source index, sparse-filter boundary and legacy first casefold behavior.",
         "Root full18CTest passed in both configurations; both actual retail city fixtures,31GPU readbacks and opening smokes pass. Full audit retains98decodedimages and expected111missingreferences.",
         "Reviewed frozen metadata dependency was transferred to worker1 for real OG036 catalog/bind validation; full scene035development remains separately reserved."
-      ]
+      ],
+      "integration_commit": "9c504f0"
     },
     {
       "id": "OG-040",
@@ -2159,7 +2207,7 @@
         "OG-039"
       ],
       "blockers": [
-        "Loaded terrain and original animation binding are in progress; retained runtime actor pose/skin and complete outer branch/host operations remain unimplemented."
+        "Static height binding and original animation lifecycle/catalogue are merged. Genuine retained mutable actor pose/skin, original animator frame dispatch and production outer player/world/VM host remain unimplemented; OG043 heading and OG045 dependency investigation are active."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -2169,6 +2217,152 @@
         "Real actor/root identities and native shared-world movement continue independently of waiting scripts.",
         "Original update/height/jump/scene order and nonuniform animation sampling; no fake casts or empty hosts.",
         "Relevant native subsystem/original-reference tests, asset enumeration and startup checks; no manual progression."
+      ]
+    },
+    {
+      "id": "OG-041",
+      "description": "Independent read-only peer review of OG-035 original scene/animation fidelity and native ownership.",
+      "scope": "Read frozen source patch and original evidence; write only the ignored peer report or reference artifacts if separately authorized. No implementation edits.",
+      "symbols": [],
+      "resources": [
+        "port/build/OG-041-review.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "9c504f0",
+      "status": "VERIFIED",
+      "reservations_active": false,
+      "validation": [
+        "Actionable source-backed findings with precise location; distinguish native components from unimplemented production hosts."
+      ],
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-041-review.md",
+        "sha256": "da602ffa2d0a965ed8b4c34ffe3790c4450429a311859e14f306de197e6ce397"
+      }
+    },
+    {
+      "id": "OG-042",
+      "description": "Independent read-only peer review of OG-036 original scene/animation fidelity and native ownership.",
+      "scope": "Read frozen source patch and original evidence; write only the ignored peer report or reference artifacts if separately authorized. No implementation edits.",
+      "symbols": [],
+      "resources": [
+        "port/build/OG-042-review.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "9c504f0",
+      "status": "VERIFIED",
+      "reservations_active": false,
+      "validation": [
+        "Actionable source-backed findings with precise location; distinguish native components from unimplemented production hosts."
+      ],
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-042-review.md",
+        "sha256": "76f05df344084b171795158d96cfe4fd731c92dd3213a22cd388a96279082b36"
+      }
+    },
+    {
+      "id": "OG-043",
+      "description": "Port original actor point-facing and incremental heading operations required by the live player host.",
+      "scope": "Implement Character turnToward overloads and the matched turnSceneNode quaternion operation against genuine native input/scene operations. Preserve original quaternion helpers, sign conventions, units, normalization and getter/setter/cache timing. No generic atan2 yaw or renderer approximation. Reuse existing equivalent math only when original context/address semantics match; request shared-file reservations before consolidation.",
+      "symbols": [
+        {
+          "signature": "Character::turnToward(vector3df const&)",
+          "address": "0x002f3e99"
+        },
+        {
+          "signature": "Character::turnToward(vector3df,float)",
+          "address": "0x002f22d5"
+        },
+        {
+          "signature": "turnSceneNode helper and original quaternion operations",
+          "address": "Trace original referenced helpers"
+        }
+      ],
+      "resources": [
+        "port/retail_actor_heading.h",
+        "port/retail_actor_heading.cpp",
+        "port/tests/retail_actor_heading.cpp",
+        "port/ACTOR_HEADING.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-008",
+        "OG-035"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "9c504f0",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original source and actual quaternion/helper execution for cardinal, opposite, degenerate, nonunit and threshold cases.",
+        "Real original setter/getter order; no guessed post-set absolute matrix or duplicate native quaternion implementation without checking existing context.",
+        "Release/Debug subsystem tests and relevant original comparisons; full runtime actor factory remains separately tracked by OG040."
+      ],
+      "dependency_transfer": "Root transferred the independently reviewed frozen OG035 nine-file dependency and wired worker-only CMake. Root integration remains pending final original-reference and asset gates."
+    },
+    {
+      "id": "OG-044",
+      "description": "Port original NPC path iteration and waypoint state transitions.",
+      "scope": "Implement source-backed Path waypoint ownership/access and NPC path selection, repeat and loop transitions. Preserve dispatch order through required concrete host operations; no invented arrival or NPC full Update implementation. Request reservations before changing shared files.",
+      "symbols": [
+        {
+          "signature": "NPC::setPathToFollow 0x002fd539; getNextWaypoint 0x002fdde9; getNextPoint 0x002fdff1; goToNextPoint 0x002fe085; Path::getSize 0x00300b11; Path::getWaypoint 0x00300b15; Path::Load 0x00300bc5",
+          "address": "Trace and record exact original addresses"
+        }
+      ],
+      "resources": [
+        "port/retail_npc_path.h",
+        "port/retail_npc_path.cpp",
+        "port/tests/retail_npc_path.cpp",
+        "port/NPC_PATH.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "9c504f0",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Preserve original operation order and source identities; document native safety adaptations and unresolved dependencies.",
+        "Provide complete reviewable changes and independent original-reference evidence; no manual gameplay."
+      ]
+    },
+    {
+      "id": "OG-045",
+      "description": "Trace original live actor animator and skin factory dependencies for native retained actor implementation.",
+      "scope": "Read-only original-code investigation of actual actor scene construction, CGameFactory, animator onBind and frame dispatch, skin matrices, cached root and FindAMesh identities. Produce source-backed dependency plan with original executed reference probes where practical. Do not implement a guessed pose host or edit submitted OG035 files.",
+      "symbols": [
+        {
+          "signature": "CGameFactory actor/controller construction; IAnimSceneNode/onBind and animation sampling; PlayerTest retained root/FindAMesh",
+          "address": "Trace and record exact original addresses"
+        }
+      ],
+      "resources": [
+        "port/build/OG-045-report.md",
+        "port/build/OG-045-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "9c504f0",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Preserve original operation order and source identities; document native safety adaptations and unresolved dependencies.",
+        "Provide complete reviewable changes and independent original-reference evidence; no manual gameplay."
       ]
     }
   ],
@@ -2184,7 +2378,8 @@
   "validation": {
     "original_arm_preservation": "2026-11-25: Root independently rechecked all2969tracked original ARM files against pre-migration SHA256; all unchanged and pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25:83Python unittests,check_repository.py and progress.py --check all pass. No full ARM matching rebuild claimed.",
-    "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices."
+    "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
+    "native_integration": "2026-11-25: Combined OG035/036/037 root Release/Debug full builds and20CTest pass each;31GPU material checks/opening smoke each; game/subsystem executables verified AMD64 PE32+;47IJG C objects AMD64 each. Retail audit98/98 images and expected111missing references."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

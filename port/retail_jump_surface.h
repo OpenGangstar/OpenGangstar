@@ -1,18 +1,21 @@
 #pragma once
 
-#include "city_assets.h"
 #include "retail_physics.h"
+#include "retail_scene.h"
 
 #include <array>
 #include <memory>
 #include <vector>
 
-using RetailJumpMatrix = std::array<float, 16>;
+using RetailJumpMatrix = RetailSceneMatrix;
 
 struct RetailJumpSurfaceSource {
     std::string identity, ownerIdentity, uid;
     std::vector<std::array<float, 3>> verticesCm;
     RetailJumpMatrix currentAbsolute, placementAbsolute;
+    // Direct sources describe a recognized mesh leaf unless explicitly supplied otherwise.
+    // Decoded binding supplies the actual original database-dependent runtime tag.
+    uint32_t runtimeType = retailSceneMeshType;
 };
 
 // Original function-local static uint8 ID persists across worlds and reloads.

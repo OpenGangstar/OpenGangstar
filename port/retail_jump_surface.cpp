@@ -11,58 +11,10 @@ namespace {
 using Point = std::array<float, 3>;
 using Quaternion = std::array<float, 4>;
 constexpr float radians = 0.01745329252f;
-constexpr RetailJumpMatrix generatedChildIdentity{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 struct ShapeProbe : b2Shape {
     using b2Shape::Create;
     using b2Shape::Destroy;
 };
-RetailJumpMatrix nodeMatrix(const CityNode& node, bool instanceRoot = false) {
-    const auto& q = node.rotation;
-    const float x2 = q[0] + q[0], y2 = q[1] + q[1], z2 = q[2] + q[2];
-    const float xx = q[0] * x2, yy = q[1] * y2, zz = q[2] * z2;
-    const float xy = x2 * q[1], xz = x2 * q[2], xw = x2 * q[3];
-    const float yz = y2 * q[2], yw = y2 * q[3], zw = z2 * q[3];
-    RetailJumpMatrix m{(1.f - yy) - zz,
-                       xy - zw,
-                       xz + yw,
-                       0,
-                       xy + zw,
-                       (1.f - xx) - zz,
-                       yz - xw,
-                       0,
-                       xz - yw,
-                       yz + xw,
-                       (1.f - yy) - xx,
-                       0,
-                       0,
-                       0,
-                       0,
-                       1};
-    // AddXRef copies position and rotation to the new scene root, not scale.
-    if (!instanceRoot) {
-        constexpr float tolerance = 0.000001f;
-        bool unit = true;
-        for (float scale : node.scale)
-            unit = unit && 1.f <= scale + tolerance && 1.f >= scale - tolerance;
-        if (!unit)
-            for (size_t column = 0; column < 3; ++column)
-                for (size_t row = 0; row < 3; ++row)
-                    m[column * 4 + row] *= node.scale[column];
-    }
-    std::copy(node.translation.begin(), node.translation.end(), m.begin() + 12);
-    return m;
-}
-RetailJumpMatrix multiply(const RetailJumpMatrix& a, const RetailJumpMatrix& b) {
-    RetailJumpMatrix result{};
-    for (size_t column = 0; column < 3; ++column)
-        for (size_t row = 0; row < 3; ++row)
-            result[column * 4 + row] =
-                (a[row] * b[column * 4] + a[4 + row] * b[column * 4 + 1]) + a[8 + row] * b[column * 4 + 2];
-    for (size_t row = 0; row < 3; ++row)
-        result[12 + row] = ((a[row] * b[12] + a[4 + row] * b[13]) + a[8 + row] * b[14]) + a[12 + row];
-    result[15] = 1;
-    return result;
-}
 float rotationZDegrees(const RetailJumpMatrix& m) {
     const double y = -std::asin(double(m[2]));
     const double cosine = std::cos(y);
@@ -75,21 +27,6 @@ float rotationZDegrees(const RetailJumpMatrix& m) {
     if (z < 0.)
         z += 360.;
     return static_cast<float>(z);
-}
-Quaternion yawQuaternion(float angle) {
-    // Original Euler set(0,0,angle), double trig/products then float normalize.
-    const double sx = std::sin(0.), cx = std::cos(0.), sy = std::sin(0.), cy = std::cos(0.);
-    const double sz = std::sin(double(angle) * .5), cz = std::cos(double(angle) * .5);
-    const double cycz = cy * cz, sycz = sy * cz, cysz = cy * sz, sysz = sy * sz;
-    Quaternion q{float(sx * cycz - cx * sysz), float(cx * sycz + sx * cysz), float(cx * cysz - sx * sycz),
-                 float(cx * cycz + sx * sysz)};
-    const float length = ((q[0] * q[0] + q[1] * q[1]) + q[2] * q[2]) + q[3] * q[3];
-    if (length != 1.f) {
-        const float inverse = 1.f / std::sqrt(length);
-        for (float& value : q)
-            value *= inverse;
-    }
-    return q;
 }
 Point rotate(const Quaternion& q, const Point& v) {
     // Original quaternion-vector product uses the negative cross orientation.
@@ -129,6 +66,14 @@ std::vector<RetailJumpSurfaceSource> collectRetailJumpSurfaceSources(const CityA
             if (found == city.geometryLibraries.end())
                 throw std::runtime_error("Missing original jump binding library: " + reference.sourcePath);
             const auto& model = found->second;
+            // These factories can construct different recognized node classes. In
+            // particular the skin getter is fixed 0x73656164 even for a sign path.
+            // Reject before applying the ordinary mesh's database-path predicate.
+            for (const auto& node : model.nodes)
+                for (const auto& authored : node.instances)
+                    if (authored.kind == 1 || authored.kind == 2 || authored.kind == 11)
+                        throw std::runtime_error(
+                            "Unsupported node/controller/modular-skin authored jump factory.");
             const bool hasJump = std::any_of(model.meshes.begin(), model.meshes.end(),
                                              [](const CityMesh& mesh) { return marker(mesh.name, "Jump"); });
             if (!hasJump)
@@ -136,18 +81,27 @@ std::vector<RetailJumpSurfaceSource> collectRetailJumpSurfaceSources(const CityA
             if (instance.parent >= 0 || readCityLodGroup(model).levels.size() > 1)
                 throw std::runtime_error("Unsupported parent/LOD authored jump scene binding: " +
                                          reference.sourcePath);
-            for (const auto& node : model.nodes)
+            for (const auto& node : model.nodes) {
+                if (node.factorySelector)
+                    throw std::runtime_error("Unsupported alternate billboard authored jump factory.");
                 if (const auto value = node.property("billboard");
                     value && std::atoi(std::string(*value).c_str()) == 1)
                     throw std::runtime_error("Unsupported billboard authored jump owner binding.");
-            const auto root = nodeMatrix(instance, true);
+                for (const auto& authored : node.instances)
+                    if (authored.kind == 9 || authored.kind == 10)
+                        throw std::runtime_error("Unsupported particle/force authored jump scene binding.");
+            }
+            const auto runtimeType = retailSceneMeshRuntimeType(model.path);
+            if (runtimeType != retailSceneMeshType)
+                continue;
+            const auto root = retailSceneRelative(instance, true);
             std::vector<RetailJumpMatrix> matrices;
             for (size_t n = 0; n < model.nodes.size(); ++n) {
                 const auto& node = model.nodes[n];
                 if (node.parent >= static_cast<int32_t>(n) || node.parent < -1)
                     throw std::runtime_error("Invalid original jump binding hierarchy.");
                 const auto& parent = node.parent >= 0 ? matrices.at(node.parent) : root;
-                matrices.push_back(multiply(parent, nodeMatrix(node)));
+                matrices.push_back(retailSceneMultiply(parent, retailSceneRelative(node)));
             }
             size_t visible = model.nodes.size();
             for (size_t n = 0; n < model.nodes.size() && visible == model.nodes.size(); ++n) {
@@ -184,8 +138,9 @@ std::vector<RetailJumpSurfaceSource> collectRetailJumpSurfaceSources(const CityA
                                        // Factory-created geometry children have identity local TRS,
                                        // but original mult34 still performs the float additions.
                                        // Preserve their signed-zero effects separately from containers.
-                                       multiply(matrices[n], generatedChildIdentity),
-                                       multiply(matrices[visible], generatedChildIdentity)});
+                                       retailSceneMultiply(matrices[n], retailSceneIdentity),
+                                       retailSceneMultiply(matrices[visible], retailSceneIdentity),
+                                       runtimeType});
                 }
             }
         }
@@ -207,6 +162,8 @@ RetailJumpSurfaceCatalog::~RetailJumpSurfaceCatalog() {
 bool RetailJumpSurfaceCatalog::append(const RetailJumpSurfaceSource& source) {
     if (world)
         throw std::logic_error("Append original jump definitions only while inactive.");
+    if (source.runtimeType != retailSceneMeshType && source.runtimeType != retailSceneSkinnedMeshType)
+        return false;
     if (!marker(source.uid, "Jump") || source.verticesCm.size() != 4)
         return false;
     if (source.ownerIdentity.empty() || (!entries.empty() && ownerIdentity != source.ownerIdentity))
@@ -243,7 +200,7 @@ bool RetailJumpSurfaceCatalog::append(const RetailJumpSurfaceSource& source) {
     entry->polygon.filter.categoryBits = 1;
     entry->polygon.filter.maskBits = 0xffff;
     entry->polygon.filter.groupIndex = 0;
-    const auto q = yawQuaternion(entry->body.angle);
+    const auto q = retailSceneYawQuaternion(entry->body.angle);
     for (size_t i = 0; i < 4; ++i) {
         const auto point = rotate(q, transformed[i]);
         entry->polygon.vertices[i].Set(point[0] / 100.f, point[1] / 100.f);
