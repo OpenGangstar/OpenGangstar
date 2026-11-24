@@ -32,20 +32,20 @@ index df1e61d..6deae97 100644
  template GSSideMissionMenu* StateMachine::pushState<GSSideMissionMenu>();
 +#endif
 diff --git a/src/game/ai/StateMachine.h b/src/game/ai/StateMachine.h
-index 7c93424..a7b992e 100644
 --- a/src/game/ai/StateMachine.h
 +++ b/src/game/ai/StateMachine.h
-@@ -3,6 +3,9 @@
+@@ -3,6 +3,10 @@
  
  #include "../core/FrameInterfaces.h"
  #include "../core/StateBase.h"
 +#ifdef _WIN32
 +#include <new>
++#include <cstddef>
 +#else
  #include "../core/PlacementNew.h"
  
  struct StateStackPrefix;
-@@ -13,6 +16,7 @@ struct StatePointerCopyTag {};
+@@ -13,6 +17,7 @@
  extern "C" void _ZNSt6vectorIP9StateBaseSaIS1_EE18_M_insert_overflowEPS1_RKS1_RKSt11__true_typejb(
      StateStackPrefix*, StateBase**, StateBase* const&, const StatePointerCopyTag&,
      unsigned int, bool) __attribute__((weak));
@@ -53,13 +53,13 @@ index 7c93424..a7b992e 100644
  
  // Observed STLport vector pointer triple, with cleanup delegated to its native base.
  struct StateStackPrefix {
-@@ -20,8 +24,13 @@ struct StateStackPrefix {
+@@ -20,8 +25,13 @@
      StateBase** last;
      StateBase** limit;
      StateStackPrefix() : first(0), last(0), limit(0) {}
 +#ifdef _WIN32
 +    ~StateStackPrefix() { delete[] first; }
-+    unsigned int size() const { return first ? static_cast<unsigned int>(last - first) : 0; }
++    size_t size() const { return first ? static_cast<size_t>(last - first) : 0; }
 +#else
      ~StateStackPrefix() { _ZN9stlp_priv12_Vector_baseIP9StateBaseSaIS2_EED1Ev(this); }
      unsigned int size() const { return last - first; }
@@ -67,7 +67,7 @@ index 7c93424..a7b992e 100644
      StateBase* back() const { return last[-1]; }
      void push_back(StateBase* const& value)
      {
-@@ -29,8 +38,21 @@ struct StateStackPrefix {
+@@ -29,8 +39,21 @@
              new (last) StateBase*(value);
              ++last;
          } else {
@@ -75,7 +75,7 @@ index 7c93424..a7b992e 100644
 +            const auto count = size();
 +            const auto capacity = count ? count * 2 : 1;
 +            auto* grown = new StateBase*[capacity];
-+            for (unsigned int i = 0; i < count; ++i)
++            for (size_t i = 0; i < count; ++i)
 +                grown[i] = first[i];
 +            grown[count] = value;
 +            delete[] first;
@@ -89,7 +89,7 @@ index 7c93424..a7b992e 100644
          }
      }
  };
-@@ -38,7 +60,11 @@ struct StateStackPrefix {
+@@ -38,7 +61,11 @@
  class StateMachine : public IUpdatable, public IDrawable, public ISleepable {
  public:
      StateMachine();

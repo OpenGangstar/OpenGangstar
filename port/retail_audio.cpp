@@ -1,3 +1,4 @@
+#include "windows_audio.h"
 #include "retail_audio.h"
 #include "city_assets.h"
 #include "vorbis_audio.h"
@@ -5,11 +6,6 @@
 #include "FileSystemBase.h"
 #include "IFileStream.h"
 
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#include <mmsystem.h>
 
 #include <algorithm>
 #include <array>
@@ -63,11 +59,6 @@ std::vector<std::string> readRetailSoundIndex(FileSystemBase& assets)
 }
 
 namespace {
-void checkOutput(MMRESULT result, const char* action)
-{
-    if (result != MMSYSERR_NOERROR)
-        throw std::runtime_error(std::string(action) + " failed with MMRESULT " + std::to_string(result));
-}
 
 float supportedPitch(float pitch)
 {
@@ -114,7 +105,7 @@ struct RetailAudio::Voice {
         format.wBitsPerSample = 16;
         format.nBlockAlign = format.nChannels * sizeof(int16_t);
         format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
-        checkOutput(waveOutOpen(&device, WAVE_MAPPER, &format, 0, 0, CALLBACK_NULL), "Open game audio output");
+        checkWaveOutput(waveOutOpen(&device, WAVE_MAPPER, &format, 0, 0, CALLBACK_NULL), "Open game audio output");
     }
 
     ~Voice()
@@ -132,7 +123,7 @@ struct RetailAudio::Voice {
         if (!device) return false;
         while (!pending.empty() && (pending.front().header.dwFlags & WHDR_DONE)) {
             auto& header = pending.front().header;
-            checkOutput(waveOutUnprepareHeader(device, &header, sizeof header), "Release game audio buffer");
+            checkWaveOutput(waveOutUnprepareHeader(device, &header, sizeof header), "Release game audio buffer");
             pending.pop_front();
         }
         const auto channels = decoder->channels();
@@ -150,8 +141,8 @@ struct RetailAudio::Voice {
             auto& header = buffer.header;
             header.lpData = reinterpret_cast<LPSTR>(buffer.samples.data());
             header.dwBufferLength = static_cast<DWORD>(buffer.samples.size() * sizeof(int16_t));
-            checkOutput(waveOutPrepareHeader(device, &header, sizeof header), "Prepare game audio buffer");
-            checkOutput(waveOutWrite(device, &header, sizeof header), "Queue game audio buffer");
+            checkWaveOutput(waveOutPrepareHeader(device, &header, sizeof header), "Prepare game audio buffer");
+            checkWaveOutput(waveOutWrite(device, &header, sizeof header), "Queue game audio buffer");
         }
         return !ended || !pending.empty();
     }

@@ -22,9 +22,9 @@ from launcher.game_apk import package_apk, package_game_data, windows_game_data
 
 SETTINGS = ROOT / ".launcher-settings.json"
 GAME_ROOT = ROOT / "games" / "gangstar-wch"
-WINDOWS_BUILD = ROOT / "port" / "build" / "win32"
+WINDOWS_BUILD = ROOT / "port" / "build" / "x64"
 WINDOWS_EXE = WINDOWS_BUILD / "Release" / "gangstar-wch.exe"
-WINDOWS_PLATFORM = "Windows x86 (Vulkan)"
+WINDOWS_PLATFORM = "Windows x86-64 (Vulkan)"
 if not (GAME_ROOT / "tools" / "project.py").is_file():
     raise SystemExit("Initialize the game with git submodule update --init --recursive.")
 sys.path.insert(0, str(GAME_ROOT))
@@ -261,7 +261,7 @@ class Launcher:
             self.hero.create_rectangle(0, 0, title_width, 155, fill=PANEL, outline="")
         else:
             title_width = max(245, width)
-        platform = "Windows x86 · Vulkan" if self.platform.get() == WINDOWS_PLATFORM else "Android · ARM"
+        platform = "Windows x86-64 · Vulkan" if self.platform.get() == WINDOWS_PLATFORM else "Android · ARM"
         self.hero.create_text(20, 24, text=platform, fill=AMBER,
                               anchor="nw", font=("Segoe UI", 10))
         self.hero.create_text(20, 52, text=self.title.get(), width=title_width - 40,
@@ -313,7 +313,7 @@ class Launcher:
         if self.running:
             return
         if self.platform.get() == WINDOWS_PLATFORM:
-            self.start_job("Windows build", "Building for Windows x86…", self.run_windows_build,
+            self.start_job("Windows build", "Building for Windows x86-64…", self.run_windows_build,
                            self.windows_assets.get().strip())
             return
         command = [sys.executable, "-u", *GAMES[self.title.get()]]
@@ -418,7 +418,7 @@ class Launcher:
                 raise ValueError("Select your retail game data ZIP or extracted folder first.")
             with windows_game_data(Path(source).expanduser().resolve()) as assets:
                 if not WINDOWS_EXE.is_file():
-                    self.events.put(("status", "Building for Windows x86…"))
+                    self.events.put(("status", "Building for Windows x86-64…"))
                     result = self.build_windows_executable()
                     if result != 0:
                         self.events.put(("output", "Windows build failed. See CMake output above.\n"))
@@ -447,7 +447,7 @@ class Launcher:
         cmake = which("cmake")
         if cmake is None:
             raise ValueError("Install CMake and add it to PATH. See port/README.md.")
-        result = self.run_command([cmake, "-S", "port", "-B", str(WINDOWS_BUILD), "-A", "Win32"], ROOT)
+        result = self.run_command([cmake, "-S", "port", "-B", str(WINDOWS_BUILD), "-A", "x64"], ROOT)
         if result == 0:
             result = self.run_command([cmake, "--build", str(WINDOWS_BUILD), "--config", "Release"], ROOT)
         if result == 0:

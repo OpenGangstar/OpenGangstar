@@ -133,7 +133,7 @@ int wmain(int argc, wchar_t** argv)
     }
 
     try {
-        static_assert(sizeof(void*) == 4, "The game target must be x86.");
+        static_assert(sizeof(void*) == 8, "The game target must be x86-64.");
         for (int i = 2; i < argc; ++i) {
             if (std::wcscmp(argv[i], L"--smoke-test") == 0) {
                 smokeTest = true;

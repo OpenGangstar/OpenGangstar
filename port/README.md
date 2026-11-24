@@ -1,4 +1,6 @@
-# West Coast Hustle on x86 Windows
+# West Coast Hustle on x86-64 Windows
+
+The [migration report](MIGRATION.md) records the x86-64 audit and validation.
 
 The Win32 target builds a native executable from port code and portable C++
 from the West Coast Hustle submodule. The executable checks the game data
@@ -12,21 +14,21 @@ for coverage across the original code and assets.
 
 Install Git, CMake 3.24 or newer, Visual Studio with the Desktop development
 with C++ workload, and the Vulkan SDK headers and `glslc`. Running the executable requires a GPU
-driver that exposes 32-bit Vulkan and Windows Media Foundation for the intro
+driver that exposes 64-bit Vulkan and Windows Media Foundation for the intro
 decoder. The build uses the Windows Vulkan loader
 at runtime, so it can use headers from an SDK that ships only x64 libraries.
 
 Initialize the game checkout once. In the launcher,
-choose **Windows x86 (Vulkan)**, select your retail game data ZIP or extracted
+choose **Windows x86-64 (Vulkan)**, select your retail game data ZIP or extracted
 folder, and click **Play on Windows**. Play builds the executable if needed.
 Use **Build for Windows** to compile separately. The commands below
 show the setup, command-line build, and run from the OpenGangstar repository root.
 
 ```powershell
 git -c core.longpaths=true submodule update --init --recursive
-cmake -S port -B port/build/win32 -A Win32
-cmake --build port/build/win32 --config Release
-& .\port\build\win32\Release\gangstar-wch.exe 'C:\path\to\gameloft\games\gangstar'
+cmake -S port -B port/build/x64 -A x64
+cmake --build port/build/x64 --config Release
+& .\port\build\x64\Release\gangstar-wch.exe 'C:\path\to\gameloft\games\gangstar'
 ```
 
 Pass the extracted data directory containing `Version_pycst.bin`, `system_pycst.bin`,

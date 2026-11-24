@@ -4,7 +4,7 @@ OpenGangstar brings Gangstar game projects together in a desktop launcher.
 The launcher uses a game library and a one-click build, following the
 [OpenRAC Launcher](https://github.com/OpenRAC/OpenRAC/tree/develop/launcher).
 
-The [Windows port build](port/README.md) targets 32-bit x86 and uses Vulkan.
+The [Windows port build](port/README.md) targets 64-bit x86-64 and uses Vulkan.
 
 ## Set up the checkout
 
@@ -26,7 +26,7 @@ Hustle** and choose a platform.
 
 ### Windows
 
-On Windows, the launcher opens with **Windows x86 (Vulkan)** selected. Click
+On Windows, the launcher opens with **Windows x86-64 (Vulkan)** selected. Click
 **Play on Windows** to build the game if needed and launch it. Click **Build for
 Windows** to compile it separately. Select **Android** from the platform menu
 to access the Android build and play controls.

@@ -1,10 +1,9 @@
+#include "windows_audio.h"
 #include "intro_movie.h"
 
-#include <windows.h>
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
-#include <mmsystem.h>
 #include <wrl/client.h>
 
 #include <cstring>
@@ -56,11 +55,6 @@ private:
     IMFMediaBuffer* buffer;
 };
 
-void checkWave(MMRESULT result, const char* action)
-{
-    if (result != MMSYSERR_NOERROR)
-        throw std::runtime_error(std::string(action) + " failed with MMRESULT " + std::to_string(result));
-}
 
 class MovieAudio {
 public:
@@ -81,7 +75,7 @@ public:
         sampleRate = wave->nSamplesPerSec;
         blockAlign = wave->nBlockAlign;
         if (!sampleRate || !blockAlign) throw std::runtime_error("The intro audio format is invalid.");
-        checkWave(waveOutOpen(&device, WAVE_MAPPER, wave, 0, 0, CALLBACK_NULL), "Open intro audio output");
+        checkWaveOutput(waveOutOpen(&device, WAVE_MAPPER, wave, 0, 0, CALLBACK_NULL), "Open intro audio output");
     }
 
     ~MovieAudio()
@@ -94,10 +88,10 @@ public:
 
     void start()
     {
-        checkWave(waveOutPause(device), "Prepare intro audio output");
+        checkWaveOutput(waveOutPause(device), "Prepare intro audio output");
         refill();
         if (!firstTimestamp) throw std::runtime_error("The intro audio has no PCM samples.");
-        checkWave(waveOutRestart(device), "Start intro audio output");
+        checkWaveOutput(waveOutRestart(device), "Start intro audio output");
     }
 
     std::optional<double> positionMs()
@@ -105,7 +99,7 @@ public:
         refill();
         MMTIME time{};
         time.wType = TIME_SAMPLES;
-        checkWave(waveOutGetPosition(device, &time, sizeof time), "Read intro audio position");
+        checkWaveOutput(waveOutGetPosition(device, &time, sizeof time), "Read intro audio position");
         if (time.wType == TIME_SAMPLES)
             playedMs = double(time.u.sample) * 1000 / sampleRate;
         else if (time.wType == TIME_BYTES)
@@ -130,7 +124,7 @@ private:
     {
         while (!pending.empty() && (pending.front().header.dwFlags & WHDR_DONE)) {
             auto& header = pending.front().header;
-            checkWave(waveOutUnprepareHeader(device, &header, sizeof header), "Release played intro audio");
+            checkWaveOutput(waveOutUnprepareHeader(device, &header, sizeof header), "Release played intro audio");
             pending.pop_front();
         }
         // Keep roughly a quarter-second of the retail AAC track queued.
@@ -153,8 +147,8 @@ private:
             chunk.bytes.assign(locked.bytes, locked.bytes + locked.length);
             chunk.header.lpData = reinterpret_cast<LPSTR>(chunk.bytes.data());
             chunk.header.dwBufferLength = locked.length;
-            checkWave(waveOutPrepareHeader(device, &chunk.header, sizeof chunk.header), "Prepare intro PCM sample");
-            checkWave(waveOutWrite(device, &chunk.header, sizeof chunk.header), "Queue intro PCM sample");
+            checkWaveOutput(waveOutPrepareHeader(device, &chunk.header, sizeof chunk.header), "Prepare intro PCM sample");
+            checkWaveOutput(waveOutWrite(device, &chunk.header, sizeof chunk.header), "Queue intro PCM sample");
         }
     }
 

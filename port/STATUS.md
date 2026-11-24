@@ -1,4 +1,4 @@
-# Windows x86 port checklist
+# Windows x86-64 port checklist
 
 Completion requires native implementations for the original systems and support for
 all identified assets. Validate with builds, source review, automated subsystem
@@ -1134,7 +1134,7 @@ python port/asset_inventory.py C:\path\to\gangstar-wch-data.zip
 Run the native subsystem tests from the repository root after building:
 
 ```powershell
-ctest --test-dir port/build/win32 -C Release --output-on-failure
+ctest --test-dir port/build/x64 -C Release --output-on-failure
 ```
 
 Audit extracted retail resources with the same native scene and texture
@@ -1144,7 +1144,7 @@ returns a failure status for missing mesh, material, or decoded material
 texture dependencies:
 
 ```powershell
-& .\port\build\win32\Release\retail_asset_audit.exe 'C:\path\to\gameloft\games\gangstar'
+& .\port\build\x64\Release\retail_asset_audit.exe 'C:\path\to\gameloft\games\gangstar'
 ```
 
 When `cityparts.array` is present, the audit also loads all listed
@@ -1155,7 +1155,7 @@ Run the muted audio output test with extracted retail data and a Windows
 audio output device:
 
 ```powershell
-& .\port\build\win32\Release\retail_audio_test.exe 'C:\path\to\gameloft\games\gangstar'
+& .\port\build\x64\Release\retail_audio_test.exe 'C:\path\to\gameloft\games\gangstar'
 ```
 
 Check an existing retail save without applying it in the game:
@@ -1164,5 +1164,5 @@ Place its matching `Achievements.gmap` next to the save to also check the
 saved achievement and stat indices against the catalog.
 
 ```powershell
-& .\port\build\win32\Release\retail_save_test.exe 'C:\path\to\Gangstar2.sav'
+& .\port\build\x64\Release\retail_save_test.exe 'C:\path\to\Gangstar2.sav'
 ```

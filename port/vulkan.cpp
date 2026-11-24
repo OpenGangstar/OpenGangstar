@@ -97,7 +97,7 @@ Vulkan::~Vulkan()
 void openDevice(Vulkan& vk, HWND window)
 {
     if (!vk.get)
-        throw std::runtime_error("The 32-bit Vulkan loader is unavailable. Install a Vulkan-capable GPU driver.");
+        throw std::runtime_error("The 64-bit Vulkan loader is unavailable. Install a Vulkan-capable GPU driver.");
     VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app.pApplicationName = "OpenGangstar";
     app.apiVersion = VK_API_VERSION_1_0;
@@ -135,7 +135,7 @@ void openDevice(Vulkan& vk, HWND window)
         }
         if (vk.gpu) break;
     }
-    if (!vk.gpu) throw std::runtime_error("No 32-bit Vulkan graphics queue can present to the window.");
+    if (!vk.gpu) throw std::runtime_error("No 64-bit Vulkan graphics queue can present to the window.");
 
     float priority = 1;
     VkDeviceQueueCreateInfo queueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -3836,7 +3836,7 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
     };
     const auto drawImage = [&] {
         drawFull(image);
-        std::cout << "Presented image with x86 Vulkan on " << adapter.deviceName << ".\n" << std::flush;
+        std::cout << "Presented image with x86-64 Vulkan on " << adapter.deviceName << ".\n" << std::flush;
     };
     // Application::LogoUpdate counts 100 frames. Use the retail game loop's frame rate.
     double logoDuration = 0;

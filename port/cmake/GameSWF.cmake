@@ -28,6 +28,14 @@ if(MSVC)
     patch_gameswf("${gameswf_SOURCE_DIR}/gameswf/gameswf_player.cpp"
         [=["__DATE__" "__TIME__]=]
         [=[" __DATE__ " " __TIME__]=])
+
+    # MSVC x64 does not support inline assembly. Keep debug assertions active.
+    patch_gameswf("${gameswf_SOURCE_DIR}/base/utility.h"
+        [=[__asm { int 3 }]=]
+        [=[__debugbreak();]=])
+    patch_gameswf("${gameswf_SOURCE_DIR}/base/utility.cpp"
+        [=[__asm { int 3 }]=]
+        [=[__debugbreak();]=])
 endif()
 
 # The game uses exported JPEG tags as placeholders for external textures.
@@ -63,10 +71,10 @@ patch_gameswf("${gameswf_SOURCE_DIR}/gameswf/gameswf_movie_def.cpp"
 
 	movie_def_impl::~movie_def_impl()]=])
 
+# USE_DL_MALLOC is unset. GameSWF maps allocation to the Windows C runtime.
 set(gameswf_sources
     base/configvars.cpp
     base/container.cpp
-    base/dlmalloc.c
     base/ear_clip_triangulate_float.cpp
     base/ear_clip_triangulate_sint16.cpp
     base/file_util.cpp
