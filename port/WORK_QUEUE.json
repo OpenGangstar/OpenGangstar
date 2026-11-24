@@ -28,9 +28,9 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-050",
+      "assignment": "OG-052",
       "status": "IN_PROGRESS",
-      "baseline": "567b3c7"
+      "baseline": "d212638"
     },
     {
       "slot": 3,
@@ -2540,7 +2540,8 @@
         "Root reran 18 shared scene math, 465 heading, 23 synthetic/15 retail jump cases, 15 raw bindings and two identity-child contexts against actual original code.",
         "Both retail fixtures, 31 Vulkan material pixel readbacks and temporary-save opening smokes pass; 98 images decode and exact 111 missing texture references remain. New pose test executables are AMD64 PE32+.",
         "Concrete actor pose-to-node binding, CPU skin, production controller/renderer integration and unsupported source classes remain separately incomplete."
-      ]
+      ],
+      "integration_commit": "d212638"
     },
     {
       "id": "OG-049",
@@ -2602,11 +2603,24 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "567b3c7",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Primary original startup seed dataflow and historical Bionic implementation, exact integer vectors/default/reset/seed boundaries and shared consumption.",
         "Native Release/Debug tests and use through real random-position source; no emulated libc dependency in shipped code."
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-050.patch",
+        "sha256": "1d8e242ef894646d49a22273171e3f8e6f83d3015c5531d1957c5dbb844cf3db",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-050-report.md",
+        "report_sha256": "3fff18e51a3d54891be7ebb4858e23ff471d760bc516d6f766bc875a141b1a24"
+      },
+      "independent_validation": [
+        "Root independently fetched all four pinned historical AOSP inputs and verified their exact hashes and retained license; inspected original recurrence/default/seed ABI.",
+        "Root separately compiled the unmodified historical C files with original-width static assertions; all four reference objects and native RNG object are AMD64 COFF, reference DLL/test executables AMD64 PE32+.",
+        "Complete root Release/Debug builds and all 26 CTests pass. Each native corpus matches 76800 outputs/full 48-bit states across 75 starts against its independently compiled original C configuration.",
+        "Root executes 24 actual original startup/timer/gettimeofday boundary cases and confirms application state store precedes same-bit srand48; ELF-aware LLVM ARMv6 inventory independently confirms 58 lrand48 calls and one srand48 call.",
+        "Root verified exact frozen native corpus hashes and actual two-controller/interleaved/fallback shared navigation composition. Startup seeding and all-consumer production integration remain explicitly pending."
       ]
     },
     {
@@ -2641,6 +2655,72 @@
         "Synthetic and supplied model data via existing public typed assets; coordinate future049 seam without editing reserved city_assets files.",
         "Release/Debug tests, full-width native ownership/bounds and no fabricated identity/normalization or full-render claim."
       ]
+    },
+    {
+      "id": "OG-052",
+      "description": "Port original cross-slot GetHeightFrom state transfer into the real native height controller.",
+      "scope": "Implement exact original conditional selected-node/triangle/vertex/cache/random-edge subset copy followed by detailed GetHeight. Preserve target lane/marker/body/other fields and reference alias timing. Reuse existing height query and actual native world; no whole-state clone, invented body refresh or second terrain context.",
+      "symbols": [
+        {
+          "signature": "PhysicAttributes::GetHeightFrom(int,const vector3df&,int)",
+          "address": "0x00320041"
+        }
+      ],
+      "resources": [
+        "port/retail_height.h",
+        "port/retail_height.cpp",
+        "port/tests/retail_height_from.cpp",
+        "port/HEIGHT_FROM.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-030",
+        "OG-046"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "d212638",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original selective copy and GetHeight execution including null source, distinct/same slots, target fields, live scene identities and aliasing reference points.",
+        "Release/Debug synthetic/retail state and body lifetime tests; original query regressions remain intact."
+      ]
+    },
+    {
+      "id": "OG-054",
+      "description": "Support evidenced original zero-influence skin rows through the authoritative asset decoder.",
+      "scope": "After the scene/skin slices merge, replace the inherited blanket rejection of zero influence counts with original source-record preservation. Do not substitute bind pose or invent weights. Validate every supplied local skin controller and original CPU zero-total semantics, including all 96 car_limo rows.",
+      "symbols": [
+        {
+          "signature": "readActorSkins zero-count validation; original CColladaSkinnedMesh::skin",
+          "address": "Native reader and original0x002b1c6d"
+        }
+      ],
+      "resources": [
+        "port/city_assets.cpp",
+        "port/tests/retail_skin_catalog.cpp",
+        "port/SKINNING.md"
+      ],
+      "priority": 5,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-049",
+        "OG-051"
+      ],
+      "blockers": [
+        "Current scene decoder reservation and CPU skin submission are not merged; original raw limo zero-row proof is available from OG051."
+      ],
+      "assigned_agent": null,
+      "baseline": null,
+      "status": "BLOCKED",
+      "reservations_active": false,
+      "validation": [
+        "All 83 supplied local skins decode through the one authoritative reader; 96 zero-count rows remain empty and retain source order.",
+        "Actual original 96 zero-count/zero-total rows yield 576 NaN component classifications; native CPU skin preserves this without bind-pose fallback.",
+        "Existing model/catalogue/scene/asset gates and Release/Debug tests; no gameplay progression."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -2653,8 +2733,8 @@
     "port/ACTOR_COLLISION.md"
   ],
   "validation": {
-    "original_arm_preservation": "2026-11-25: Root independently rechecked all2969tracked original ARM files against pre-migration SHA256; all unchanged and pre-existing local edits preserved.",
-    "original_decompilation_gates": "2026-11-25:83Python unittests,check_repository.py and progress.py --check all pass. No full ARM matching rebuild claimed.",
+    "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
+    "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
     "native_integration": "2026-11-25: Combined root Release/Debug full builds and 25 CTests pass each; actual original pose/root/selection/heading/jump regressions pass; 31 GPU checks and opening smoke each; AMD64 PE32+ verified. Retail audit98/98 images and expected111missing references."
   },
