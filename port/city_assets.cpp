@@ -884,6 +884,7 @@ void readNodes(const BresReader& bres, CityScene& scene, uint32_t count, uint32_
         }
         result.parent = parent;
         result.factorySelector = bres.word(node + 76);
+        if (const auto display = bres.word(node + 4)) result.displayName = bres.string(display);
         // SNode points to a user-property record whose first field is the text pointer.
         if (const auto properties = bres.word(node + 72)) {
             if (const auto text = bres.word(properties)) result.userProperties = bres.string(text);
@@ -1423,6 +1424,8 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
         const auto data = bres.word(controller + 8);
         bres.checkSpan(data, 1, 108);
         CitySkin skin{};
+        skin.controllerUid = bres.string(bres.word(controller + 4));
+        skin.controllerIndex = i;
         skin.meshName = readFragment(bres, bres.word(data));
         // Vehicle skins can target a morph controller rather than a base mesh.
         // Follow the controller to the mesh used for bind-pose geometry.
@@ -1456,6 +1459,7 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
                                            [&](const CityNode& entry) { return entry.jointName == name; });
             if (node == model.nodes.end()) bres.fail();
             CitySkinJoint joint{static_cast<size_t>(node - model.nodes.begin()), {}};
+            joint.scope = name;
             for (uint32_t component = 0; component < joint.inverseBind.size(); ++component)
                 joint.inverseBind[component] = bres.scalar(inverseBinds + j * 64 + component * 4);
             skin.joints.push_back(joint);
@@ -1500,6 +1504,11 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
 void validateBresContainer(FileSystemBase& assets, const std::string& path)
 {
     loadBres(assets, path);
+}
+
+std::vector<CitySkin> loadCityActorSkins(const CityScene& model)
+{
+    return readActorSkins(model);
 }
 
 CityMaterialMode selectCityMaterialMode(const CityMaterialSelection& selection)

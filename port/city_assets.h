@@ -102,6 +102,7 @@ struct CityNode {
     std::string userProperties;
     uint32_t factorySelector = 0; // Original SNode+76, separate from user-property billboard selection.
     std::vector<CityNodeInstance> instances; // Authored instance order, including skipped nonmesh records.
+    std::string displayName; // Original SNode+4; name above retains original UID at +0.
 
     std::optional<std::string_view> property(std::string_view key) const;
 };
@@ -109,6 +110,7 @@ struct CityNode {
 struct CitySkinJoint {
     size_t node;
     std::array<float, 16> inverseBind;
+    std::string scope; // Original joint string; runtime skin attachment resolves scope, not UID.
 };
 
 struct CitySkinInfluence {
@@ -121,6 +123,8 @@ struct CitySkin {
     std::array<float, 16> bindShape;
     std::vector<CitySkinJoint> joints;
     std::vector<std::vector<CitySkinInfluence>> vertices;
+    std::string controllerUid; // SController+4, distinct from the underlying geometry UID.
+    uint32_t controllerIndex = 0; // Fixed-width source table index, not live instance identity.
 };
 
 enum class CityParticleParameter : uint32_t {
@@ -988,6 +992,7 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city,
                             RetailLanguage language = RetailLanguage::english);
 void validateBresContainer(FileSystemBase& assets, const std::string& path);
 CityScene loadCityScene(FileSystemBase& assets, const std::string& path);
+std::vector<CitySkin> loadCityActorSkins(const CityScene& model);
 std::map<uint8_t, CityActor> loadCitySpawnActors(FileSystemBase& assets, const CityAssets& city);
 CityAnimationClip readCityParticleClip(const CityScene& scene);
 // Exact source-order/index catalogue. Names retain source case and duplicates;

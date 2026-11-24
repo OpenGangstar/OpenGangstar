@@ -20,17 +20,17 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-056",
+      "assignment": "OG-059",
       "status": "IN_PROGRESS",
-      "baseline": "3976e52"
+      "baseline": "3fbcff5"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-049",
-      "status": "NEEDS_REVISION",
-      "baseline": "a01e74f"
+      "assignment": "OG-060",
+      "status": "IN_PROGRESS",
+      "baseline": "3fbcff5"
     },
     {
       "slot": 3,
@@ -2557,9 +2557,7 @@
         "port/retail_actor_scene.h",
         "port/retail_actor_scene.cpp",
         "port/tests/retail_actor_scene.cpp",
-        "port/ACTOR_SCENE.md",
-        "port/city_assets.h",
-        "port/city_assets.cpp"
+        "port/ACTOR_SCENE.md"
       ],
       "priority": 1,
       "complexity": "high",
@@ -2571,18 +2569,18 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "a01e74f",
-      "status": "NEEDS_REVISION",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Two actual Player models, source/generated/controller identities, shared immutable source with independent live instances and exact first UID/scope lookup.",
         "Actual original mutable dirty/cache/frame-order and skin pointer/matrix comparisons; nonidentity/signed-zero and missing joint safety boundaries.",
         "Stable native full-width ownership and teardown; no source pointer impersonation, second BRES parser, renderer math assumptions or whole-game completion claim."
       ],
       "submission": {
-        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-049.patch",
-        "sha256": "81eeec821187b76efb313f257dde7e66c7fbacc0f45766d0914afa4a414fd4a6",
-        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-049-report.md",
-        "report_sha256": "4dabff10fe456bf50f1964d22b954da506448627e2fa9d2bd549f2959cdfac3c"
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-049-revised.patch",
+        "sha256": "959d39e09f2c5474c101daebae07675ff299804e75ca86eeb5ba1220e3463cd2",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-049-revised-report.md",
+        "report_sha256": "4774a181539511a2483b0465b4febcfdbb292946ed0e238b97811562a2acb2b7"
       },
       "initial_submission": {
         "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-1\\port\\build\\OG-049.patch",
@@ -2592,6 +2590,19 @@
       },
       "review_findings": [
         "OG057 P2: ordinaryMesh and skinMesh deduplicate mutable resources by UID within one root. Original repeated geometry construction allocates distinct resources; native repeated-instance fixtures leak buffer visibility and skin dirty state. Remove the unsupported resource cache and validate per-construction ownership."
+      ],
+      "frozen_dependency_resources": [
+        "port/city_assets.h",
+        "port/city_assets.cpp"
+      ],
+      "integration_note": "The unchanged frozen 16-line source identity seam remains in the full revised patch. New writes to these two files belong exclusively to OG060; OG060 excludes the frozen seam from its submission.",
+      "independent_validation": [
+        "Root reproduced the initial UID-sharing regression with the revised persistent test against the old actor implementation; corrected Release/Debug full builds and all 29 CTests pass.",
+        "Root reviewed graph/cache/lifetime code, exact source identities and fresh per-construction resources; repeated ordinary/skin/base instances isolate mutable buffers and caches while sharing immutable decoded data.",
+        "Root independently executed corrected original probes: 800 node snapshots, 44 primary final joint/cache matrices, two-root isolation, 21 bind identity boundaries, four animation masks, live animator retention/list behavior and both visibility overrides.",
+        "Root actual original factory probe returns distinct geometry resources, skins and skin bases for the same input/root. Research-only CPU buffer preparation is explicitly intercepted; no full buffer/render parity claim.",
+        "Both retail fixtures, 31 Vulkan checks and temporary-save opening smokes pass; image98/98 and exact111missing-path diagnostics remain. New test executables are AMD64 PE32+.",
+        "Dynamic skin bounds, actual pose/material/shadow/body host and production renderer integration remain incomplete; morph/external/alternate factories remain explicit checked limits."
       ]
     },
     {
@@ -2730,7 +2741,8 @@
         "Actual original execution matches all 13062 records per configuration: 64 synthetic and 12998 eligible retail queries, with all14576 source triangle records enumerated. Exact result bits, both slots, node identities, sparse visitation changes and generation agree.",
         "All90 original GetHeightFrom instructions execute; frozen native corpus hashes match and test executables are AMD64 PE32+.",
         "Real native cliff bodies remain owned after transfer and are destroyed only by delegated height ground-transition behavior; live alias mutation preserves original100 versus external-point77 result."
-      ]
+      ],
+      "integration_commit": "3fbcff5"
     },
     {
       "id": "OG-054",
@@ -2826,11 +2838,15 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "3976e52",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Precise original symbols/addresses and reproducible original-reference evidence; distinguish implemented native behavior from pending integration."
-      ]
+      ],
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-056-report.md",
+        "sha256": "fa48bfc12c3506d29df67d12ce990d4c190f05a5fce5c543550de2e2d6e78160"
+      }
     },
     {
       "id": "OG-057",
@@ -2881,13 +2897,80 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "a01e74f",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Actual original normalized/relative blend math for zero, signed, nonunit, cancellation and multiple-target weights, exact range/normal-stream rules.",
         "Automated supplied morph-controller enumeration and actual original comparisons using current source data; no fake base-pose substitution before skin.",
         "Release/Debug tests and source-backed checked input adaptations."
-      ]
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-058.patch",
+        "sha256": "e0443ad9b073d2fc4045912d791a4fa20142d45fb2f9737758fa71e8fd26c0aa",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-058-report.md",
+        "report_sha256": "3797a194a9d3e35e66070e4d44685ab4ae21cb9fd6d3c29b838bce7031e9443c"
+      }
+    },
+    {
+      "id": "OG-059",
+      "description": "Establish original primary material color and lighting contribution for Vulkan parity.",
+      "scope": "Read-only original-code investigation of material source colors, per-vertex primary color, lighting/color-material state and actual actor setColor/material-flag overrides. Start from REMAINING_MATERIALS.md; resolve the unproved raw source+32 contribution and alpha behavior with actual original GL state capture where practical. No shader/product edits or guessed alpha multiplication.",
+      "symbols": [],
+      "resources": [
+        "port/build/OG-059-report.md",
+        "port/build/OG-059-*"
+      ],
+      "priority": 4,
+      "complexity": "high",
+      "dependencies": [
+        "OG-027"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "3fbcff5",
+      "status": "AWAITING_REVIEW",
+      "reservations_active": true,
+      "validation": [
+        "Source-backed original functions and exact native/input identities; no guessed behavior.",
+        "Applicable original execution probes and focused Release/Debug tests; no manual gameplay."
+      ],
+      "submission": {
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-059-report.md",
+        "sha256": "b97f4d710f896cb22bda3e48ab5fb11bbbc53927893c8f1509f87af8846e9522"
+      }
+    },
+    {
+      "id": "OG-060",
+      "description": "Expose the authoritative unclipped global actor animation source library.",
+      "scope": "Reuse the existing BRES/channel decoder for all original source-order global tracks, raw target/interpolation metadata, full unsigned time-domain inputs and common-cache selector required by OG056. Preserve existing clipped catalogue/particle/legacy casefold behavior. No second decoder or replacement clock. Treat the unchanged OG049 identity seam as a frozen reviewed dependency and exclude it from this patch.",
+      "symbols": [],
+      "resources": [
+        "port/city_assets.h",
+        "port/city_assets.cpp",
+        "port/tests/animation_library.cpp",
+        "port/ANIMATION_LIBRARY.md"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-039",
+        "OG-047"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "3fbcff5",
+      "status": "AWAITING_REVIEW",
+      "reservations_active": true,
+      "validation": [
+        "Source-backed original functions and exact native/input identities; no guessed behavior.",
+        "Applicable original execution probes and focused Release/Debug tests; no manual gameplay."
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-060.patch",
+        "sha256": "331e11fc8fcbf12a3eb50ddf4a3a3f1660f2ae149526a8dad4fceb673fbfdde7",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2/port/build/OG-060-report.md",
+        "report_sha256": "963aedb63afac166cfc612535fcbfa2ccb73eb0965d0f445c3af6ed20f1ed330"
+      }
     }
   ],
   "orchestrator_resources": [
