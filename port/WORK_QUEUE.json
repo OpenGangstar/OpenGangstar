@@ -21,8 +21,8 @@
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
       "assignment": "OG-018",
-      "status": "RESERVED",
-      "baseline": "pending verified OG009 commit"
+      "status": "IN_PROGRESS",
+      "baseline": "0479baa"
     },
     {
       "slot": 2,
@@ -634,7 +634,8 @@
         "Audit359scenes/1366materials/98images;111 missing paths unchanged, intentional exit1 preserved.",
         "Actual production-pipeline GPU RGBA readback:11 cases pass; opening and six checkpoint smokes return0, temporary saves unchanged.",
         "Game AMD64 PE32+;2969 original tracked ARM file hashes unchanged."
-      ]
+      ],
+      "integration_commit": "0479baa"
     },
     {
       "id": "OG-011",
@@ -1011,7 +1012,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "5f77886",
-      "status": "RESERVED",
+      "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
         "Exact3D normalization, category margins, query100 cap/order, metadata/group/sensor filters, strict hit selection and both segment casts.",
@@ -1057,8 +1058,8 @@
       ],
       "blockers": [],
       "assigned_agent": "/root/worker_1",
-      "baseline": "pending verified OG009 commit",
-      "status": "RESERVED",
+      "baseline": "0479baa",
+      "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
         "Exact original time units/frame cursor math, sampler and cache data contracts before implementing.",
