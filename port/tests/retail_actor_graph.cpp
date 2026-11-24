@@ -367,10 +367,10 @@ uint32_t bits(float value) {
     return result;
 }
 void snapshot(const char *model, unsigned phase, const std::vector<RetailActorSceneNode *> &nodes,
-              RetailActorGraph &a, RetailActorGraph &b, bool emit) {
+              RetailActorGraph &a, RetailActorGraph &b, bool emit, const char *prefix = "graph") {
     if (!emit)
         return;
-    std::cout << "graph {\"model\":" << std::quoted(model) << ",\"phase\":" << phase << ",\"dirty\":["
+    std::cout << prefix << " {\"model\":" << std::quoted(model) << ",\"phase\":" << phase << ",\"dirty\":["
               << a.hierarchyChanged() << ',' << b.hierarchyChanged() << "],\"childrenA\":[";
     for (size_t i = 0; i < a.root().children().size(); ++i) {
         if (i)
@@ -439,12 +439,61 @@ void snapshot(const char *model, unsigned phase, const std::vector<RetailActorSc
     }
     std::cout << "]}\n";
 }
+void preAttachment(std::shared_ptr<const RetailActorSceneSource> source, const char *name, bool emit) {
+    RetailActorGraph a, b;
+    auto actor = std::make_shared<RetailActorScene>(source);
+    auto *shadow = actor->root().findUid("shadow-node");
+    require(shadow && !shadow->children().empty(), "Actual shadow before actor attachment");
+    auto *mesh = shadow->children().front()->mesh();
+    std::vector<RetailActorSceneNode *> nodes;
+    for (const auto &node : actor->nodes()) nodes.push_back(node.get());
+    actor->root().setPosition({11, 22, 33});
+    actor->root().updateAbsolutePosition(true);
+    a.collectAllNodes(); b.collectAllNodes();
+    const auto local = shadow->position();
+    const auto absolute = shadow->absolute();
+    rejects([&] { a.registerShadow(*actor, *shadow); }); // Existing active-actor API stays explicit.
+    rejects([&] { a.registerShadow(std::shared_ptr<RetailActorScene>{}, *shadow); });
+    snapshot(name, 0, nodes, a, b, emit, "preattach");
+    a.registerShadow(actor, *shadow);
+    require(actor->root().parent() == nullptr && actor->root().sceneManager() == nullptr &&
+                a.root().children() == std::vector<RetailActorSceneNode *>{shadow} &&
+                shadow->position() == local && shadow->absolute() == absolute,
+            "Registration moves shadow only, with no early actor attach or cached transform refresh");
+    snapshot(name, 1, nodes, a, b, emit, "preattach");
+    a.attachActor(actor);
+    require(a.root().children() == std::vector<RetailActorSceneNode *>{shadow, &actor->root()},
+            "Original later actor attachment preserves shadow-before-actor child order");
+    snapshot(name, 2, nodes, a, b, emit, "preattach");
+    a.lateFrame(100);
+    snapshot(name, 3, nodes, a, b, emit, "preattach");
+    a.removeChild(&actor->root());
+    snapshot(name, 4, nodes, a, b, emit, "preattach");
+    std::weak_ptr<RetailActorScene> weak = actor;
+    std::weak_ptr<RetailActorMaterial> material = shadow->children().front()->materialOwner(0);
+    actor.reset();
+    require(weak.expired() && !material.expired() && shadow->children().front()->mesh() == mesh,
+            "Pre-attached shadow holds actual resources/materials without retaining dead actor");
+    a.removeChild(shadow);
+    require(material.expired(), "Final shadow drop releases its independent material");
+    auto abandoned = std::make_shared<RetailActorScene>(source);
+    auto *abandonedShadow = abandoned->root().findUid("shadow-node");
+    auto foreign = std::make_shared<RetailActorScene>(source);
+    rejects([&] { a.registerShadow(abandoned, *foreign->root().findUid("shadow-node")); });
+    std::weak_ptr<RetailActorScene> abandonedWeak = abandoned;
+    a.registerShadow(abandoned, *abandonedShadow);
+    abandoned.reset();
+    require(abandonedWeak.expired() && a.root().children().front() == abandonedShadow,
+            "Caller cleanup before any actor attachment leaves no hidden actor owner");
+    a.removeChild(abandonedShadow);
+}
 void retail(const std::filesystem::path &directory, bool emit) {
     ResourceFileSystem assets(directory);
     auto library =
         std::make_shared<CityAnimationLibrary>(loadCityAnimationLibrary(assets, "anim_ingame.bdae"));
     for (const char *name : {"char_pthug.bdae", "char_pthug_jail.bdae"}) {
         auto source = loadRetailActorSceneSource(assets, name);
+        preAttachment(source, name, emit);
         auto actor = std::make_shared<RetailActorScene>(source);
         RetailActorGraph a, b;
         std::vector<RetailActorSceneNode *> nodes;
@@ -547,6 +596,7 @@ int main(int argc, char **argv) {
         managerControls();
         clearAndFrame();
         unsupported();
+        preAttachment(sourceFixture(), "synthetic", false);
         if (argc > 1)
             retail(argv[1], argc > 2 && std::string(argv[2]) == "--dump");
         std::cout << "Actual actor graph ownership checks passed.\n";

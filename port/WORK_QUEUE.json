@@ -3495,7 +3495,7 @@
       "complexity": "high",
       "blockers": [],
       "baseline": "2141998",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Actual original execution matches ordered state transitions and native bits in R/D.",
@@ -3817,7 +3817,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "445e143",
-      "status": "RESERVED",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Actual original target/no-target/getter-mutation order and exact facing bool/float threshold controls; sourcebounds and real actual node cached getters whereavailable.",
@@ -3856,6 +3856,39 @@
         "Oneactualshared immutable library+one mutabletimeline/object, native callback/userdata fullpointerwidth, no ARMoverlay or Characterclockconflation.",
         "Full R/D build/tests PE32+AMD64, no original edits/manualgameplay."
       ]
+    },
+    {
+      "id": "OG-085",
+      "description": "Support genuine shadow registration before actor root attachment.",
+      "scope": "080actual Player::switchContext registers shadowduringCharacterbind BEFORE actorroot globalattach. Add explicit caller-retained sharedActor overload reusing actual068extraction/append; preserve activeactoroverload/domain, no earlyactorattach or wholeactorretentionviaShadow.",
+      "symbols": [
+        "RetailActorGraph::registerShadow",
+        "Character::bindAnimation0x2f2516",
+        "PlayerTest::switchContext0x301cea..0x301dba"
+      ],
+      "resources": [
+        "port/retail_actor_graph.h",
+        "port/retail_actor_graph.cpp",
+        "port/tests/retail_actor_graph.cpp",
+        "port/ACTOR_GRAPH.md"
+      ],
+      "priority": 1,
+      "complexity": "small",
+      "dependencies": [
+        "OG-068",
+        "OG-079",
+        "OG-080"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "55babe0",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Actual Player/jail preattach shadow thenactor childorder/transforms/manager/dirty match original actualhierarchy; no implicitactorattachment.",
+        "Native null/foreign/lifetime/failurecleanup andold44064wordgraphregressions; fullR/Dtests."
+      ],
+      "independent_verification": "Root full R/D42CTests/config. Both actual completed nonzero Player factory+onPostLoad5preattachment phases/model:12240exactnodewords/config pluschild/manager/collectionorder. Old36snapshots44064wordoriginalgraphregression unchanged/config. Native genuinecaller/unattachedcleanup/null/foreign/movedmateriallifetime tests pass; PE32+AMD64. Shadowregister thenactorattach required; no earlyactoredge/workaround."
     }
   ],
   "orchestrator_resources": [
@@ -3871,7 +3904,7 @@
     "original_arm_preservation": "2026-11-25: Root latest after078:2969original tracked sizes/SHA256 unchanged vs pre-migration baseline; originalsubmodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and userlocaledits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root fullR/D42CTests/config after079actor material ownership.46source material snapshots+359catalogues exact;48GPUpixels andstartup each pass, exact111missingpaths unchanged.080originalfullfactory/bind/timeline replay verified;074/082/084 active."
+    "native_integration": "2026-11-25: Root R/D42CTests/config after085explicitcaller-retainedshadowregistrationbeforeactorattach.12240new+44064legacyoriginalgraphwords/config exact.079materials/48GPUchecks verified.074deformation frozenreview;082timelineactive;084targetresearchfrozen."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

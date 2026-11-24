@@ -58,6 +58,9 @@ class RetailActorGraph {
     RetailActorSceneNode &root() const { return *rootNode; }
     void attachActor(std::shared_ptr<RetailActorScene>);
     RetailActorSubtree &registerShadow(RetailActorScene &, RetailActorSceneNode &actualShadow);
+    // Character binds/registers shadow before Player attaches its actor root.
+    // Caller supplies the genuine retained actor; this never appends that root.
+    RetailActorSubtree &registerShadow(std::shared_ptr<RetailActorScene>, RetailActorSceneNode &actualShadow);
     RetailActorGraphReference retain(RetailActorSceneNode &) const;
     void addChild(RetailActorSceneNode *);
     void addChild(const RetailActorGraphReference &);

@@ -15,7 +15,7 @@ original grab-style inspection/reparenting. A shadow reference owns only the
 moved subtree plus immutable decoded source, never its former ActorScene.
 
 `registerShadow` physically transfers unique node and fresh ordinary mesh
-ownership out of the active actor's vectors. Addresses, matrix references,
+ownership out of the caller-retained or active actor's vectors. Addresses, matrix references,
 source indexes and allocation IDs stay unchanged. Owner vectors remain dense
 iteration lists; an allocation ID must not be treated as a current vector
 position after transfer. Unsupported skinned, externally borrowed,
@@ -23,6 +23,15 @@ animator-bound or skin-joint-dependent subtrees reject before transfer. Actual
 authored Player shadows are the supported ordinary route. Only the first
 generated child gets rendering layer1; the container and later children retain
 their original layers.
+
+The shared-actor overload accepts the genuine caller-held construction owner
+before its root enters the global hierarchy. It registers only the moved shadow;
+it never appends the actor root or retains the actor through the shadow. This
+matches PlayerTest::switchContext: Character binding at0x301cea registers shadow
+through0x2f2516; actor-root attachment follows at0x301db4..0x301dba. Consequently
+the global child order is shadow, then actor. The reference-only overload keeps
+its existing already-active-actor precondition. Both use the same extraction and
+append implementation; no early actor attachment substitutes for the new path.
 
 Original addChild0x273479 retains before removing the old link, appends the same
 node and calls setParent0x273415, then notifies the manager and propagates new
@@ -102,3 +111,11 @@ actor and shadow identities without keeping a dead actor alive via its shadow.
 Original source identity, focused original/native graph comparisons, real
 Player resource gates and remaining limits are recorded in the ignored task
 report. No manual gameplay is needed for those checks.
+
+OG085 additionally compares both completed original nonzero Player factories,
+including real onPostLoad, through five pre-attachment/registration/late-frame/
+removal phases each:10 snapshots and12,240 exact node-state words plus manager,
+child and cached collection order per configuration. Native tests cover caller
+cleanup before any actor attachment and prove that the registered shadow and
+material survive without retaining the dead actor. Existing original18-phase
+graph profiles remain unchanged.

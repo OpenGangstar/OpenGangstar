@@ -1481,3 +1481,6 @@ Root Release/Debug4original positioning and6actual reset/gate cases match54coord
 
 
 2026-11-25 OG079: real root-local indexed shared material owners, exact recursive scalar/flag operations and separate embedded source-buffer materials. Moved shadow retains material without actor. Root R/D42CTests each;46actualoriginal material snapshots/460indexedstate-ref words+14sourcewords/config exact;all359catalogues1366indices/UIDs10928preparedwords exact.48actual GPU material pixels andopening smoke/config pass temporarysaves;98imagesdecode/0fail/exact111missingpaths unchanged. Dynamicimage/external/materialrendererhost remain separate.080fulloriginal animatorfactory/Characterbind/timeline state research independently replayed, includingrealpostloadfinalizer; no native dirty discrepancy.
+
+
+2026-11-25 OG085: actual caller-retained shadow registration before actorroot attachment, matching original Player construction/bind order without a fabricated early actor edge. Root R/D42CTests each;12240completed-original-factory nodewords/config plushierarchy/collection order exact, old44064wordgraphcontrols unchanged. Cleanup before any actorattach and independent shadow/material lifetimes pass. Concrete animationhost still depends082timeline.

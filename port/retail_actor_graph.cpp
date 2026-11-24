@@ -158,12 +158,19 @@ RetailActorSubtree &RetailActorGraph::registerShadow(RetailActorScene &actor, Re
     const auto active = retain(actor.root());
     if (active.actor.get() != &actor)
         throw std::logic_error("Shadow requires its genuine active actor owner.");
-    if (auto *previous = actor.root().sceneManager(); previous && previous != this)
+    return registerShadow(active.actor, shadow);
+}
+RetailActorSubtree &RetailActorGraph::registerShadow(std::shared_ptr<RetailActorScene> actor,
+                                                     RetailActorSceneNode &shadow) {
+    checkMutation();
+    if (!actor)
+        throw std::invalid_argument("Shadow registration requires its genuine retained actor owner.");
+    if (auto *previous = actor->root().sceneManager(); previous && previous != this)
         previous->checkMutation();
     if (shadow.childNodes.empty() || !shadow.childNodes.front()->runtimeMesh ||
         shadow.childNodes.front()->runtimeMesh->skin())
         throw std::logic_error("Authored ordinary shadow needs its genuine first mesh child.");
-    auto owned = actor.extractOrdinarySubtree(shadow);
+    auto owned = actor->extractOrdinarySubtree(shadow);
     owned->root().childNodes.front()->setRenderingLayer(1);
     RetailActorGraphReference reference;
     reference.subtree = std::move(owned);
