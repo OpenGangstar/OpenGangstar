@@ -28,9 +28,9 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-046",
+      "assignment": "OG-050",
       "status": "IN_PROGRESS",
-      "baseline": "826b613"
+      "baseline": "567b3c7"
     },
     {
       "slot": 3,
@@ -2360,7 +2360,8 @@
         "All 98 supplied images decode; exact unresolved-reference diagnostics and 111 missing texture paths are unchanged; new subsystem tests are AMD64 PE32+.",
         "Root reran actual original code for all 5000 native transition/state/callback-mutation cases and 92 Path::Load/getSize/getWaypoint fixtures, 1371 exact points, in both configurations.",
         "Retail enumeration independently reads all 84 supplied type14 records/1364 waypoints; research-only parser is not shipped. Typed world catalogue and live NPC host remain production prerequisites."
-      ]
+      ],
+      "integration_commit": "567b3c7"
     },
     {
       "id": "OG-045",
@@ -2394,7 +2395,8 @@
       },
       "independent_validation": [
         "Root read complete report and checked DefaultFactory pointer directly from original instruction literals and GOT symbol identity.",
-        "Original live probe is reference-only; constructor/target/frame/skin-pointer findings guide new implementation reservations without claiming full native pose or CPU skin."
+        "Original live probe is reference-only; constructor/target/frame/skin-pointer findings guide new implementation reservations without claiming full native pose or CPU skin.",
+        "Root independently reran the actual original live node/target/frame/skin-pointer/matrix probe; all assertions pass within the documented import/callback boundary."
       ],
       "source_refinements": [
         "FindAMesh has no visibility/option test; it updates cached state, filters runtime type and Plane/Jump UID substrings, then recurses in order.",
@@ -2427,11 +2429,23 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "826b613",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original execution with deterministic RNG and controlled navigation, including every meaningful branch and parameter.",
         "Release/Debug subsystem tests, retail navigation enumeration where relevant; explicit unsupported domains rather than fabricated random navigation."
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-046.patch",
+        "sha256": "bbec18086a38d9a23a86cc94685050571011ac04b6db38ee0f5262f4e2eb2860",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-046-report.md",
+        "report_sha256": "54065949976747463a4c05203d4d42c46acdc32d2825e950f23c77d4f6b662ec"
+      },
+      "independent_validation": [
+        "Root verified frozen patch SHA256, original cost initialization, persistent slot state, candidate/fallback ordering, native bounds and full-width borrowed ownership.",
+        "Root formatted the new test for readability without changing its operations; complete Release/Debug builds and all 24 CTests pass.",
+        "Root actual original execution agrees for all 6045 cases per configuration (5888 retail and 157 synthetic): exact point bits, cursor fields and RNG consumption; 781 nonpadding source instructions exercised.",
+        "Both native corpus hashes match the frozen submission; new test executables are AMD64 PE32+. Shared original application RNG and actual NPC/vehicle production host remain incomplete."
       ]
     },
     {
@@ -2471,7 +2485,8 @@
         "All 98 supplied images decode; exact unresolved-reference diagnostics and 111 missing texture paths are unchanged; new subsystem tests are AMD64 PE32+.",
         "Root executes actual original PCX loadImage and 8-to-16/24-to-24 color converters; 278 accepted pixels agree in both configurations, including all256 palette outputs and unusual plane/padding behavior.",
         "Native bounded-input, zero-run, TGA ten-byte-comment regression and automatic PCX/JPEG enumeration tests pass; signature-only routing and original malformed-input safety differences are documented."
-      ]
+      ],
+      "integration_commit": "567b3c7"
     },
     {
       "id": "OG-047",
@@ -2502,18 +2517,24 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "72345dd",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Actual original quaternion and track comparisons including exact keys, interpolation, before/after bounds, negative dot, near-unit, nonunit and signed-zero cases.",
         "Reuse existing translation/root clock and preserve all prior clock/selection/sampler regressions; Release/Debug gates and retail track comparisons.",
         "No placeholder runtime actor graph, second decoder or duplicate clock. Request reservations before other shared-file edits."
-      ]
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-047.patch",
+        "sha256": "8b5814808821af6a527a2a2105505b2e7d78f8274274ee2280938fdf03919c29",
+        "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-047-report.md",
+        "report_sha256": "a2abf418b8b0a5ef7b2583c06dd6b72182e1c21c34dca3c7939287a4de2e7be9"
+      }
     },
     {
       "id": "OG-049",
       "description": "Implement genuine retained mutable default-factory Player scene and skin identities.",
-      "scope": "Own stable live root/source/generated ordinary and skinned nodes, exact UID/scope traversal, mutable local TRS and original cached/dirty transform updates, ordered frame/visibility semantics and real skin joint pointer/matrix ownership. Reuse shared scene arithmetic and authoritative decoder. Minimal city_assets seam retains controller UID and exports existing decoded skin data. Do not supply a decorative or partial fake full animation/renderer host.",
+      "scope": "Own stable live root/source/generated ordinary and skinned nodes, exact UID/scope traversal, mutable local TRS and original cached/dirty transform updates, ordered frame/visibility semantics and real skin joint pointer/matrix ownership. Reuse shared scene arithmetic and authoritative decoder. Minimal city_assets seam retains controller UID and exports existing decoded skin data. Do not supply a decorative or partial fake full animation/renderer host. Approved trailing CityNode displayName metadata from SNode+4 using existing authoritative reader; retain UID/scope distinctions and aggregate defaults.",
       "symbols": [
         {
           "signature": "Original actor scene constructors/updateAbsolutePosition/OnAnimate/onBind/skin attach and matrix cache",
@@ -2544,6 +2565,37 @@
         "Two actual Player models, source/generated/controller identities, shared immutable source with independent live instances and exact first UID/scope lookup.",
         "Actual original mutable dirty/cache/frame-order and skin pointer/matrix comparisons; nonidentity/signed-zero and missing joint safety boundaries.",
         "Stable native full-width ownership and teardown; no source pointer impersonation, second BRES parser, renderer math assumptions or whole-game completion claim."
+      ]
+    },
+    {
+      "id": "OG-050",
+      "description": "Implement the original shared application lrand48 stream and startup seed contract natively.",
+      "scope": "Trace the original Application::Init srand48 argument and callers. Use primary historical Bionic source to implement the actual 48-bit recurrence, state, default and seed semantics in a concrete shared RetailRandomPositionSource, without Android runtime or per-NPC private streams. Preserve licenses and fixed-width state semantics; request reservations before host/startup edits.",
+      "symbols": [
+        {
+          "signature": "Application::Init srand48 call; imported lrand48/srand48",
+          "address": "0x002d56ea; PLT0x001c4664/0x001c4580"
+        }
+      ],
+      "resources": [
+        "port/retail_random48.h",
+        "port/retail_random48.cpp",
+        "port/tests/retail_random48.cpp",
+        "port/RANDOM48.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-046"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "567b3c7",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Primary original startup seed dataflow and historical Bionic implementation, exact integer vectors/default/reset/seed boundaries and shared consumption.",
+        "Native Release/Debug tests and use through real random-position source; no emulated libc dependency in shipped code."
       ]
     }
   ],

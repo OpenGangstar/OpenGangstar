@@ -38,6 +38,14 @@ struct RetailHeightState {
     bool onGround = true;
     bool wasOnGround = true;
     const RetailHeightSceneNode* selectedNode = nullptr;
+    // Original PhysicInfo Reset's random-edge cursor; independent of the live
+    // selected height triangle and lane-7 query visitation words.
+    struct RandomEdge {
+        std::uint16_t edge = UINT16_MAX;
+        CityNavigation::TriangleRef triangle{UINT16_MAX, UINT16_MAX};
+        std::uint16_t laneOrdinal = 1;
+        bool intersectionSeen = false;
+    } randomEdge;
 };
 
 // Immutable decoded mesh/navigation inputs outlive this shared terrain context.
@@ -61,6 +69,7 @@ class RetailHeightTerrain {
 
   private:
     friend class RetailHeightController;
+    friend class RetailRandomPosition;
     const CityMesh& mesh;
     const CityNavigation& navigation;
     RetailHeightSceneNode defaultNode;
@@ -125,6 +134,7 @@ class RetailHeightController {
     int groupIndex() const { return poolIndex + 1; }
 
   private:
+    friend class RetailRandomPosition;
     struct Owned {
         std::vector<std::unique_ptr<RetailPhysicsBodyData>> metadata;
         std::vector<b2Body*> bodies;
