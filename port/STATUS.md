@@ -1443,3 +1443,10 @@ Root both builds:18core cases/108bits and20 actual factory/scene/cache snapshots
 Authoritative reader now preserves authored empty influence rows, consuming no joint/weight pairs. Nonempty totals/references and trailing-pair checks remain. Root old decoder fails new serialized regression; corrected full Release/Debug builds and36CTests pass. Independent raw359BRES comparison matches all83skins/27,434vertices, controller indices, every empty/nonempty row, joint index and weight bit. The96 limo rows remain empty and produce original576 NaN component classifications through the existing CPU core; actual original two-range execution also matches6,192 finite/infinity components. No bind-pose weights or NaN-payload identity claim.
 
 All83 authored joint-box tables now match5,676 native component bits, including both previously withheld limo skins. Acceptance does not claim full vehicle/process-buffer/render ownership. Original ARM files unchanged; new test PE32+AMD64; no manual gameplay.
+
+
+## OG069 / OG071: true pre-physics floor state and commit
+
+Root independently replayed13 original floor/post-body/post-world source probes. Implemented named retained Character floor160 separate from animation rootHeight156. Genuine cached actor world-position values are read twice, the same actor height controller queried at slot0/detailed=false, floor stored, live root height added, then local position committed with nonrecursive absolute update. Preserved unselected wrapper cache, stale cached-vs-local and nonidentity parent behavior. No extra terrain selection, inverse-parent correction, clock, body teleport or refilter.
+
+Root both configs match5 actual original continuations/60floor-local-normal-cache-flag words and4 real decoded Player/terrain commits, preserving descendant cache bytes. Full Release/Debug builds and37CTests pass; newexe PE32+AMD64. Full original outer branch/metadata/world/target/shadow/render integration remains pending; post-world readback must use retained pre-step floor and avoid a second height query. No manual gameplay.

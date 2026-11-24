@@ -20,17 +20,17 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-066",
+      "assignment": "OG-064",
       "status": "IN_PROGRESS",
-      "baseline": "25f391f"
+      "baseline": "f14b77a20c97e01cfc49af5df8fc50fc1b0f4dd7"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-069",
+      "assignment": "OG-070",
       "status": "IN_PROGRESS",
-      "baseline": "f95ae2d"
+      "baseline": "f14b77a"
     },
     {
       "slot": 3,
@@ -3118,15 +3118,14 @@
       "dependencies": [
         "OG-055",
         "OG-059",
-        "OG-063"
+        "OG-063",
+        "OG-054"
       ],
-      "blockers": [
-        "OG055 owns shared asset decoder until independently verified integration."
-      ],
-      "assigned_agent": null,
-      "baseline": null,
-      "status": "BLOCKED",
-      "reservations_active": false,
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "f14b77a20c97e01cfc49af5df8fc50fc1b0f4dd7",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
       "validation": [
         "Exact original prepared state/vertex binding capture and actual GPU readbacks of source selection, literal lanes, alpha/modes, unchanged normals/reflection behavior and existing combiner/UI sequences.",
         "Full Release/Debug builds/CTests and asset/startup gates; no manual gameplay."
@@ -3302,12 +3301,89 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "f95ae2d",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Exact original functions/dataflow and targeted actual-original execution/callback probes, all field identities and source constraints explicit.",
         "Frozen report/ignored source artifacts with implementation resources/limits; no product or original-source edits and no manual gameplay."
+      ],
+      "submission": {
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-069-report.md",
+        "sha256": "ffbdbf422e9028169f91759524d01816c1ccc09203a793880f511fa7304cdba9"
+      },
+      "independent_verification": "Root reran13actual original cases:3floor continuation with real GetHeight wrapper/core,4whole Character post-sync with cached parent/body timing,6post-world linear reset/down dispatch; all pass. No full outer host or native body-layout overlay claimed."
+    },
+    {
+      "id": "OG-070",
+      "description": "Share borrowed current vertex-stream inputs across original morph and skin CPU cores.",
+      "scope": "Introduce a minimal const borrowed current-position/normal/name/format view, narrow overloads of existing CPU cores and unchanged CityMesh wrappers. Let actual morph output feed skin without copying immutable topology, UVs, colors, indices or another decoder. Keep one arithmetic implementation per original operation and preserve all validation/range/order/zero/nonfinite behavior. No process-driver simulator, material/actor owner or renderer changes.",
+      "symbols": [
+        "retailSkinVertexRange / original skin0x2b1c6d",
+        "retailMorphVertexRange / original morph0x2a56e5"
+      ],
+      "resources": [
+        "port/retail_vertex_streams.h",
+        "port/retail_skinning.h",
+        "port/retail_skinning.cpp",
+        "port/retail_morph.h",
+        "port/retail_morph.cpp",
+        "port/tests/retail_vertex_streams.cpp",
+        "port/VERTEX_STREAMS.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-051",
+        "OG-058",
+        "OG-066"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "f14b77a",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Preserve existing original55+6skin and48+126morph comparisons and fullR/D tests.",
+        "Original-backed current morph-output->skin composition, borrowed-address/no-topology-copy and absent-normal/range/sourceidentity/zero-weight controls.",
+        "No source mutation, native64bit checkedlifetimes and no manual gameplay."
       ]
+    },
+    {
+      "id": "OG-071",
+      "description": "Port genuine pre-physics actor floor commit using live height and animation state.",
+      "scope": "New retained floor160 state default0 separate from clock.rootHeight156. Use genuine cached actor world-position value snapshots twice, same live height controller slot0,detailed=false, store returned floor then local savedXY/floor+liveRootHeight and updateAbsolutePosition(false). No clock advance, post-Step terrain query, body teleport/refilter, shadow ownership or fabricated full Player/NPC Update.",
+      "symbols": [
+        "PlayerTest::Update0x30539e..3053ee",
+        "NPC::Update0x2fff64..2fffbe",
+        "PhysicAttributes::GetHeight0x31ff49",
+        "LevelObject::GetPosition0x31684d"
+      ],
+      "resources": [
+        "port/retail_actor_floor.h",
+        "port/retail_actor_floor.cpp",
+        "port/tests/retail_actor_floor.cpp",
+        "port/ACTOR_FLOOR.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-035",
+        "OG-036",
+        "OG-049",
+        "OG-062",
+        "OG-069"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "f14b77a",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Actual original fresh-unselected/retained-unselected/selected floor cases match native floor/local/heightstate bits.",
+        "Stale cached vs local position, parent transform semantics, repeated update and actual decoded Player/terrain integration; real underlying height/scene ownership.",
+        "Full R/D build/tests/nativeAMD64, no manual gameplay."
+      ],
+      "independent_verification": "Root five actual original Player floor continuation cases60exact floor/local/normal/cache/flag words/config with required two position reads,slot0/detailedfalse/updatefalse; zero body teleport/refilter. Native retained height-cache/repeated/stale/parent and4actual decoded Player+terrain cases/config pass. Full R/D builds37CTests/config, newexe PE32+AMD64. No full outer actor-host claim."
     }
   ],
   "orchestrator_resources": [
@@ -3323,7 +3399,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full R/D builds36CTests/config pass after054. All83retail skins27434vertices and83authored box tables now decode and match rawbits; limo576 original NaN classes preserved. Last bounds/pose/heading source regressions pass; no new rendering changes."
+    "native_integration": "2026-11-25: Root full R/D builds37CTests/config pass after071. Original floor continuation5cases/60words and real decoded terrain/Player checks pass. Last all83skin/box and original retained pose/bounds/heading gates pass; no rendering change yet."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
