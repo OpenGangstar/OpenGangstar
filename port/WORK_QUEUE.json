@@ -20,25 +20,25 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-074",
+      "assignment": "OG-083",
       "status": "IN_PROGRESS",
-      "baseline": "2141998"
+      "baseline": "3e55d55"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
       "assignment": "OG-082",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "baseline": "445e143"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-084",
+      "assignment": "OG-086",
       "status": "IN_PROGRESS",
-      "baseline": "445e143"
+      "baseline": "3e55d55"
     }
   ],
   "unavailable_worker": {
@@ -3495,12 +3495,22 @@
       "complexity": "high",
       "blockers": [],
       "baseline": "2141998",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original execution matches ordered state transitions and native bits in R/D.",
         "Real retained source resources and lifetime controls; strict checked unsupported boundaries.",
         "Full tests/config, PE32+AMD64 and original source untouched; root owns CMake/commit/push."
+      ],
+      "submission": {
+        "patch": "../OpenGangstar-workers/worker-1/port/build/OG-074.patch",
+        "sha256": "b644e913d016378e28f61e6658e28636ee50183ba71ad4a9cd1807fc074e235c"
+      },
+      "independent_validation": [
+        "Root reviewed all four frozen files against55babe0 and intervening085 graph change; current source binds actual embedded079material aliases and only exact scene-owned skin bases.",
+        "Full root Release/Debug game builds and43CTest/config pass. Actual405/396Player outputs pass.",
+        "Root freshly executed original allocation/proxy/kernel/release/toggle code:56phase snapshots/config exact. Additional real ARM shared-normal and disjoint-buffer controls pass. AMD64PE32+ test confirmed.",
+        "No second palette/math/decoder/material owner. Actual nested morph/skin factory and production shared source streams remain083 prerequisites; no GPU upload/outer040 claim."
       ]
     },
     {
@@ -3774,7 +3784,7 @@
         "CColladaSkinnedMesh source construction0x2b1231"
       ],
       "resources": [
-        "port/build/reviews/OG-083/*"
+        "port/build/OG-083-* (worker-1 ignored research only)"
       ],
       "priority": 1,
       "complexity": "medium",
@@ -3784,8 +3794,8 @@
         "OG-076"
       ],
       "blockers": [],
-      "assigned_agent": "/root",
-      "baseline": "445e143",
+      "assigned_agent": "/root/worker_1",
+      "baseline": "3e55d55",
       "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
@@ -3817,11 +3827,14 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "445e143",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Actual original target/no-target/getter-mutation order and exact facing bool/float threshold controls; sourcebounds and real actual node cached getters whereavailable.",
         "Concrete next implementation interfaces/resources, originalproducer and lifetime gaps explicit; no product/original edits or gameplay."
+      ],
+      "independent_validation": [
+        "Root freshly executed original predicate/Player/NPC wrapper controls on both genuine nonzero Player scenes:12groups and117threshold searches per model;7rich target setters and7rawstores pass. Interfaces remain prerequisites, not full entity ownership."
       ]
     },
     {
@@ -3849,7 +3862,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "445e143",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "All213original getters and15profiles74updates match original definedstate/callbackorder in R/D; additional meaningful malformed/lifetime/floatwrapcontrols.",
@@ -3889,6 +3902,39 @@
         "Native null/foreign/lifetime/failurecleanup andold44064wordgraphregressions; fullR/Dtests."
       ],
       "independent_verification": "Root full R/D42CTests/config. Both actual completed nonzero Player factory+onPostLoad5preattachment phases/model:12240exactnodewords/config pluschild/manager/collectionorder. Old36snapshots44064wordoriginalgraphregression unchanged/config. Native genuinecaller/unattachedcleanup/null/foreign/movedmateriallifetime tests pass; PE32+AMD64. Shadowregister thenactorattach required; no earlyactoredge/workaround."
+    },
+    {
+      "id": "OG-086",
+      "description": "Port the exact target-facing predicate and Player/NPC post-physics scene wrappers.",
+      "scope": "Mandatory live heading and target-position host endpoints only; no auto-turn, fake absent target, scene-snapshot entity registry, rich setter replacement or second math implementation. Request API review before code.",
+      "symbols": [
+        "PlayerTest::isFacingTarget0x3025cd",
+        "PlayerTest::UpdateSceneNode0x302685",
+        "NPC::UpdateSceneNode0x2fd801"
+      ],
+      "resources": [
+        "port/retail_actor_target.h",
+        "port/retail_actor_target.cpp",
+        "port/tests/retail_actor_target.cpp",
+        "port/ACTOR_TARGET.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-043",
+        "OG-072",
+        "OG-084"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "3e55d55",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Original direct threshold/getter ordering and copied quaternion controls reproduced independently.",
+        "Release/Debug focused and retail nonzero factory cases; distinguish leaf domain from missing full entity owner.",
+        "Full-width callbacks/pointers; reuse normalization and actual post-position implementation."
+      ]
     }
   ],
   "orchestrator_resources": [

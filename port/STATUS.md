@@ -1484,3 +1484,6 @@ Root Release/Debug4original positioning and6actual reset/gate cases match54coord
 
 
 2026-11-25 OG085: actual caller-retained shadow registration before actorroot attachment, matching original Player construction/bind order without a fabricated early actor edge. Root R/D42CTests each;12240completed-original-factory nodewords/config plushierarchy/collection order exact, old44064wordgraphcontrols unchanged. Cleanup before any actorattach and independent shadow/material lifetimes pass. Concrete animationhost still depends082timeline.
+
+- OG074 independently integrated: owned software deformation process buffers retain exact source metadata/material/cache aliases; actual skin-base identity and extracted-shadow lifetime are checked. Full Release/Debug builds and all43 tests/config pass;56 original/native lifecycle snapshots/config and2 additional ARM sharing/range controls pass. Actual405/396Player outputs and AMD64PE32+ pass. Full source-stream producer, nested morph factory and Vulkan submission remain separate.
+- OG084 original target/facing research independently reproduced: facing is a strict predicate with no rotation; Player ignores its result before copied-quaternion post-position, NPC has no target lookup. OG086 owns the bounded native wrappers; full entity ownership/target producers remain040.
