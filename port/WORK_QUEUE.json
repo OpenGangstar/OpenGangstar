@@ -28,17 +28,17 @@
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "3fbcff5"
+      "assignment": "OG-062",
+      "status": "IN_PROGRESS",
+      "baseline": "0c8820342569d0c32762f51f89286f298e0d2cb8"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": null,
-      "status": "AVAILABLE",
-      "baseline": "a01e74f"
+      "assignment": "OG-055",
+      "status": "IN_PROGRESS",
+      "baseline": "0c8820342569d0c32762f51f89286f298e0d2cb8"
     }
   ],
   "unavailable_worker": {
@@ -2781,7 +2781,7 @@
     {
       "id": "OG-055",
       "description": "Port genuine dynamic skinned-mesh bounds and original lazy bounding-box state.",
-      "scope": "Trace and implement actual computeBoundingBox/getBoundingBox and required transforms/cache lifecycle. Use genuine source/current joint data; never label source raw boxes as complete dynamic bounds. Reuse verified arithmetic only with exact original equivalence; request shared metadata reservations if missing. No second parser or fake ActorScene bounding getter.",
+      "scope": "Resume held verified CPU bounds core; implement authoritative optional authored joint-box metadata and genuine retained per-resource mesh bounds. Reuse the existing dirty byte/cache, force real skeleton matrix preparation inside explicit compute, use live borrowed joint absolute pointers and original cached identity hints, preserve two-opposite-corner box arithmetic and original uint8 loop behavior. Implement original get/compute/transformed alias semantics without an extra transform; seed from genuine raw box. No fake host, second BRES reader, duplicate cache, eight-corner substitute or original ARM edits.",
       "symbols": [
         {
           "signature": "CColladaSkinnedMesh::computeBoundingBox/getBoundingBox and scene-node transformed bounds",
@@ -2792,20 +2792,23 @@
         "port/retail_skin_bounds.h",
         "port/retail_skin_bounds.cpp",
         "port/tests/retail_skin_bounds.cpp",
-        "port/SKIN_BOUNDS.md"
+        "port/SKIN_BOUNDS.md",
+        "port/city_assets.h",
+        "port/city_assets.cpp",
+        "port/retail_actor_scene.h",
+        "port/retail_actor_scene.cpp"
       ],
       "priority": 1,
       "complexity": "high",
       "dependencies": [
-        "OG-035",
-        "OG-045"
+        "OG-049",
+        "OG-051",
+        "OG-060"
       ],
-      "blockers": [
-        "Frozen arithmetic core is ready; complete metadata/lazy-owner extension waits for corrected OG049 review and shared resources. No complete bounds implementation is claimed."
-      ],
+      "blockers": [],
       "assigned_agent": "/root/worker_3",
-      "baseline": "3976e52",
-      "status": "BLOCKED",
+      "baseline": "0c8820342569d0c32762f51f89286f298e0d2cb8",
+      "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
         "Actual original nonidentity/rotated/scaled/signed-zero and empty/degenerate source bounds with exact cache/update timing.",
@@ -2929,7 +2932,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "3fbcff5",
-      "status": "AWAITING_REVIEW",
+      "status": "VERIFIED",
       "reservations_active": true,
       "validation": [
         "Source-backed original functions and exact native/input identities; no guessed behavior.",
@@ -2938,7 +2941,8 @@
       "submission": {
         "report": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-059-report.md",
         "sha256": "b97f4d710f896cb22bda3e48ab5fb11bbbc53927893c8f1509f87af8846e9522"
-      }
+      },
+      "independent_verification": "Root replayed actual original196 synthetic/branch checks, all1366 raw material preparations and14 raw color-stream constructor/array bindings; all pass. Primary color implementation remains separate."
     },
     {
       "id": "OG-060",
@@ -2996,6 +3000,71 @@
         "Original instruction/function evidence and targeted original execution probes where practical.",
         "Report limitations, resource plan, source identities and reviewable ignored research artifacts. No manual gameplay."
       ]
+    },
+    {
+      "id": "OG-062",
+      "description": "Implement the retained original plain actor animator and full live pose evaluator.",
+      "scope": "Consume verified complete source library and actual retained actor graph. Preserve actual source-order targets/NULL targets, persistent masks/target retention/unbind, manual Character evaluation, original unsigned time/float-derived period and cache-selector behavior. Reuse and narrowly extend existing typed sampler rather than duplicate quaternion/search arithmetic. Integrate through genuine RetailAnimationPoseEvaluator seam only; no fabricated complete animation scene host or ordinary-frame attachment.",
+      "symbols": [
+        "CSceneNodeAnimator plain actor path: constructAnimator0x297c51, createAnimator0x29d395, addAnimationTrack0x2af67d, applyAnimationValues0x2af335; OG056 actual bind/onUnbind/forceBind contracts"
+      ],
+      "resources": [
+        "port/retail_actor_pose.h",
+        "port/retail_actor_pose.cpp",
+        "port/tests/retail_actor_pose.cpp",
+        "port/ACTOR_POSE.md",
+        "port/retail_animation.h",
+        "port/retail_animation.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-049",
+        "OG-056",
+        "OG-060"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "0c8820342569d0c32762f51f89286f298e0d2cb8",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Full Release/Debug native build and focused tests with actual original instruction comparisons.",
+        "All24 global tracks and both retained Player graphs: live TRS, persistent masks/targets, original key scratch states/boundary/uint32 timing, rebinding/invalidation/lifetime, exact keys and root evaluation.",
+        "Preserve existing original clock/body/root-stripping ordering and old clipped/root behavior. No manual gameplay."
+      ]
+    },
+    {
+      "id": "OG-063",
+      "description": "Port original mutable material color/flag state and primary producer selection.",
+      "scope": "Typed native state for original SMaterial flags, public vertex-color flag, current/ambient/specular/emissive packed bytes and dirty bits; exact setFlag, per-material SetColor/SetAlpha leaves and stream-versus-constant selection. No scene recursion, source decoder, shaders or fake live host.",
+      "symbols": [
+        "SMaterial::setFlag0x20fb1d",
+        "GS3DStuff::SetColor0x2ded05 per-recognized-mesh material0 leaf",
+        "GS3DStuff::SetAlpha0x2df34d per-recognized-mesh material0 leaf",
+        "CCommonGLDriver::setupArrays0x2c72fd requested-color selector"
+      ],
+      "resources": [
+        "port/retail_material.h",
+        "port/retail_material.cpp",
+        "port/tests/retail_material.cpp",
+        "port/MATERIAL_STATE.md"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-059"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "0c88203",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Actual original execution across independent flag/color/alpha mutation combinations, unchanged lanes and source literal RGBA ordering.",
+        "Release/Debug build/tests and PE32+ AMD64; no original ARM source changes."
+      ],
+      "independent_verification": "Root executed actual original constructor/setFlag/SetColor/SetAlpha/setupArrays:6720 mutations,47040 exact words,13440 primary selections/config; all untouched original material bytes retained. Full Release/Debug builds and32 CTests/config pass; new executable PE32+ AMD64. Genuine scene material ownership and shader/loader correction explicitly pending."
     }
   ],
   "orchestrator_resources": [
@@ -3011,7 +3080,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root Release/Debug complete builds and 31 CTests/config pass. OG058/060 combined original morphology/library and old catalogue/root gates pass; full audit98 decoded/111 missing unchanged; automated Vulkan opening smoke passes both configurations with isolated temporary saves. All checked executables are PE32+ AMD64."
+    "native_integration": "2026-11-25: Root full Release/Debug builds and32 CTests/config pass after OG063. Original material mutation/selector corpus passes. Latest combined morph/library raw-original and old catalogue/root gates pass; asset audit98/111 and31 Vulkan material pixel checks plus opening smoke passed at OG058/060. No rendering code changed in OG063."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

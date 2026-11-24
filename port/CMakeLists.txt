@@ -55,6 +55,7 @@ add_library(opengangstar_assets STATIC
     retail_actor_animation.cpp
     retail_skinning.cpp
     retail_morph.cpp
+    retail_material.cpp
     filesystem.cpp
     retail_audio.cpp
     retail_radio.cpp
@@ -98,6 +99,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_material_test tests/retail_material.cpp)
+    target_link_libraries(retail_material_test PRIVATE opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_material_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_material COMMAND retail_material_test)
+
     add_executable(animation_library_test tests/animation_library.cpp)
     target_link_libraries(animation_library_test PRIVATE opengangstar_assets)
     if(MSVC)

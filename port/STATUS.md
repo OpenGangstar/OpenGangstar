@@ -1401,3 +1401,10 @@ Dynamic skinned bounds, actual full global animator application, material/layer/
 Root independently verified both native configurations: full builds and 31 CTests pass. The full source library retains all 24 tracks, 73,176 signed-time keys and source metadata; every record matches raw BRES, and 240 actual original animator construction/application checks pass per configuration. Existing 213 clipped animations and both Player root consumers remain valid. CPU morph matches the original function and weighted helpers for 48 synthetic plus 126 retail cases, 372,348 component bits per configuration, covering all 21 supplied controllers and 61,464 evaluated vertices. The original zero-base-weight initializer quirk is preserved.
 
 All checked executables are PE32+ AMD64. Asset audit remains 98 decoded images and 111 missing texture paths; both Vulkan opening smokes pass with isolated saves. Morph driver allocation/lifetime and live weight producers, retained native full-pose evaluation and complete scene/game hosts remain pending. No manual gameplay or original ARM source changes.
+
+
+## OG063: original mutable material scalar state
+
+Implemented native fixed32 material color/flag/dirty state and exact requested-primary selector. Public flag4 changes word0 mask1, not stored flags40 mask4. Shared tracking derivation and current-color mutation eliminate repeated native logic across flag/color/alpha leaves. Root actual-original comparisons pass for 6,720 mutations, 47,040 exact state words and 13,440 GL primary selections per configuration, including unchanged material bytes. Full Release/Debug builds and 32 CTests pass; the new test executable is PE32+ AMD64.
+
+Per-instance scene material ownership, original traversal and OG059 loader/shader correction remain pending. Existing renderer has not been switched by this scalar-state change. No original ARM edits or manual gameplay.
