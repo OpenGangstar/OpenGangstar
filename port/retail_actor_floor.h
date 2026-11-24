@@ -8,6 +8,10 @@ struct RetailActorFloorState {
     float heightCm = 0;
 };
 
+// Original LevelObject::GetPosition0x31684d value path, shared by floor and
+// post-body scene work. Reads cached absolute XYZ without refreshing matrices.
+RetailHeightPoint retailActorCachedPosition(const RetailActorSceneNode&);
+
 // The actual outer Player/NPC update calls this after its animation/root-height
 // update and before shared world advancement. The actor, its SAME live height
 // controller and animation clock outlive the call. Read cached absolute position

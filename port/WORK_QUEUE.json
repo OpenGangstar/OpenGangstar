@@ -21,16 +21,16 @@
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
       "assignment": "OG-064",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "baseline": "f14b77a20c97e01cfc49af5df8fc50fc1b0f4dd7"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-070",
+      "assignment": "OG-073",
       "status": "IN_PROGRESS",
-      "baseline": "f14b77a"
+      "baseline": "3587d97"
     },
     {
       "slot": 3,
@@ -3124,12 +3124,17 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "f14b77a20c97e01cfc49af5df8fc50fc1b0f4dd7",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Exact original prepared state/vertex binding capture and actual GPU readbacks of source selection, literal lanes, alpha/modes, unchanged normals/reflection behavior and existing combiner/UI sequences.",
         "Full Release/Debug builds/CTests and asset/startup gates; no manual gameplay."
-      ]
+      ],
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-064.patch",
+        "sha256": "5f948521ddbbdf789d398555ea7cb295af12cf290802ef27132ff6fd30b3ccec",
+        "report_sha256": "44451c5c9a6e554c2cb7b5d2c19a006a2736e3ecdd130046b2d431bd39cb406d"
+      }
     },
     {
       "id": "OG-065",
@@ -3340,13 +3345,19 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "f14b77a",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Preserve existing original55+6skin and48+126morph comparisons and fullR/D tests.",
         "Original-backed current morph-output->skin composition, borrowed-address/no-topology-copy and absent-normal/range/sourceidentity/zero-weight controls.",
         "No source mutation, native64bit checkedlifetimes and no manual gameplay."
-      ]
+      ],
+      "submission": {
+        "patch": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-070.patch",
+        "sha256": "b1d1b4b98f9fae8723518f61076f58e1c61f8cb2ce3337c6e5d47f5f8e32709f",
+        "report": "C:\\Users\\Ethan\\Documents\\GitHub\\OpenGangstar-workers\\worker-2\\port\\build\\OG-070-report.md",
+        "report_sha256": "aa0ca099be4b23517db94d4b42f6a53f4fca65318eb3b9702aac14e0c11a4f90"
+      }
     },
     {
       "id": "OG-071",
@@ -3384,6 +3395,78 @@
         "Full R/D build/tests/nativeAMD64, no manual gameplay."
       ],
       "independent_verification": "Root five actual original Player floor continuation cases60exact floor/local/normal/cache/flag words/config with required two position reads,slot0/detailedfalse/updatefalse; zero body teleport/refilter. Native retained height-cache/repeated/stale/parent and4actual decoded Player+terrain cases/config pass. Full R/D builds37CTests/config, newexe PE32+AMD64. No full outer actor-host claim."
+    },
+    {
+      "id": "OG-072",
+      "description": "Port exact Character post-body scene readback and player post-world reset/gate.",
+      "scope": "Use genuine native b2Body GetPosition and retained nodes/floor/height. Copy quaternion by value, preserve qualified base scene placement and cached-vs-local setter order; reuse065shadow projection; no Character teleport/SetXForm/refilter or height requery. Separate helper clears real player linearXY after all world steps and evaluates actual current-animation/down+flag400 gate, no extra world clock or fake target absence. Share the existing original cached-position value getter across floor and post-body modules without duplicate functions.",
+      "symbols": [
+        "Character::updatePosition0x2f42cd",
+        "LevelObject::SetPosition0x316861",
+        "GS3DStuff::update0x2e09b8..2e09e4",
+        "Character::isDown0x2f1581"
+      ],
+      "resources": [
+        "port/retail_actor_position.h",
+        "port/retail_actor_position.cpp",
+        "port/tests/retail_actor_position.cpp",
+        "port/ACTOR_POSITION.md",
+        "port/retail_actor_floor.h",
+        "port/retail_actor_floor.cpp"
+      ],
+      "priority": 1,
+      "complexity": "medium",
+      "dependencies": [
+        "OG-034",
+        "OG-049",
+        "OG-065",
+        "OG-069",
+        "OG-071"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "3587d97",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Original four post-position body/no-body/parent cases and six post-world gate/reset cases match native words and ordering.",
+        "Real native Box2D no-transform/refilter/wake side effects, preserved cached matrices/rotation-by-value and true stepped-body readback; no terrain requery.",
+        "Full R/D tests and AMD64. Full target/facing/outer actor host remains separately required."
+      ],
+      "independent_verification": "Root R/D4original post-position+6actual reset/gate cases:54 coordinate/velocity words and6gate decisions exact. Real native bodies/shapes/filter observer show no teleport/refilter/velocity changes during readback, no wake/angular change during reset, correct actual-Step readback and retained floor. Shared floor getter preserves original071dump byte-for-byte; full38CTests/config and PE32+AMD64."
+    },
+    {
+      "id": "OG-073",
+      "description": "Recover original live contact-filter scene/owner getters and metadata evaluation timing.",
+      "scope": "Read-only prerequisite for040 genuine runtime. Existing typed native contact metadata stores caller-supplied positionZ/rootZ/nodeBounds; determine exact original dynamic getter/field identities, getBBox vs transformedBBox, source currentAnimation rootHeight156 versus root localZ, category/player/jump gates and callback ordering in ShouldCollide. Prove whether snapshots can preserve all behavior or need real retained getter bindings at collision time. Do not guess a phase-copy workaround or fake scene/material host.",
+      "symbols": [
+        "ContactFilter::ShouldCollide0x31dc7d",
+        "RetailContactFilter::ShouldCollide / verticalBounds",
+        "Original node/owner getters and PhysicBodyData linked identities"
+      ],
+      "resources": [
+        "worker-2/port/build/OG-073-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-012",
+        "OG-034",
+        "OG-049",
+        "OG-055",
+        "OG-062",
+        "OG-069",
+        "OG-071"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "3587d97",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Exact original call/field/function evidence; targeted actual-original probes including live matrix/box/animation mutations and side-effect order where supported.",
+        "Frozen source identities/report/resource plan and honest native adaptation limits; no product/original edits or manual gameplay."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -3399,7 +3482,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root full R/D builds37CTests/config pass after071. Original floor continuation5cases/60words and real decoded terrain/Player checks pass. Last all83skin/box and original retained pose/bounds/heading gates pass; no rendering change yet."
+    "native_integration": "2026-11-25: Root full R/D builds38CTests/config pass after072; source original post-body/reset/down gate values and no-refilter native controls pass,071floor dump unchanged. 064render and070borrowed streams frozen awaiting root review;068globalgraph and073livecollision research active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
