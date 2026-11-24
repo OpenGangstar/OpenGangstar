@@ -55,6 +55,7 @@ add_library(opengangstar_assets STATIC
     retail_actor_animation.cpp
     retail_skinning.cpp
     retail_morph.cpp
+    retail_skin_bounds.cpp
     retail_material.cpp
     filesystem.cpp
     retail_audio.cpp
@@ -99,6 +100,13 @@ opengangstar_copy_jpeg_notice(gangstar-wch)
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(retail_skin_bounds_test tests/retail_skin_bounds.cpp)
+    target_link_libraries(retail_skin_bounds_test PRIVATE opengangstar_physics opengangstar_assets)
+    if(MSVC)
+        target_compile_options(retail_skin_bounds_test PRIVATE /fp:strict /we4302 /we4311 /we4312)
+    endif()
+    add_test(NAME retail_skin_bounds COMMAND retail_skin_bounds_test)
+
     add_executable(retail_actor_pose_test tests/retail_actor_pose.cpp)
     target_link_libraries(retail_actor_pose_test PRIVATE opengangstar_physics opengangstar_assets)
     if(MSVC)
@@ -338,4 +346,8 @@ endif()
 
 if(MSVC)
     set_source_files_properties(retail_morph.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict;/we4302;/we4311;/we4312")
+endif()
+
+if(MSVC)
+    set_source_files_properties(retail_skin_bounds.cpp PROPERTIES COMPILE_OPTIONS "/fp:strict;/we4302;/we4311;/we4312")
 endif()

@@ -1429,3 +1429,10 @@ Implemented actual detached plain animator over the full24-track source and genu
 Root original R/D comparisons:288 signed/duplicate/wrapped sampler cases,47,160 complete nodeTRS/flag records and31,440 track applications/scratch entries per configuration across both Player models,655 profiles/model and all213 clip boundaries/midpoints. Identical native dump SHA2568d315643e4c3c1b1eae04bba447e38c85953600df7fb1625ccea2afe90275846. Existing213root/444clock and bothPlayer639sample tests pass; original91slerp+80synthetic+144retail old-pose regressions remain exact. Full native builds and34CTests/config pass; checked executables PE32+AMD64.
 
 Full scene/material/render/body/world composition, generic AnimatorSet/blender/timeline/event behavior and source domains outside the documented plain path remain incomplete. No full-game completion, original Android libm identity or manual gameplay claimed.
+
+
+## OG055: live original skin bounds and authoritative joint boxes
+
+Decoded original full116-byte skin record/count108/table112 into optional ordered joint boxes. Each fresh retained mesh owns one raw-seeded box and shares its existing dirty flag with the actual skeleton cache. Explicit compute forces real preparation even clean; palette-first can expose an older box. Bounds read live joint absolute pointers/hints, original min/max-two-corner transform, strict union and uint8 loop; transformed skin getter aliases without extra transform. Unknown metadata always rejects.
+
+Root both builds:18core cases/108bits and20 actual factory/scene/cache snapshots/14,200bits exact; native81of83metadata tables/5,640bits match independently enumerated raw359BRES/83tables. Existing car_limo zero-row rejection withholds both interior-mesh-skin and car_body-mesh-morpher-skin;054 follows. Combined062 complete native pose dump remains byte-identical to original-verified hash. Full Release/Debug builds and35CTests pass; new test PE32+AMD64. Default-enabled owner only; original disabled-cache behavior and remaining container/non-skin aggregate getters are documented. No original ARM edits or manual gameplay.

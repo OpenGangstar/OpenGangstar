@@ -31,19 +31,56 @@ loadRetailActorSceneSource(FileSystemBase &assets, const std::string &path) {
 const std::vector<RetailSceneMatrix> &RetailActorSceneMesh::skinMatrices() {
   if (!sourceSkin)
     throw std::logic_error("Ordinary actor mesh has no skin matrix cache.");
-  if (dirty) {
-    for (std::size_t i = 0; i < matrices.size(); ++i) {
-      // Original collada CMatrix4*SMatrix uses rowMatrixProduct34. Live
-      // cached node matrices have false identity hints, including numeric
-      // identity. Preserve the literal affine arithmetic and source order.
-      matrices[i] = retailSceneMultiply(*jointPointers[i],
-                                        sourceSkin->joints[i].inverseBind);
-      if (!bindIdentity)
-        matrices[i] = retailSceneMultiply(matrices[i], sourceSkin->bindShape);
-    }
-    dirty = false;
-  }
+  if (dirty)
+    prepareSkinMatrices();
   return matrices;
+}
+void RetailActorSceneMesh::prepareSkinMatrices() {
+  // Default-enabled original owner domain: no setIsSkinningEnabled toggle
+  // is exposed. Original disabled preparation returns without clearing dirty.
+  for (std::size_t i = 0; i < matrices.size(); ++i) {
+    // Original collada CMatrix4*SMatrix uses rowMatrixProduct34. Live
+    // cached node matrices have false identity hints, including numeric
+    // identity. Preserve the literal affine arithmetic and source order.
+    matrices[i] = retailSceneMultiply(*jointPointers[i],
+                                      sourceSkin->joints[i].inverseBind);
+    if (!bindIdentity)
+      matrices[i] = retailSceneMultiply(matrices[i], sourceSkin->bindShape);
+  }
+  dirty = false;
+}
+const RetailSkinBoundingBox &RetailActorSceneMesh::boundingBox() {
+  // Unknown metadata must never expose the raw seed as a dynamic box,
+  // including after palette preparation or a failed explicit compute.
+  if (sourceSkin && !sourceSkin->jointBoundsCm)
+    throw std::runtime_error("Missing authoritative original joint bounding boxes.");
+  if (sourceSkin && dirty)
+    computeBoundingBox();
+  return cachedBox;
+}
+void RetailActorSceneMesh::computeBoundingBox() {
+  if (!sourceSkin)
+    throw std::logic_error(
+        "Ordinary actor mesh has no dynamic skin bounds computation.");
+  // Original explicit compute prepares even when clean.
+  prepareSkinMatrices();
+  std::vector<RetailSkinBoundsJoint> live;
+  live.reserve(jointPointers.size());
+  for (std::size_t i = 0; i < jointPointers.size(); ++i)
+    live.push_back({jointPointers[i], jointNodes[i]->absoluteIdentityHint()});
+  cachedBox = computeRetailSkinBounds(live, sourceSkin->jointBoundsCm);
+}
+const RetailSkinBoundingBox &RetailActorSceneNode::boundingBox() {
+  if (!runtimeMesh)
+    throw std::logic_error(
+        "Actor container bounds require its original aggregate-box owner.");
+  return runtimeMesh->boundingBox();
+}
+const RetailSkinBoundingBox &RetailActorSceneNode::transformedBoundingBox() {
+  if (runtimeType != retailSceneSkinnedMeshType)
+    throw std::logic_error("Non-skin transformed actor bounds are not "
+                           "implemented by the skin getter.");
+  return boundingBox();
 }
 
 void RetailActorSceneNode::setPosition(const std::array<float, 3> &value) {
@@ -298,6 +335,7 @@ RetailActorSceneMesh &RetailActorScene::ordinaryMesh(const std::string &uid) {
   auto mesh = std::unique_ptr<RetailActorSceneMesh>(new RetailActorSceneMesh);
   mesh->identity = uid;
   mesh->sourceMesh = &*found;
+  mesh->cachedBox = *found->rawBoundsCm;
   mesh->bufferState.resize(found->buffers.size());
   auto &result = *mesh;
   liveMeshes.push_back(std::move(mesh));
@@ -317,6 +355,7 @@ RetailActorSceneMesh &RetailActorScene::skinMesh(const std::string &uid) {
   mesh->sourceMesh = base.sourceMesh;
   mesh->sourceSkin = &*found;
   mesh->base = &base;
+  mesh->cachedBox = base.cachedBox;
   mesh->bufferState.resize(base.bufferState.size());
   mesh->bindIdentity = originalIdentity(found->bindShape);
   auto &result = *mesh;

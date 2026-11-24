@@ -2817,8 +2817,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "f95ae2d",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original nonidentity/rotated/scaled/signed-zero and empty/degenerate source bounds with exact cache/update timing.",
         "Real available Player/skin source data and original getter behavior, without substituting raw source or renderer bounds.",
@@ -2833,7 +2833,12 @@
       "core_submission": {
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-055-core-review.patch",
         "sha256": "f0df8473d1f6aa48570d4a294c74f24ce8bc92335f4dbbeb8af8fa16df5cb5b1"
-      }
+      },
+      "submission": {
+        "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3/port/build/OG-055.patch",
+        "sha256": "0236c77c5989623d0067f2312986321ab32a26592f392a4b5049f9b2df1594e2"
+      },
+      "independent_verification": "Root R/D complete builds35CTests/config;18core/108bits and20 actual factory/live/cache snapshots14200bits/config exact; independent raw359BRES/83table inventory, native81tables5640bits/config exact (both limo skins withheld by pre-existing054 decoder rejection); combined062 full pose dump remains exact original-verifiedhash. New executable PE32+AMD64. Default-enabled owner domain only, disabled behavior documented not fabricated."
     },
     {
       "id": "OG-056",
@@ -3315,7 +3320,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root complete Release/Debug builds and34CTests/config pass with OG062 retained pose. Root original full pose/flags/scratch288sampler and old-pose/catalogue/clock gates pass. OG055 bounds still under worker gates. No renderer changes since058/060 Vulkan31pixel/opening+98/111audit."
+    "native_integration": "2026-11-25: Root Release/Debug complete builds35CTests/config pass with055+062 combined. Original bounds core/live-owner/metadata and full pose dump compatibility pass. Next054 removes original zero-row decoder gap; global graph/material/deformation/world integration remain pending."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

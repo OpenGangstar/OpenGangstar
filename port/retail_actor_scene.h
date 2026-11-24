@@ -1,6 +1,7 @@
 #pragma once
 
 #include "retail_scene.h"
+#include "retail_skin_bounds.h"
 
 #include <list>
 #include <memory>
@@ -50,6 +51,11 @@ public:
     return jointPointers;
   }
   const std::vector<RetailSceneMatrix> &skinMatrices();
+  // Shares the original skin dirty flag with skinMatrices(). Explicit compute
+  // forces genuine cache preparation even clean; palette-first can leave an
+  // older cached box visible. Ordinary meshes retain their actual raw box.
+  const RetailSkinBoundingBox &boundingBox();
+  void computeBoundingBox();
   bool skinCacheDirty() const { return dirty; }
   // Original buffer byte9 is not initialized by the mesh-buffer constructors.
   // A renderer may establish its actual byte. Hiding a mesh writes zero even
@@ -65,6 +71,7 @@ private:
   friend class RetailActorScene;
   friend class RetailActorSceneNode;
   RetailActorSceneMesh() = default;
+  void prepareSkinMatrices();
   std::string identity;
   const CityMesh *sourceMesh = nullptr;
   const CitySkin *sourceSkin = nullptr;
@@ -73,6 +80,8 @@ private:
   std::vector<const RetailSceneMatrix *> jointPointers;
   std::vector<RetailSceneMatrix> matrices;
   std::vector<std::optional<std::uint8_t>> bufferState;
+  // Required raw source geometry seeds this once during construction.
+  RetailSkinBoundingBox cachedBox{};
   bool dirty = true, bindIdentity = false;
 };
 
@@ -95,6 +104,14 @@ public:
   const RetailSceneQuaternion &rotation() const { return localRotation; }
   const std::array<float, 3> &scale() const { return localScale; }
   const RetailSceneMatrix &absolute() const { return cachedAbsolute; }
+  // Original constructor runs update with dirty0x38, clearing this hint.
+  // All supported writes preserve false; no raw matrix/hint setter exists.
+  // This is a constructor/update invariant, never numeric matrix equality.
+  bool absoluteIdentityHint() const { return false; }
+  const RetailSkinBoundingBox &boundingBox();
+  // Original skin-node getter aliases its mesh box; ordinary/container
+  // transformed-box implementations are outside this bounded API.
+  const RetailSkinBoundingBox &transformedBoundingBox();
   const RetailSceneMatrix &relative();
   std::uint32_t transformFlags() const { return flags; }
   void setPosition(const std::array<float, 3> &);

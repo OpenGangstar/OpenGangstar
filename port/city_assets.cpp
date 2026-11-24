@@ -1442,7 +1442,7 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
         const auto controller = table + i * 12;
         if (bres.word(controller) != 0) continue;  // SController::Skin
         const auto data = bres.word(controller + 8);
-        bres.checkSpan(data, 1, 108);
+        bres.checkSpan(data, 1, 116);
         CitySkin skin{};
         skin.controllerUid = bres.string(bres.word(controller + 4));
         skin.controllerIndex = i;
@@ -1483,6 +1483,18 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
             for (uint32_t component = 0; component < joint.inverseBind.size(); ++component)
                 joint.inverseBind[component] = bres.scalar(inverseBinds + j * 64 + component * 4);
             skin.joints.push_back(joint);
+        }
+
+        const auto boundsCount = bres.word(data + 108);
+        const auto bounds = bres.word(data + 112);
+        bres.checkSpan(bounds, boundsCount, 24);
+        auto& jointBounds = skin.jointBoundsCm.emplace();
+        jointBounds.reserve(boundsCount);
+        for (uint32_t j = 0; j < boundsCount; ++j) {
+            auto& box = jointBounds.emplace_back();
+            for (uint32_t side = 0; side < 2; ++side)
+                for (uint32_t axis = 0; axis < 3; ++axis)
+                    box[side][axis] = bres.scalar(bounds + j * 24 + side * 12 + axis * 4);
         }
 
         const auto weightCount = bres.word(data + 84);

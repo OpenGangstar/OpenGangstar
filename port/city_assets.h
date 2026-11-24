@@ -125,6 +125,9 @@ struct CitySkin {
     std::vector<std::vector<CitySkinInfluence>> vertices;
     std::string controllerUid; // SController+4, distinct from the underlying geometry UID.
     uint32_t controllerIndex = 0; // Fixed-width source table index, not live instance identity.
+    // Original SSkin+108/+112 ordered joint boxes. Unknown hand-built metadata
+    // differs from an authored empty table (the joint-translation branch).
+    std::optional<std::vector<std::array<std::array<float, 3>, 2>>> jointBoundsCm;
 };
 
 enum class CityParticleParameter : uint32_t {
