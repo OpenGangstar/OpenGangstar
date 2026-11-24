@@ -727,6 +727,8 @@ try {
     }
 
     size_t containers = 0, particleScenes = 0, particleTracks = 0, simulatedEmitters = 0;
+    std::map<CityMaterialMode, size_t> materialModes;
+    size_t unsupportedMaterials = 0;
     size_t meshesWithNormals = 0, authoredNormals = 0, authoredColors = 0;
     size_t nodesWithProperties = 0, billboardNodes = 0, lodNodes = 0;
     size_t auxiliaryUvMeshes = 0, auxiliaryUvCount = 0;
@@ -742,6 +744,14 @@ try {
         }
         try {
             const auto scene = loadCityScene(assets, path);
+            for (const auto& [name, material] : scene.materials) {
+                ++materialModes[material.mode];
+                if (!cityMaterialModeSupported(material.mode)) {
+                    ++unsupportedMaterials;
+                    std::cerr << "Unsupported material mode " << static_cast<uint32_t>(material.mode)
+                              << ": " << path << '#' << name << '\n';
+                }
+            }
             if (!scene.particleEmitters.empty()) {
                 ++particleScenes;
                 for (const auto& emitter : scene.particleEmitters) {
@@ -787,6 +797,8 @@ try {
     std::cout << particleScenes << " BRES particle scenes with decoded emitters and "
               << particleTracks << " animated parameters, " << simulatedEmitters << " emitters simulated\n";
     std::cout << authoredColors << " authored BGRA vertex colors decoded\n";
+    for (const auto& [mode, count] : materialModes)
+        std::cout << count << " original material records select mode " << static_cast<uint32_t>(mode) << '\n';
     std::cout << secondaryColorCount << " secondary BGRA vertex colors decoded across "
               << secondaryColorMeshes << " meshes\n";
     std::cout << auxiliaryUvCount << " auxiliary texture coordinates decoded across "
@@ -849,7 +861,7 @@ try {
     }
     std::cout << constantTables << '/' << constants.size() << " constant tables decoded, " << constantEntries
               << " entries including " << constantStrings << " strings\n";
-    return scenes.size() == paths.size() && referencesOk && districtsOk && audioOk && soundIndexOk && radioOk && textOk &&
+    return scenes.size() == paths.size() && unsupportedMaterials == 0 && referencesOk && districtsOk && audioOk && soundIndexOk && radioOk && textOk &&
            constantTables == constants.size() && spriteSheets == spritePaths.size() &&
            absentReferences == 0 && rejectedReferences == 0 && decodedListed == listedTextures.size() ? 0 : 1;
 } catch (const std::exception& error) {

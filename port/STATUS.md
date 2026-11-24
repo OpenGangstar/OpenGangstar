@@ -18,13 +18,16 @@ mission playthroughs for discovery or verification.
   renderer supports startup presentation, selected BRES meshes, textured city
   surfaces, alpha cutouts, and CPU skinning. Lighting is approximate. Shaders,
   effects, decals, and other retail material modes need coverage.
-- [x] Match the original default depth comparison with Vulkan LESS_OR_EQUAL.
-  Retail SMaterial construction selects comparison index 3, and the original
-  GL driver maps it to GL_LEQUAL. The x64 game rebuild and automated opening
-  smoke passed after the change. Equal-depth pixel parity and material-specific
-  depth overrides remain unverified. The custom VERTEX_COLOR_ALPHA renderer
-  uses opaque GL_DECAL; its original selection path, native decoding and shader
-  dispatch remain unresolved.
+- [x] Preserve initial material selection and native rendering for modes
+  0/13/14/15/25, including layer-0 overrides and particle preparation.
+  Transparent geometry shares node-origin/layer ordering after opaque draws.
+  Eleven actual GPU pixel checks verify blend factors, fractional alpha,
+  strict 0.5 cutoff, depth writes and equal-depth LEQUAL. All seven Release
+  CTests, retail fixture, opening and six checkpoint smokes passed.
+  Modes 3/12/17 explicitly fail when selected; lighting/fog, custom GL_DECAL
+  selection, animated materials and complete child transforms remain open.
+  Exact-distance native material ordering deliberately avoids original
+  pointer hashes and non-strict signed wrapped comparison. See MATERIAL_MODES.md.
 - [x] Decode and preserve BRES node user properties through the retail
   property record. The audit found 2,092 tagged nodes, including 592
   billboards and 2,081 LOD tags. Vulkan applies authored `lodmax` cutoffs
@@ -49,8 +52,9 @@ mission playthroughs for discovery or verification.
 - [x] Apply the retail `trans_alphach_ref` material to district surfaces
   bound to `props_alpha.tga` and `props_alpha_01.tga`. The original GLES
   renderer uses a strict greater-than comparison against 0.5. The retail
-  fixture verified the cutoff on 1,545 draw surfaces. Pixel parity remains
-  unverified.
+  fixture verified the cutoff on 1,545 draw surfaces. Synthetic production GPU
+  checks cover cutoff, surviving alpha and depth; complete retail pixel parity
+  remains unverified.
 - [x] Cull static district surfaces against the Vulkan camera frustum. The
   original city loader selects box culling. The port computes world-space
   bounds per draw surface and keeps boxes that touch the clip planes. Tests

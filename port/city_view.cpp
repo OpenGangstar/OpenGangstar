@@ -426,6 +426,8 @@ void poseCityVehicleLight(const CityVehicleLightMesh& mesh, const CityParticleFr
 {
     const Transform transform{frame.axes[0], frame.axes[1], frame.axes[2], frame.origin};
     const auto normals = normalTransform(transform);
+    for (const auto& placement : mesh.nodes)
+        placement.node->origin = point(transform, placement.sourceOrigin);
     for (size_t i = 0; i < mesh.source.size(); ++i) {
         const auto& source = mesh.source[i];
         auto& vertex = vertices[mesh.firstVertex + i];
@@ -596,6 +598,11 @@ void appendScene(CityDrawData& draw, const CityAssets& city, const CityScene& sc
         }
         std::set<std::string_view> collisionSources;
         for (const auto& geometry : node.geometry) {
+            const auto renderNode = std::make_shared<CitySurfaceNode>(CitySurfaceNode{transform[3]});
+            // The game changes the first render child of shadow-node to layer 1.
+            if ((actor || vehicle) && node.name == "shadow-node" && &geometry == &node.geometry.front())
+                renderNode->renderingLayer = 1;
+            if (vehicle) vehicle->nodes.push_back({renderNode, transform[3]});
             const auto& meshLibrary = cityGeometryLibrary(city, scene, geometry);
             const auto& library = meshLibrary.meshes;
             const auto mesh = std::find_if(library.begin(), library.end(), [&](const CityMesh& candidate) {
@@ -629,10 +636,10 @@ void appendScene(CityDrawData& draw, const CityAssets& city, const CityScene& sc
                     vehicle->vehicleMorphs.push_back({base, static_cast<size_t>(mesh - library.begin()), i, transform});
                 }
             }
-            if (markerMeshes) markerMeshes->push_back({transforms.size() - 1, base, mesh->positions, mesh->normals});
+            if (markerMeshes) markerMeshes->push_back({transforms.size() - 1, base, mesh->positions, mesh->normals, renderNode});
             if (actor && geometry.sourcePath.empty()) {
                 for (size_t i = 0; i < actor->skins.size(); ++i)
-                    if (actor->skins[i].meshName == mesh->name) draw.skins.push_back({actorIndex, i, base});
+                    if (actor->skins[i].meshName == mesh->name) draw.skins.push_back({actorIndex, i, base, renderNode, nodeIndex});
             }
             for (size_t i = 0; i < mesh->positions.size(); ++i) {
                 const auto uv = mesh->texCoords.empty() ? std::array<float, 2>{} : mesh->texCoords[i];
@@ -658,15 +665,20 @@ void appendScene(CityDrawData& draw, const CityAssets& city, const CityScene& sc
                 const auto& buffer = mesh->buffers[i];
                 const auto material = resolveCityMaterial(city, scene, meshLibrary, geometry, *mesh, i);
                 // The retail city loader assigns trans_alphach_ref to these atlases.
-                const std::string_view texture = material.texture;
-                const auto name = texture.substr(texture.find_last_of("/\\") + 1);
-                const bool alphaTest = material.alphaTest || (district &&
-                    (name == "props_alpha.tga" || name == "props_alpha_01.tga"));
+                const auto mode = citySurfaceMaterialMode(material, district);
+                if (!cityMaterialModeSupported(mode))
+                    throw std::runtime_error("Unsupported original material mode " +
+                        std::to_string(static_cast<uint32_t>(mode)) + " in " + meshLibrary.path);
+                const bool alphaTest = mode == CityMaterialMode::alphaReference;
                 const auto channel = [&](unsigned shift) { return float((material.diffuse >> shift) & 255) / 255; };
                 draw.surfaces.push_back({static_cast<uint32_t>(draw.indices.size()), static_cast<uint32_t>(buffer.indices.size()),
                     material.texture, {channel(16), channel(8), channel(0), alphaTest ? 0.5f : 0.f},
                     startMs, actor ? actor->endMs : UINT32_MAX, actor && actor->name == "Player",
                     part == VehiclePart::interior, part == VehiclePart::exterior, vehicle != nullptr, {}, lodLimit});
+                draw.surfaces.back().materialMode = mode;
+                draw.surfaces.back().diffuseAlpha = channel(24);
+                draw.surfaces.back().node = renderNode;
+                draw.surfaces.back().additionalTextures = material.additionalTextures;
                 if (actor && actor->payphoneOnly) draw.surfaces.back().payphoneActor = actorIndex;
                 for (const auto index : buffer.indices) draw.indices.push_back(base + index);
                 if (billboardRadius > 0) {
@@ -1060,6 +1072,45 @@ void CitySpawnScheduler::advance(uint32_t elapsedMs, const CityBounds& query, co
     }
 }
 
+CityMaterialMode citySurfaceMaterialMode(const CityMaterial& material, bool placedCity)
+{
+    const std::string_view texture = material.texture;
+    const auto name = texture.substr(texture.find_last_of("/\\") + 1);
+    if (placedCity && (name == "props_alpha.tga" || name == "props_alpha_01.tga"))
+        return CityMaterialMode::alphaReference;
+    return material.mode;
+}
+
+bool cityTransparentSurfaceBefore(const CitySurface& first, const CitySurface& second,
+                                  const std::array<float, 3>& cameraEye)
+{
+    if (!first.node || !second.node) throw std::runtime_error("Missing transparent scene-node sorting metadata.");
+    if (first.node->renderingLayer != second.node->renderingLayer)
+        return first.node->renderingLayer > second.node->renderingLayer;
+    const auto distance = [&](const auto& node) {
+        const auto offset = add(node.origin, scale(cameraEye, -1));
+        return dot(offset, offset) + node.cameraOffset;
+    };
+    const auto a = distance(*first.node), b = distance(*second.node);
+    if (a != b) return a > b;
+    // Preserve the recoverable mode portion of SMaterial::updateHashValue().
+    const auto modeHash = [](CityMaterialMode mode) {
+        const auto value = static_cast<uint32_t>(mode);
+        return (value + 13 * (value & 15)) << 28;
+    };
+    const auto firstMode = modeHash(first.materialMode), secondMode = modeHash(second.materialMode);
+    // Use signed numeric order rather than wrapping subtraction: prefixes for
+    // 13 and 25 differ by INT32_MIN, making the original predicate true in both
+    // directions and therefore invalid for a C++ strict-weak ordering.
+    if (firstMode != secondMode) return (firstMode ^ 0x80000000u) < (secondMode ^ 0x80000000u);
+    // ARM texture-address hashing cannot survive a native resource allocator. Use
+    // resolved resource identities for that part of exact-distance material ties.
+    if (first.texture != second.texture) return first.texture < second.texture;
+    if (first.additionalTextures != second.additionalTextures) return first.additionalTextures < second.additionalTextures;
+    if (first.tintAndCutoff != second.tintAndCutoff) return first.tintAndCutoff < second.tintAndCutoff;
+    return first.diffuseAlpha < second.diffuseAlpha;
+}
+
 std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,
                                                 const CitySpawnPool& pool, FileSystemBase& assets)
 {
@@ -1082,6 +1133,11 @@ std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityA
             {draw.vertices.begin() + firstVertex, draw.vertices.end()},
             {draw.skins.begin() + firstSkin, draw.skins.end()}});
         draw.skins.resize(firstSkin);
+        std::set<CitySurfaceNode*> nodes;
+        for (size_t i = firstSurface; i < draw.surfaces.size(); ++i) {
+            const auto& node = draw.surfaces[i].node;
+            if (node && nodes.insert(node.get()).second) mesh.nodes.push_back({node, node->origin});
+        }
         if (actor->fightIdle && mesh.skins.empty())
             throw std::runtime_error("Missing ambient skin geometry for " + actor->name);
         for (auto& skin : mesh.skins) skin.firstVertex -= static_cast<uint32_t>(firstVertex);
@@ -1101,6 +1157,8 @@ void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& po
     const auto& actor = *mesh.actor;
     const auto transform = placementTransform(position, rotation, actor.scale, rotation[2]);
     const auto normals = normalTransform(transform);
+    for (const auto& placement : mesh.nodes)
+        placement.node->origin = point(transform, placement.sourceOrigin);
     for (size_t i = 0; i < mesh.source.size(); ++i) {
         const auto& vertex = mesh.source[i];
         target[i] = vertex;
@@ -1110,9 +1168,11 @@ void poseCitySpawnMesh(const CitySpawnMesh& mesh, const std::array<float, 3>& po
     if (!actor.fightIdle) return;
     const auto& clip = walking ? *actor.pursuitWalk : *actor.fightIdle;
     const auto transforms = animatedSkeleton(actor.model, clip, std::fmod(elapsedMs, clip.durationMs), walking);
-    for (const auto& range : mesh.skins)
+    for (const auto& range : mesh.skins) {
+        if (range.node) range.node->origin = point(transform, transforms.at(range.nodeIndex)[3]);
         poseSkinnedMesh(actor.model, actor.skins[range.skin], transforms, transform, nullptr,
                         target + range.firstVertex);
+    }
 }
 
 CityFrustum cityFrustum(const CityCameraMatrix& camera)
@@ -1343,6 +1403,12 @@ CityDrawData prepareCityView(const CityAssets& city, const CityOpening& opening)
                 appendScene(draw, city, effect, identity, 0);
                 draw.vehicleLights.push_back({vertex, surface, draw.surfaces.size() - surface,
                     {draw.vertices.begin() + vertex, draw.vertices.end()}});
+                auto& light = draw.vehicleLights.back();
+                std::set<CitySurfaceNode*> nodes;
+                for (size_t i = surface; i < draw.surfaces.size(); ++i) {
+                    const auto& node = draw.surfaces[i].node;
+                    if (node && nodes.insert(node.get()).second) light.nodes.push_back({node, node->origin});
+                }
             }
     }
     if (opening.followCameraMs) {
@@ -1461,6 +1527,7 @@ static void poseCityMarker(const CityScene& model, const CityAnimationClip& clip
     }
     for (const auto& mesh : meshes) {
         const auto& transform = transforms.at(mesh.node);
+        if (mesh.renderNode) mesh.renderNode->origin = transform[3];
         const auto normals = normalTransform(transform);
         for (size_t i = 0; i < mesh.positions.size(); ++i) {
             auto& vertex = vertices[mesh.firstVertex + i];
@@ -2465,10 +2532,14 @@ void updateCityVehicleSuspension(const CityActor& actor, CityVehiclePose& vehicl
 void poseCityVehicle(const CityActor& actor, const CityVehiclePose& vehicle,
                      const std::vector<CityVertex>& source, const std::vector<CityWheelRange>& wheels,
                      const std::vector<CityVehicleMorphRange>& morphs, CityVertex* target,
-                     const std::vector<float>& wheelOffsets)
+                     const std::vector<float>& wheelOffsets, const std::vector<CityNodePlacement>& nodes)
 {
     const auto angle = (vehicle.yaw - actor.rotationDegrees[2]) * radians;
     const auto s = std::sin(angle), c = std::cos(angle);
+    for (const auto& placement : nodes) {
+        const auto local = add(placement.sourceOrigin, scale(actor.position, -1));
+        placement.node->origin = add(vehicle.position, {c*local[0] - s*local[1], s*local[0] + c*local[1], local[2]});
+    }
     for (size_t i = 0; i < source.size(); ++i) {
         const auto local = add(source[i].position, scale(actor.position, -1));
         target[i] = source[i];
@@ -3315,6 +3386,7 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
         const bool removeRootMotion = (player && player->walking && clip == &opening.walk) ||
             ((walk || pursuer || loco) && clip->name == "move_walk") || (motion && clip == &motion->clip);
         const auto transforms = animatedSkeleton(actor.model, *clip, clipTime, removeRootMotion);
+        if (range.node) range.node->origin = point(world, transforms.at(range.nodeIndex)[3]);
         const auto* vehicle = opening.vehicleActor == range.actor ? &*playback.vehicle : nullptr;
         poseSkinnedMesh(actor.model, actor.skins[range.skin], transforms, world, vehicle,
                         vertices + range.firstVertex);

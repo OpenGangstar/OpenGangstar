@@ -150,6 +150,19 @@ struct CityLodLimit {
     bool visible(const std::array<float, 3>& eye) const;
 };
 
+struct CitySurfaceNode {
+    std::array<float, 3> origin;
+    int32_t renderingLayer = 0;
+    float cameraOffset = 0;
+};
+
+CityMaterialMode citySurfaceMaterialMode(const CityMaterial& material, bool placedCity);
+
+struct CityNodePlacement {
+    std::shared_ptr<CitySurfaceNode> node;
+    std::array<float, 3> sourceOrigin;
+};
+
 struct CitySurface {
     uint32_t firstIndex;
     uint32_t indexCount;
@@ -165,12 +178,21 @@ struct CitySurface {
     std::optional<CityLodLimit> lodLimit;
     bool lodAlternative = false;
     std::optional<size_t> payphoneActor;
+    CityMaterialMode materialMode = CityMaterialMode::solid;
+    float diffuseAlpha = 1;
+    std::shared_ptr<CitySurfaceNode> node;
+    std::vector<std::string> additionalTextures;
 };
+
+bool cityTransparentSurfaceBefore(const CitySurface& first, const CitySurface& second,
+                                  const std::array<float, 3>& cameraEye);
 
 struct CitySkinRange {
     size_t actor;
     size_t skin;
     uint32_t firstVertex;
+    std::shared_ptr<CitySurfaceNode> node;
+    size_t nodeIndex = 0;
 };
 
 struct CityWheelRange {
@@ -190,11 +212,13 @@ struct CityCheckpointMesh {
     size_t node, firstVertex;
     std::vector<std::array<float, 3>> positions;
     std::vector<std::array<float, 3>> normals;
+    std::shared_ptr<CitySurfaceNode> renderNode;
 };
 
 struct CityVehicleLightMesh {
     size_t firstVertex, firstSurface, surfaceCount;
     std::vector<CityVertex> source;
+    std::vector<CityNodePlacement> nodes;
 };
 
 struct CityBillboard {
@@ -211,6 +235,7 @@ struct CityVehicleGeometry {
     uint32_t vehicleVertexCount = 0;
     std::vector<CityWheelRange> wheels;
     std::vector<CityVehicleMorphRange> vehicleMorphs;
+    std::vector<CityNodePlacement> nodes;
 };
 
 struct CityDrawData : CityVehicleGeometry {
@@ -518,6 +543,7 @@ struct CitySpawnMesh {
     std::vector<CityVertex> source;
     std::vector<CitySkinRange> skins;
     CityTerrain::VehicleFootprint footprint;
+    std::vector<CityNodePlacement> nodes;
 };
 std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,
                                                 const CitySpawnPool& pool, FileSystemBase& assets);
@@ -564,7 +590,7 @@ CityCameraMatrix cityCameraMatrix(const CityOpening& opening, float aspect, doub
 void poseCityVehicle(const CityActor& actor, const CityVehiclePose& vehicle,
                      const std::vector<CityVertex>& source, const std::vector<CityWheelRange>& wheels,
                      const std::vector<CityVehicleMorphRange>& morphs, CityVertex* target,
-                     const std::vector<float>& wheelOffsets = {});
+                     const std::vector<float>& wheelOffsets = {}, const std::vector<CityNodePlacement>& nodes = {});
 std::vector<float> cityVehicleWheelOffsets(const CityActor& actor, const CityVehiclePose& vehicle,
                                           const std::vector<CityWheelRange>& wheels, const CityTerrain& terrain);
 void updateCityVehicleSuspension(const CityActor& actor, CityVehiclePose& vehicle,

@@ -407,7 +407,14 @@ struct CityTexture {
 struct CityFragmentConstants {
     std::array<float, 4> tintAndCutoff;
     float brightness;
+    uint32_t materialMode = 0;
+    float diffuseAlpha = 1;
 };
+
+CityFragmentConstants cityFragment(const CitySurface& surface, float brightness)
+{
+    return {surface.tintAndCutoff, brightness, static_cast<uint32_t>(surface.materialMode), surface.diffuseAlpha};
+}
 
 struct CityVehicleEffect {
     CityScene scene;
@@ -417,6 +424,7 @@ struct CityVehicleEffect {
     std::string texture;
     uint32_t firstVertex = 0;
     float elapsedMs = 0;
+    CitySurface surface{};
 };
 
 constexpr int skipArtworkWidth = 90;
@@ -432,8 +440,9 @@ struct CityRender {
     {
         auto& vk = context;
         VK_CALL(vkDeviceWaitIdle)(vk.device);
-        if (explosionPipeline) VK_CALL(vkDestroyPipeline)(vk.device, explosionPipeline, nullptr);
-        if (checkpointPipeline) VK_CALL(vkDestroyPipeline)(vk.device, checkpointPipeline, nullptr);
+        for (size_t mode = 1; mode < materialPipelines.size(); ++mode)
+            for (auto handle : materialPipelines[mode])
+                if (handle) VK_CALL(vkDestroyPipeline)(vk.device, handle, nullptr);
         if (captionPipeline) VK_CALL(vkDestroyPipeline)(vk.device, captionPipeline, nullptr);
         if (vehicleExteriorPipeline) VK_CALL(vkDestroyPipeline)(vk.device, vehicleExteriorPipeline, nullptr);
         if (pipeline) VK_CALL(vkDestroyPipeline)(vk.device, pipeline, nullptr);
@@ -535,10 +544,10 @@ struct CityRender {
     VkPipelineLayout layout = VK_NULL_HANDLE;
     VkPipeline pipeline = VK_NULL_HANDLE;
     VkPipeline captionPipeline = VK_NULL_HANDLE;
-    VkPipeline checkpointPipeline = VK_NULL_HANDLE;
-    VkPipeline explosionPipeline = VK_NULL_HANDLE;
     VkPipeline vehicleExteriorPipeline = VK_NULL_HANDLE;
+    std::array<std::array<VkPipeline, 2>, 26> materialPipelines{};
     VkImage depth = VK_NULL_HANDLE;
+    VkFormat depthFormat = VK_FORMAT_UNDEFINED;
     VkDeviceMemory depthMemory = VK_NULL_HANDLE;
     VkImageView depthView = VK_NULL_HANDLE;
     VkBuffer geometry = VK_NULL_HANDLE;
@@ -749,6 +758,7 @@ struct CityRender {
     std::vector<CitySkinRange> skins;
     std::vector<CityVertex> vertices;
     std::vector<CityVertex> vehicleVertices;
+    std::vector<CityNodePlacement> vehicleNodes;
     std::vector<CityVehicleLightMesh> vehicleLights;
     std::vector<CityBillboard> billboards;
     std::array<CityVehicleEffect, 3> vehicleEffects;
@@ -1086,6 +1096,13 @@ void prepareVehicleEffects(CityRender& city, FileSystemBase& assets, CityDrawDat
         effect.node = static_cast<size_t>(node - scene.nodes.begin());
         effect.texture = std::move(texture);
         effect.firstVertex = static_cast<uint32_t>(draw.vertices.size());
+        effect.surface.texture = effect.texture;
+        effect.surface.tintAndCutoff = {1, 1, 1, -2};
+        effect.surface.materialMode = cityParticleMaterialMode(scene.materials.begin()->second.mode);
+        if (!cityMaterialModeSupported(effect.surface.materialMode))
+            throw std::runtime_error(std::string("Unsupported particle material mode in ") + paths[i]);
+        effect.surface.firstIndex = effect.firstVertex; // Nonindexed particle vertex range.
+        effect.surface.node = std::make_shared<CitySurfaceNode>();
         draw.vertices.resize(draw.vertices.size() + size_t(emitter.maxParticles) * 6);
         effect.scene = std::move(scene);
     }
@@ -1113,6 +1130,7 @@ void updateVehicleEffects(CityRender& city, double deltaMs)
         const CityParticleFrame vehicleRoot{vehicle.position};
         const auto frame = cityParticleFrame(effect.scene, effect.node, effect.clip, animation,
                                              burst ? vehicleRoot : anchor.value_or(vehicleRoot));
+        effect.surface.node->origin = frame.origin;
         effect.simulation.advance(effect.scene.particleEmitters.front(), ms * 0.001f, animation, frame, emit);
         if (!active[i]) effect.elapsedMs = 0;
     }
@@ -1947,6 +1965,7 @@ void prepareCityTargets(CityRender& city, VkFormat color, VkExtent2D size)
     VK_CALL(vkGetPhysicalDeviceFormatProperties)(vk.gpu, VK_FORMAT_D32_SFLOAT, &depthProperties);
     const auto depth = (depthProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
         ? VK_FORMAT_D32_SFLOAT : VK_FORMAT_D16_UNORM;
+    city.depthFormat = depth;
     VkImageCreateInfo depthInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     depthInfo.imageType = VK_IMAGE_TYPE_2D;
     depthInfo.format = depth;
@@ -2111,40 +2130,273 @@ void prepareCityPipeline(CityRender& city, VkExtent2D size)
               "vkCreateGraphicsPipelines (vehicle exterior)");
         raster.cullMode = VK_CULL_MODE_NONE;
     }
-    const bool worldTransparency = city.checkpointFirstSurface || city.vehicleObjectiveFirstSurface ||
-        city.nextMissionFirstSurface || city.hummerRouteFirstSurface || city.weaponShopDriveFirstSurface ||
-        city.weaponShopApproachFirstSurface || city.weaponShopEntranceFirstSurface || city.returnToLcFirstSurface ||
-        city.postLcDriveFirstSurface || city.cooperNextDriveFirstSurface || city.basketballFirstSurface || city.postBasketballFirstSurface || city.repairDriveFirstSurface || city.repairShopFirstSurface || city.deliveryFirstSurface || city.elToroFirstSurface || city.elToroDestinationFirstSurface || city.elToroDriveFirstSurface || city.vanDriveFirstSurface || city.vanSecondDriveFirstSurface || city.vanThirdDriveFirstSurface || city.vanFourthDriveFirstSurface || city.script19DriveFirstSurface || city.script19ReturnFirstSurface || city.script20DriveFirstSurface || city.script32FirstSurface || city.script33FirstSurface || city.script33DriveFirstSurface || city.script33RaceFirstSurface || city.script33UnlockedFirstSurfaces[0] || city.script36TravelFirstSurface || city.script37FirstSurface || city.postLcWalkFirstSurfaces[0] || city.postLcWalkFirstSurfaces[1] || city.postLcWalkFirstSurfaces[2] ||
-        !city.vehicleLights.empty() ||
-        std::any_of(city.vehicleEffects.begin(),
-        city.vehicleEffects.end(), [](const CityVehicleEffect& effect) { return !effect.texture.empty(); });
-    if (!city.captions.empty() || worldTransparency || city.minimapWidth) {
-        depth.depthWriteEnable = VK_FALSE;
+    city.materialPipelines[0] = {city.pipeline, city.vehicleExteriorPipeline};
+    for (const auto mode : {CityMaterialMode::additive, CityMaterialMode::alphaChannel,
+                            CityMaterialMode::alphaReference, CityMaterialMode::textureVertexAlpha}) {
+        const bool transparent = cityMaterialTransparent(mode);
+        // Retail option 0x40 is clear by default: transparent materials do not write depth.
+        depth.depthWriteEnable = transparent ? VK_FALSE : VK_TRUE;
+        attachment.blendEnable = transparent ? VK_TRUE : VK_FALSE;
+        attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        attachment.dstColorBlendFactor = mode == CityMaterialMode::additive
+            ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        // glBlendFunc applies the same factors to color and alpha.
+        attachment.srcAlphaBlendFactor = attachment.srcColorBlendFactor;
+        attachment.dstAlphaBlendFactor = attachment.dstColorBlendFactor;
+        auto& pipelines = city.materialPipelines[static_cast<size_t>(mode)];
+        check(VK_CALL(vkCreateGraphicsPipelines)(vk.device, VK_NULL_HANDLE, 1, &info, nullptr, &pipelines[0]),
+              "vkCreateGraphicsPipelines (retail material)");
+        if (city.vehicleExteriorPipeline) {
+            raster.cullMode = VK_CULL_MODE_BACK_BIT;
+            raster.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+            check(VK_CALL(vkCreateGraphicsPipelines)(vk.device, VK_NULL_HANDLE, 1, &info, nullptr, &pipelines[1]),
+                  "vkCreateGraphicsPipelines (retail exterior material)");
+            raster.cullMode = VK_CULL_MODE_NONE;
+        }
+    }
+    if (!city.captions.empty() || city.minimapWidth) {
+        depth.depthTestEnable = depth.depthWriteEnable = VK_FALSE;
         attachment.blendEnable = VK_TRUE;
         attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
         attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        if (worldTransparency)
-            check(VK_CALL(vkCreateGraphicsPipelines)(vk.device, VK_NULL_HANDLE, 1, &info, nullptr, &city.checkpointPipeline),
-                  "vkCreateGraphicsPipelines (checkpoint)");
-        if (!city.vehicleEffects.back().texture.empty() || !city.vehicleLights.empty()) {
-            // The retail explosion and vehicle lights use trans_add: GL_SRC_ALPHA, GL_ONE.
-            attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-            attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-            attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-            check(VK_CALL(vkCreateGraphicsPipelines)(vk.device, VK_NULL_HANDLE, 1, &info, nullptr,
-                                                    &city.explosionPipeline),
-              "vkCreateGraphicsPipelines (additive effects)");
-            attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-            attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        check(VK_CALL(vkCreateGraphicsPipelines)(vk.device, VK_NULL_HANDLE, 1, &info, nullptr, &city.captionPipeline),
+              "vkCreateGraphicsPipelines (caption)");
+    }
+}
+
+void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D size)
+{
+    auto& vk = city.context;
+    struct Proof {
+        Vulkan& context;
+        VkImage image = VK_NULL_HANDLE;
+        VkImageView view = VK_NULL_HANDLE;
+        VkDeviceMemory imageMemory = VK_NULL_HANDLE, bufferMemory = VK_NULL_HANDLE;
+        VkRenderPass pass = VK_NULL_HANDLE;
+        VkFramebuffer frame = VK_NULL_HANDLE;
+        VkBuffer buffer = VK_NULL_HANDLE;
+        VkDescriptorPool descriptors = VK_NULL_HANDLE;
+        VkCommandPool commands = VK_NULL_HANDLE;
+        std::array<CityTexture, 2> textures;
+        ~Proof() {
+            auto& vk = context;
+            VK_CALL(vkDeviceWaitIdle)(vk.device);
+            if (commands) VK_CALL(vkDestroyCommandPool)(vk.device, commands, nullptr);
+            if (frame) VK_CALL(vkDestroyFramebuffer)(vk.device, frame, nullptr);
+            if (pass) VK_CALL(vkDestroyRenderPass)(vk.device, pass, nullptr);
+            if (descriptors) VK_CALL(vkDestroyDescriptorPool)(vk.device, descriptors, nullptr);
+            if (view) VK_CALL(vkDestroyImageView)(vk.device, view, nullptr);
+            if (image) VK_CALL(vkDestroyImage)(vk.device, image, nullptr);
+            if (imageMemory) VK_CALL(vkFreeMemory)(vk.device, imageMemory, nullptr);
+            if (buffer) VK_CALL(vkDestroyBuffer)(vk.device, buffer, nullptr);
+            if (bufferMemory) VK_CALL(vkFreeMemory)(vk.device, bufferMemory, nullptr);
+            for (const auto& texture : textures) {
+                if (texture.view) VK_CALL(vkDestroyImageView)(vk.device, texture.view, nullptr);
+                if (texture.image) VK_CALL(vkDestroyImage)(vk.device, texture.image, nullptr);
+                if (texture.memory) VK_CALL(vkFreeMemory)(vk.device, texture.memory, nullptr);
+            }
         }
-        if (!city.captions.empty() || city.minimapWidth) {
-            depth.depthTestEnable = VK_FALSE;
-            check(VK_CALL(vkCreateGraphicsPipelines)(vk.device, VK_NULL_HANDLE, 1, &info, nullptr, &city.captionPipeline),
-                  "vkCreateGraphicsPipelines (caption)");
+    } proof{vk};
+    for (size_t i = 0; i < proof.textures.size(); ++i)
+        uploadCityTexture(vk, proof.textures[i], Image{1, 1, {uint32_t((128 - i) << 24) | 0x00ffffff}});
+    VkImageCreateInfo image{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    image.imageType = VK_IMAGE_TYPE_2D;
+    image.format = colorFormat;
+    image.extent = {size.width, size.height, 1};
+    image.mipLevels = image.arrayLayers = 1;
+    image.samples = VK_SAMPLE_COUNT_1_BIT;
+    image.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    check(VK_CALL(vkCreateImage)(vk.device, &image, nullptr, &proof.image), "vkCreateImage (material proof)");
+    VkMemoryRequirements requirements{};
+    VK_CALL(vkGetImageMemoryRequirements)(vk.device, proof.image, &requirements);
+    proof.imageMemory = allocate(vk, requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    check(VK_CALL(vkBindImageMemory)(vk.device, proof.image, proof.imageMemory, 0), "vkBindImageMemory (material proof)");
+    proof.view = imageView(vk, proof.image, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+    const VkAttachmentDescription attachments[]{
+        {0, colorFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+         VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+         VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+        {0, city.depthFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+         VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+         VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL}
+    };
+    const VkAttachmentReference color{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    const VkAttachmentReference depth{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color;
+    subpass.pDepthStencilAttachment = &depth;
+    VkRenderPassCreateInfo pass{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    pass.attachmentCount = 2;
+    pass.pAttachments = attachments;
+    pass.subpassCount = 1;
+    pass.pSubpasses = &subpass;
+    check(VK_CALL(vkCreateRenderPass)(vk.device, &pass, nullptr, &proof.pass), "vkCreateRenderPass (material proof)");
+    const VkImageView views[]{proof.view, city.depthView};
+    VkFramebufferCreateInfo frame{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    frame.renderPass = proof.pass;
+    frame.attachmentCount = 2;
+    frame.pAttachments = views;
+    frame.width = size.width;
+    frame.height = size.height;
+    frame.layers = 1;
+    check(VK_CALL(vkCreateFramebuffer)(vk.device, &frame, nullptr, &proof.frame), "vkCreateFramebuffer (material proof)");
+    std::vector<CityVertex> vertices;
+    for (size_t quad = 0; quad < 2; ++quad)
+        for (const auto& xy : std::array<std::array<float, 2>, 6>{{{-1, -1}, {1, -1}, {1, 1}, {-1, -1}, {1, 1}, {-1, 1}}})
+            vertices.push_back({{xy[0], xy[1], quad ? 0.5f : 0.25f}, {0.5f, 0.5f},
+                quad ? std::array<float, 4>{0, 0, 1, 1} : std::array<float, 4>{1, 0, 0, 0.25f}, {-0.35f, -0.45f, 1}});
+    const VkDeviceSize pixelOffset = vertices.size() * sizeof(CityVertex);
+    VkBufferCreateInfo buffer{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    buffer.size = pixelOffset + 4;
+    buffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    check(VK_CALL(vkCreateBuffer)(vk.device, &buffer, nullptr, &proof.buffer), "vkCreateBuffer (material proof)");
+    VK_CALL(vkGetBufferMemoryRequirements)(vk.device, proof.buffer, &requirements);
+    proof.bufferMemory = allocate(vk, requirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    check(VK_CALL(vkBindBufferMemory)(vk.device, proof.buffer, proof.bufferMemory, 0), "vkBindBufferMemory (material proof)");
+    void* mapped = nullptr;
+    check(VK_CALL(vkMapMemory)(vk.device, proof.bufferMemory, 0, buffer.size, 0, &mapped), "vkMapMemory (material proof)");
+    std::memcpy(mapped, vertices.data(), static_cast<size_t>(pixelOffset));
+    VK_CALL(vkUnmapMemory)(vk.device, proof.bufferMemory);
+    const VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2};
+    VkDescriptorPoolCreateInfo pool{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    pool.maxSets = 2;
+    pool.poolSizeCount = 1;
+    pool.pPoolSizes = &poolSize;
+    check(VK_CALL(vkCreateDescriptorPool)(vk.device, &pool, nullptr, &proof.descriptors), "vkCreateDescriptorPool (material proof)");
+    const VkDescriptorSetLayout layouts[]{city.textureLayout, city.textureLayout};
+    VkDescriptorSetAllocateInfo sets{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    sets.descriptorPool = proof.descriptors;
+    sets.descriptorSetCount = 2;
+    sets.pSetLayouts = layouts;
+    std::array<VkDescriptorSet, 2> descriptors{};
+    check(VK_CALL(vkAllocateDescriptorSets)(vk.device, &sets, descriptors.data()), "vkAllocateDescriptorSets (material proof)");
+    for (size_t i = 0; i < descriptors.size(); ++i) {
+        const VkDescriptorImageInfo info{city.sampler, proof.textures[i].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        write.dstSet = descriptors[i];
+        write.descriptorCount = 1;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.pImageInfo = &info;
+        VK_CALL(vkUpdateDescriptorSets)(vk.device, 1, &write, 0, nullptr);
+    }
+    VkCommandPoolCreateInfo commands{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    commands.queueFamilyIndex = vk.family;
+    check(VK_CALL(vkCreateCommandPool)(vk.device, &commands, nullptr, &proof.commands), "vkCreateCommandPool (material proof)");
+    VkCommandBufferAllocateInfo allocateCommands{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    allocateCommands.commandPool = proof.commands;
+    allocateCommands.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocateCommands.commandBufferCount = 1;
+    VkCommandBuffer command = VK_NULL_HANDLE;
+    check(VK_CALL(vkAllocateCommandBuffers)(vk.device, &allocateCommands, &command), "vkAllocateCommandBuffers (material proof)");
+    using Mode = CityMaterialMode;
+    struct Case { const char* name; Mode mode; bool lowAlpha, behind, equalDepth; };
+    constexpr Case cases[]{
+        {"solid modulation", Mode::solid}, {"alpha channel", Mode::alphaChannel}, {"additive", Mode::additive},
+        {"alpha reference passes", Mode::alphaReference}, {"alpha reference discards", Mode::alphaReference, true},
+        {"texture vertex alpha", Mode::textureVertexAlpha},
+        {"alpha depth writes disabled", Mode::alphaChannel, false, true},
+        {"additive depth writes disabled", Mode::additive, false, true},
+        {"solid depth writes enabled", Mode::solid, false, true},
+        {"alpha reference depth writes enabled", Mode::alphaReference, false, true},
+        {"equal depth passes", Mode::solid, false, true, true}
+    };
+    constexpr std::array<float, 4> background{0.125f, 0.25f, 0.375f, 0.75f};
+    const bool bgra = colorFormat == VK_FORMAT_B8G8R8A8_UNORM || colorFormat == VK_FORMAT_B8G8R8A8_SRGB;
+    const bool srgb = colorFormat == VK_FORMAT_B8G8R8A8_SRGB || colorFormat == VK_FORMAT_R8G8B8A8_SRGB;
+    for (const auto& test : cases) {
+        check(VK_CALL(vkResetCommandPool)(vk.device, proof.commands, 0), "vkResetCommandPool (material proof)");
+        VkCommandBufferBeginInfo start{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        start.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        check(VK_CALL(vkBeginCommandBuffer)(command, &start), "vkBeginCommandBuffer (material proof)");
+        VkClearValue clear[2]{};
+        std::copy(background.begin(), background.end(), clear[0].color.float32);
+        clear[1].depthStencil = {1, 0};
+        VkRenderPassBeginInfo begin{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        begin.renderPass = proof.pass;
+        begin.framebuffer = proof.frame;
+        begin.renderArea = {{0, 0}, size};
+        begin.clearValueCount = 2;
+        begin.pClearValues = clear;
+        VK_CALL(vkCmdBeginRenderPass)(command, &begin, VK_SUBPASS_CONTENTS_INLINE);
+        const VkDeviceSize offset = 0;
+        VK_CALL(vkCmdBindVertexBuffers)(command, 0, 1, &proof.buffer, &offset);
+        const auto draw = [&](Mode mode, uint32_t first, bool equal) {
+            const auto pipeline = city.materialPipelines.at(static_cast<size_t>(mode))[0];
+            VK_CALL(vkCmdBindPipeline)(command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+            const auto descriptor = descriptors[first ? 0 : test.lowAlpha ? 1 : 0];
+            VK_CALL(vkCmdBindDescriptorSets)(command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout,
+                                             0, 1, &descriptor, 0, nullptr);
+            const CityCameraMatrix camera{{{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, equal ? -0.25f : 0}, {0, 0, 0, 1}}};
+            const CityFragmentConstants fragment{{first ? 1.f : 0.6f, 1, 1, mode == Mode::alphaReference ? 0.5f : 0},
+                                                  1, static_cast<uint32_t>(mode), first ? 1.f : 0.4f};
+            VK_CALL(vkCmdPushConstants)(command, city.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof camera, camera.data());
+            VK_CALL(vkCmdPushConstants)(command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+                                        sizeof camera, sizeof fragment, &fragment);
+            VK_CALL(vkCmdDraw)(command, 6, 1, first, 0);
+        };
+        draw(test.mode, 0, false);
+        if (test.behind) draw(Mode::solid, 6, test.equalDepth);
+        VK_CALL(vkCmdEndRenderPass)(command);
+        VkImageMemoryBarrier imageBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        imageBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        imageBarrier.oldLayout = imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        imageBarrier.srcQueueFamilyIndex = imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imageBarrier.image = proof.image;
+        imageBarrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        VK_CALL(vkCmdPipelineBarrier)(command, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                      VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
+        VkBufferImageCopy copy{};
+        copy.bufferOffset = pixelOffset;
+        copy.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        copy.imageOffset = {int32_t(size.width / 2), int32_t(size.height / 2), 0};
+        copy.imageExtent = {1, 1, 1};
+        VK_CALL(vkCmdCopyImageToBuffer)(command, proof.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, proof.buffer, 1, &copy);
+        VkBufferMemoryBarrier host{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+        host.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        host.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+        host.srcQueueFamilyIndex = host.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        host.buffer = proof.buffer;
+        host.offset = pixelOffset;
+        host.size = 4;
+        VK_CALL(vkCmdPipelineBarrier)(command, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT,
+                                      0, 0, nullptr, 1, &host, 0, nullptr);
+        check(VK_CALL(vkEndCommandBuffer)(command), "vkEndCommandBuffer (material proof)");
+        VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        submit.commandBufferCount = 1;
+        submit.pCommandBuffers = &command;
+        check(VK_CALL(vkQueueSubmit)(vk.queue, 1, &submit, VK_NULL_HANDLE), "vkQueueSubmit (material proof)");
+        check(VK_CALL(vkQueueWaitIdle)(vk.queue), "vkQueueWaitIdle (material proof)");
+        std::array<uint8_t, 4> pixel{};
+        check(VK_CALL(vkMapMemory)(vk.device, proof.bufferMemory, 0, buffer.size, 0, &mapped), "vkMapMemory (material pixel)");
+        std::memcpy(pixel.data(), static_cast<const uint8_t*>(mapped) + pixelOffset, pixel.size());
+        VK_CALL(vkUnmapMemory)(vk.device, proof.bufferMemory);
+        const float textureAlpha = (test.lowAlpha ? 127.f : 128.f) / 255;
+        const float alpha = test.mode == Mode::alphaChannel || test.mode == Mode::alphaReference
+            ? textureAlpha : textureAlpha * 0.25f * 0.4f;
+        auto expected = std::array<float, 4>{0.6f, 0, 0, alpha};
+        if (test.lowAlpha && test.mode == Mode::alphaReference) expected = background;
+        else if (cityMaterialTransparent(test.mode))
+            for (size_t channel = 0; channel < expected.size(); ++channel)
+                expected[channel] = expected[channel] * alpha + background[channel] *
+                    (test.mode == Mode::additive ? 1.f : 1 - alpha);
+        if (test.behind && (test.equalDepth || cityMaterialTransparent(test.mode))) expected = {0, 0, 1, 128.f / 255};
+        for (size_t channel = 0; channel < expected.size(); ++channel) {
+            float value = std::clamp(expected[channel], 0.f, 1.f);
+            if (srgb && channel < 3) value = value <= 0.0031308f ? 12.92f * value : 1.055f * std::pow(value, 1.f / 2.4f) - 0.055f;
+            const int wanted = static_cast<int>(std::lround(value * 255));
+            const int actual = pixel[bgra && channel < 3 ? 2 - channel : channel];
+            if (std::abs(actual - wanted) > 3)
+                throw std::runtime_error(std::string("Vulkan material pixel mismatch: ") + test.name +
+                    " channel " + std::to_string(channel) + " expected " + std::to_string(wanted) +
+                    " observed " + std::to_string(actual));
         }
     }
+    std::cout << "Vulkan material pixel checks: " << std::size(cases) << " passed (blend, alpha, cutoff, depth, LEQUAL).\n";
 }
 
 void uploadCity(CityRender& city, const CityDrawData& draw)
@@ -2416,6 +2668,7 @@ const CityActor& bindMissionVehicle(CityRender& city, std::string_view name,
         city.vehicleVertices.assign(first, first + geometry.vehicleVertexCount);
         city.wheels = geometry.wheels;
         city.vehicleMorphs = geometry.vehicleMorphs;
+        city.vehicleNodes = geometry.nodes;
         city.terrain.vehicleFootprint = *footprint;
         opening.vehicleActor = actor - opening.actors.begin();
         opening.vehicleSeated = seated;
@@ -2838,7 +3091,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         updateLcMarker || updatePostLcDriveMarker || updateCooperNextMarker || updateBasketballMarker || updatePostBasketballMarker || updateRepairDriveMarker || updateRepairShopMarker || updateDeliveryMarker || updateElToroDestination || updateElToroDrive || updateVanDrive || updateMissionCarDrive || updateScript19Return || walkMarker || cooperPose || race || showRaceUnlocks || showMinimap || particlesVisible || lights) {
         if (updateVehicle)
             poseCityVehicle(city.opening.actors[*city.opening.vehicleActor], *vehicle, city.vehicleVertices,
-                            city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets);
+                            city.wheels, city.vehicleMorphs, city.vertices.data() + city.vehicleFirstVertex, wheelOffsets, city.vehicleNodes);
         poseCityActors(city.opening, city.skins, city.playback, city.vertices.data(),
                        actorSceneMs, actorMissionMs, actorScene, &city.terrain);
         if (raceWaypoint) {
@@ -2998,7 +3251,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             auto* vertices = city.vertices.data() + geometry.vehicleFirstVertex;
             const auto offsets = cityVehicleWheelOffsets(actor, *cooperPose, geometry.wheels, city.terrain);
             poseCityVehicle(actor, *cooperPose, city.cooperVertices, geometry.wheels,
-                            geometry.vehicleMorphs, vertices, offsets);
+                            geometry.vehicleMorphs, vertices, offsets, geometry.nodes);
             std::memcpy(static_cast<char*>(mapped) + geometry.vehicleFirstVertex * sizeof(CityVertex),
                         vertices, city.cooperVertices.size() * sizeof(CityVertex));
         }
@@ -3008,7 +3261,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             auto* vertices = city.vertices.data() + geometry.vehicleFirstVertex;
             const auto offsets = cityVehicleWheelOffsets(actor, race->rival, geometry.wheels, city.terrain);
             poseCityVehicle(actor, race->rival, city.raceRivalVertices, geometry.wheels,
-                            geometry.vehicleMorphs, vertices, offsets);
+                            geometry.vehicleMorphs, vertices, offsets, geometry.nodes);
             std::memcpy(static_cast<char*>(mapped) + geometry.vehicleFirstVertex * sizeof(CityVertex),
                         vertices, city.raceRivalVertices.size() * sizeof(CityVertex));
         }
@@ -3237,6 +3490,44 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     const VkDeviceSize vertexOffset = 0;
     VK_CALL(vkCmdBindVertexBuffers)(vk.command, 0, 1, &city.geometry, &vertexOffset);
     VK_CALL(vkCmdBindIndexBuffer)(vk.command, city.geometry, city.indexOffset, VK_INDEX_TYPE_UINT32);
+    auto boundPipeline = city.pipeline;
+    struct SurfaceDraw {
+        const CitySurface* surface;
+        CityFragmentConstants fragment;
+        VkPipeline pipeline;
+        bool indexed;
+    };
+    std::vector<SurfaceDraw> transparentSurfaces;
+    const auto emitSurface = [&](const SurfaceDraw& draw) {
+        if (draw.pipeline != boundPipeline) {
+            VK_CALL(vkCmdBindPipeline)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.pipeline);
+            boundPipeline = draw.pipeline;
+        }
+        const auto descriptor = city.textures.at(draw.surface->texture).descriptor;
+        VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout,
+                                         0, 1, &descriptor, 0, nullptr);
+        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    sizeof camera, sizeof draw.fragment, &draw.fragment);
+        if (draw.indexed)
+            VK_CALL(vkCmdDrawIndexed)(vk.command, draw.surface->indexCount, 1, draw.surface->firstIndex, 0, 0);
+        else VK_CALL(vkCmdDraw)(vk.command, draw.surface->indexCount, 1, draw.surface->firstIndex, 0);
+    };
+    const auto queueSurface = [&](const CitySurface& surface, const CityFragmentConstants& fragment,
+                                  bool cull = false, bool indexed = true) {
+        const auto mode = static_cast<size_t>(surface.materialMode);
+        const auto pipeline = city.materialPipelines.at(mode).at(cull ? 1 : 0);
+        if (!pipeline) throw std::runtime_error("Missing native pipeline for original material mode " + std::to_string(mode));
+        const SurfaceDraw draw{&surface, fragment, pipeline, indexed};
+        if (cityMaterialTransparent(surface.materialMode)) transparentSurfaces.push_back(draw);
+        else emitSurface(draw);
+    };
+    const auto flushTransparent = [&] {
+        std::stable_sort(transparentSurfaces.begin(), transparentSurfaces.end(), [&](const auto& a, const auto& b) {
+            return cityTransparentSurfaceBefore(*a.surface, *b.surface, cameraEye);
+        });
+        for (const auto& draw : transparentSurfaces) emitSurface(draw);
+        transparentSurfaces.clear();
+    };
     city.distantDraws = 0;
     if (distantCamera && city.lowDetailFirstSurface < city.lowDetailEndSurface) {
         const auto distantFrustum = cityFrustum(*distantCamera);
@@ -3246,15 +3537,10 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             const auto& surface = city.surfaces[i];
             if (surface.bounds && !cityBoundsVisible(*surface.bounds, distantFrustum)) continue;
             if (surface.lodLimit && !surface.lodLimit->visible(cameraEye)) continue;
-            const auto descriptor = city.textures.at(surface.texture).descriptor;
-            VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout,
-                                             0, 1, &descriptor, 0, nullptr);
-            const CityFragmentConstants fragment{surface.tintAndCutoff, brightness};
-            VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-                                        sizeof camera, sizeof fragment, &fragment);
-            VK_CALL(vkCmdDrawIndexed)(vk.command, surface.indexCount, 1, surface.firstIndex, 0, 0);
+            queueSurface(surface, cityFragment(surface, brightness));
             ++city.distantDraws;
         }
+        flushTransparent();
         if (city.distantDraws != 0) {
             VkClearAttachment attachment{VK_IMAGE_ASPECT_DEPTH_BIT};
             attachment.clearValue.depthStencil = {1.f, 0};
@@ -3264,7 +3550,6 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
     }
     VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof camera,
                                 camera.data());
-    auto boundPipeline = city.pipeline;
     bool drewVehicleMarker = false;
     const auto frustum = cityFrustum(camera);
     const auto outsideCamera = [&](const CityVehiclePose& car) {
@@ -3400,16 +3685,7 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             arrowMarker = true;
         }
         if (marker && (failed || !*marker)) continue;
-        const auto wantedPipeline = marker ? city.checkpointPipeline
-            : citySurfaceCullBackfaces(surface, city.playback) ? city.vehicleExteriorPipeline : city.pipeline;
-        if (wantedPipeline != boundPipeline) {
-            VK_CALL(vkCmdBindPipeline)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, wantedPipeline);
-            boundPipeline = wantedPipeline;
-        }
-        const auto descriptor = city.textures.at(surface.texture).descriptor;
-        VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout, 0, 1,
-                                         &descriptor, 0, nullptr);
-        CityFragmentConstants fragment{surface.tintAndCutoff, brightness};
+        auto fragment = cityFragment(surface, brightness);
         if (surface.vehicle && surface.payphoneActor.has_value() == city.playback.nextMissionVehicleActive &&
             vehicle && vehicle->exploded) {
             // Vehicle::explode assigns BGRA 25, 25, 35, 255 to the wreck.
@@ -3417,50 +3693,41 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             fragment.tintAndCutoff[1] = fragment.tintAndCutoff[2] = 25.f / 255;
         }
         if (arrowMarker) fragment.tintAndCutoff[3] = -1;
-        VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof camera,
-                                    sizeof fragment, &fragment);
-        VK_CALL(vkCmdDrawIndexed)(vk.command, surface.indexCount, 1, surface.firstIndex, 0, 0);
+        queueSurface(surface, fragment, citySurfaceCullBackfaces(surface, city.playback));
         drewVehicleMarker |= vehicleMarker && surface.indexCount != 0;
     }
     if (!city.spawnPoses.empty() && city.payphoneGameplayMs && !failed && !postFightMs && !payphoneMs) {
-        if (boundPipeline != city.pipeline)
-            VK_CALL(vkCmdBindPipeline)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.pipeline);
         for (size_t slot = 0; slot < city.spawnPoses.size(); ++slot) {
             if (!city.spawnPoses[slot]) continue;
             const auto& mesh = city.spawnMeshes[slot];
             for (size_t index = mesh.firstSurface; index < mesh.firstSurface + mesh.surfaceCount; ++index) {
                 const auto& surface = city.surfaces[index];
-                const auto descriptor = city.textures.at(surface.texture).descriptor;
-                VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout, 0, 1,
-                                                 &descriptor, 0, nullptr);
-                const CityFragmentConstants fragment{surface.tintAndCutoff, brightness};
-                VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof camera,
-                                            sizeof fragment, &fragment);
-                VK_CALL(vkCmdDrawIndexed)(vk.command, surface.indexCount, 1, surface.firstIndex, 0, 0);
+                queueSurface(surface, cityFragment(surface, brightness));
             }
         }
     }
     if (lightDraws) *lightDraws = 0;
     if (lights) {
-        VK_CALL(vkCmdBindPipeline)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.explosionPipeline);
         for (size_t i = 0; i < city.vehicleLights.size(); ++i) {
             if (!vehicle->lightEffects.at(i / lights->size())) continue;
             const auto& mesh = city.vehicleLights[i];
             for (size_t s = mesh.firstSurface; s < mesh.firstSurface + mesh.surfaceCount; ++s) {
                 const auto& surface = city.surfaces[s];
                 if (!surface.indexCount) continue;
-                const auto descriptor = city.textures.at(surface.texture).descriptor;
-                VK_CALL(vkCmdBindDescriptorSets)(vk.command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout, 0, 1,
-                                                 &descriptor, 0, nullptr);
-                CityFragmentConstants fragment{surface.tintAndCutoff, brightness};
+                auto fragment = cityFragment(surface, brightness);
                 fragment.tintAndCutoff[3] = -2;
-                VK_CALL(vkCmdPushConstants)(vk.command, city.layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof camera,
-                                            sizeof fragment, &fragment);
-                VK_CALL(vkCmdDrawIndexed)(vk.command, surface.indexCount, 1, surface.firstIndex, 0, 0);
+                queueSurface(surface, fragment);
                 if (lightDraws) ++*lightDraws;
             }
         }
     }
+    for (auto& effect : city.vehicleEffects) {
+        const auto count = static_cast<uint32_t>(effect.simulation.particles().size());
+        if (!count) continue;
+        effect.surface.indexCount = count * 6;
+        queueSurface(effect.surface, cityFragment(effect.surface, brightness), false, false);
+    }
+    flushTransparent();
     auto caption = city.playback.activeDialogue;
     if (const auto& checkpoint = city.opening.checkpoint; !caption && checkpoint) {
         const auto index = city.opening.dialogue.size();
@@ -3510,13 +3777,6 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
                                     sizeof fragment, &fragment);
         VK_CALL(vkCmdDraw)(vk.command, vertexCount, 1, firstVertex, 0);
     };
-    for (const auto& effect : city.vehicleEffects) {
-        const auto count = static_cast<uint32_t>(effect.simulation.particles().size());
-        if (count) {
-            const auto pipeline = &effect == &city.vehicleEffects.back() ? city.explosionPipeline : city.checkpointPipeline;
-            overlay(city.textures.at(effect.texture).descriptor, camera, effect.firstVertex, count * 6, pipeline);
-        }
-    }
     constexpr CityCameraMatrix screen{{{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
     if (city.payphoneGameplayMs && !city.payphoneRevealMs && !postFightMs && !failed && !city.weaponShopOpen) {
         const auto drawStatusGauge = [&](RetailStatusGauge id, int32_t value, int32_t maximum, bool hideFill) {
@@ -6236,12 +6496,14 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                     prepareCityTextures(*render, *assets, geometry, minimap ? &*minimap : nullptr,
                                         statusHud ? &*statusHud : nullptr, language);
                     prepareCityPipeline(*render, size);
+                    if (openingSmokeTest) verifyCityMaterialPixels(*render, info.imageFormat, size);
                     uploadCity(*render, geometry);
                     render->vehicleFirstVertex = geometry.vehicleFirstVertex;
                     const auto firstVehicleVertex = geometry.vertices.begin() + geometry.vehicleFirstVertex;
                     render->vehicleVertices.assign(firstVehicleVertex, firstVehicleVertex + geometry.vehicleVertexCount);
                     render->wheels = std::move(geometry.wheels);
                     render->vehicleMorphs = std::move(geometry.vehicleMorphs);
+                    render->vehicleNodes = std::move(geometry.nodes);
                     render->nextVehicleGeometry = std::move(geometry.nextVehicleGeometry);
                     render->nextVehicleFootprint = geometry.nextVehicleFootprint;
                     render->postBasketballVehicleGeometry = std::move(geometry.postBasketballVehicleGeometry);
@@ -8148,7 +8410,8 @@ void presentImages(HWND window, const StartupLogo* logo, IntroMovie* movie, cons
                 const auto& explosion = render.vehicleEffects.back();
                 for (unsigned frame = 0; frame < 20 && explosion.simulation.particles().empty(); ++frame)
                     updateVehicleEffects(render, 16);
-                if (!render.explosionPipeline || explosion.simulation.particles().empty())
+                if (!render.materialPipelines[static_cast<size_t>(explosion.surface.materialMode)][0] ||
+                    explosion.simulation.particles().empty())
                     throw std::runtime_error("Could not render the retail additive explosion fixture.");
                 presentCity(render, info.imageExtent, &lightDraws);
                 if (lightDraws != 0) throw std::runtime_error("Vehicle lights were drawn on the wreck.");

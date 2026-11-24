@@ -8,18 +8,22 @@ layout(set = 0, binding = 0) uniform sampler2D diffuseTexture;
 layout(push_constant) uniform Material {
     layout(offset = 64) vec4 tintAndCutoff;
     float brightness;
+    uint materialMode;
+    float diffuseAlpha;
 } material;
 
 void main()
 {
     vec4 diffuse = texture(diffuseTexture, uv);
+    float alpha = material.materialMode == 14u || material.materialMode == 15u
+        ? diffuse.a : diffuse.a * tint.a * material.diffuseAlpha;
     if (material.tintAndCutoff.a == -3.0 && uv.x < material.tintAndCutoff.x) discard;
     if (material.tintAndCutoff.a == -2.0) {
-        color = vec4(diffuse.rgb * material.tintAndCutoff.rgb * material.brightness, diffuse.a) * tint;
+        color = vec4(diffuse.rgb * material.tintAndCutoff.rgb * material.brightness * tint.rgb, alpha);
         return;
     }
     if (material.tintAndCutoff.a < 0.0) {
-        color = vec4(diffuse.rgb * material.brightness, diffuse.a) * tint;
+        color = vec4(diffuse.rgb * material.brightness * tint.rgb, alpha);
         return;
     }
     vec3 faceNormal = cross(dFdx(worldPosition), dFdy(worldPosition));
@@ -28,5 +32,5 @@ void main()
     float shade = 0.30 + 0.70 * abs(dot(surface, light));
     // The retail alpha-reference material binds stage zero and uses its texture alpha.
     if (material.tintAndCutoff.a > 0.0 && diffuse.a <= material.tintAndCutoff.a) discard;
-    color = vec4(diffuse.rgb * material.tintAndCutoff.rgb * tint.rgb * shade * material.brightness, 1.0);
+    color = vec4(diffuse.rgb * material.tintAndCutoff.rgb * tint.rgb * shade * material.brightness, alpha);
 }

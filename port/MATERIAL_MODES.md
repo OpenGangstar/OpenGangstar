@@ -14,6 +14,54 @@ gap is more actionable: ordinary Collada materials select the original
 `trans_alphach` and `trans_add` renderers, while the native scene decoder currently
 reduces material selection to a diffuse texture/color and an alpha-test flag.
 
+## Native implementation update: OG-009
+
+Verified on 2026-11-25. The initial investigation below describes the earlier
+baseline; its proposed follow-up is now implemented for modes 0, 13, 14, 15 and
+25. BRES material resolution uses the serialized effect index directly, retains
+duplicate effect-name identities, validates indices and applies source image
++36 as the later layer-0 override even when an effect texture is already bound.
+Actual-loader fixtures exercise conflicting images, absent URLs and bad indices.
+
+Vulkan shares material pipelines across city geometry, actors, markers, lights
+and particles. Modes 13/14/25 retain LEQUAL depth testing, disable depth writes
+under the evidenced default option and use SRC_ALPHA with ONE or
+ONE_MINUS_SRC_ALPHA for both RGB and alpha. Modes 14/15 use texture alpha alone;
+0/13/25 multiply texture, primary and material alpha. Mode 15 discards alpha
+less than or equal to 0.5 and preserves surviving fractional alpha and depth
+writes. Particle preparation converts 14/16/17/26 to 25, preserving 13/25.
+
+Transparent draw entries share per-mesh-child origins and sort after opaque
+geometry, by descending rendering layer and squared node-origin distance plus
+camera offset. Shadow nodes retain the game layer override. Exact-distance ties
+use a strict native material/resource order: original pointer hashes and signed
+wrapped subtraction cannot safely define native C++ ordering. The native path
+does not sort triangles. Some unskinned attachments and wheel child origins
+still lack complete original transform propagation.
+
+Original evidence added by the implementation includes alpha-reference setup
+at 0x002cd4a9, particle preparation at 0x002ac8f5, mode-25 setup at 0x002cbf29,
+basic depth state at 0x002c6661, transparent entry construction at 0x00217331 and
+ordering at 0x0029f005. The absent Allow_ZWrite_On_Transparent attribute and
+driver default 0x12 support disabling transparent depth writes; arbitrary
+indirect attribute writes remain unexcluded. Source-image override at
+0x002a0972 follows the effect-texture loop returning at 0x002a0e02.
+
+Independent integration validation: all seven Release CTests passed, actual
+retail fixture passed, and automated opening plus checkpoint 19/20/32/33/36/37
+smokes passed without changing their temporary saves. Eleven actual offscreen
+GPU RGBA readbacks cover blending, alpha, cutoff, depth writes and equal-depth
+LEQUAL through production pipelines and shaders. The executable is AMD64 PE32+.
+
+All 359 retail scenes and 1,366 material records decode: 1,178 solid, 19 additive
+and 169 alpha-channel. Source-image bindings resolve four additional car-light
+mesh buffers. The audit still fails on the same 111 missing texture paths and
+two district bindings to missing light_parking.tga; all 98 supplied images decode.
+This is not full visual parity. Modes 3/12/17 are identified but explicitly
+unsupported, custom GL_DECAL selection remains unknown, and lighting, fog,
+animated materials, arbitrary option changes and complete node transforms need
+further implementation.
+
 ## Custom renderer registration and unresolved selection
 
 `Application::Init(irr::IrrlichtDevice*)`, at `0x002d5591`, constructs the custom

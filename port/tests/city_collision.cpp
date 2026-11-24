@@ -10,7 +10,9 @@
 #include "texture.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -286,6 +288,168 @@ void verifyActorMovement()
             "Malformed movement changed native host state before payload validation.");
 }
 
+void verifyIndexedMaterialLoader()
+{
+    namespace fs = std::filesystem;
+    struct TemporaryScene {
+        fs::path directory;
+        bool owned = false;
+        ~TemporaryScene() {
+            if (!owned) return;
+            std::error_code ignored;
+            fs::remove(directory / "materials.bdae", ignored);
+            fs::remove(directory, ignored);
+        }
+    } temporary{fs::temp_directory_path() / ("OpenGangstar-materials-" +
+        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()))};
+    temporary.owned = fs::create_directory(temporary.directory);
+    require(temporary.owned, "Could not create material fixture directory.");
+    ResourceFileSystem assets(temporary.directory);
+    // Independent fixed32-bit BRES fixture: root32, two88-byte effects at156,
+    // two64-byte materials at332, colors460/464, then strings. No geometry.
+    std::vector<unsigned char> bytes(640);
+    const auto word = [&](size_t offset, uint32_t value) {
+        for (unsigned byte = 0; byte < 4; ++byte) bytes.at(offset + byte) = static_cast<unsigned char>(value >> (8 * byte));
+    };
+    const auto text = [&](size_t offset, std::string_view value) {
+        std::copy(value.begin(), value.end(), bytes.begin() + offset);
+    };
+    text(0, "BRES");
+    word(4, 0xfffe); word(8, 32); word(12, static_cast<uint32_t>(bytes.size()));
+    word(20, 32); word(24, 32); word(28, 32);
+    word(32 + 60, 2); word(32 + 64, 156);
+    word(32 + 68, 2); word(32 + 72, 332);
+    text(468, "same-effect"); text(480, "first"); text(488, "second");
+    word(460, 0x11223344); word(464, 0xaabbccdd);
+    for (uint32_t i = 0; i < 2; ++i) {
+        const auto effect = 156 + i * 88, material = 332 + i * 64;
+        word(effect, 468); // Equal names must not collapse indexed identity.
+        word(effect + 20, 460 + i * 4);
+        word(effect + 56, 0x3f800000); // Opacity1.0f.
+        word(material, 480 + i * 8);
+        word(material + 12, 468);
+        word(material + 24, i);
+        word(material + 36, UINT32_MAX); word(material + 40, UINT32_MAX);
+    }
+    bytes[156 + 88 + 48] = 1;
+    const auto load = [&] {
+        std::ofstream output(temporary.directory / "materials.bdae", std::ios::binary | std::ios::trunc);
+        output.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+        output.close();
+        require(bool(output), "Could not write serialized material fixture.");
+        return loadCityScene(assets, "materials.bdae");
+    };
+    const auto verify = [](const CityScene& scene) {
+        require(scene.materials.size() == 2 && scene.materials.at("first").diffuse == 0x11223344 &&
+                scene.materials.at("first").mode == CityMaterialMode::solid &&
+                scene.materials.at("second").diffuse == 0xaabbccdd &&
+                scene.materials.at("second").mode == CityMaterialMode::alphaChannel,
+                "Material effect indices collapsed distinct records with equal names.");
+    };
+    verify(load());
+    word(332 + 12, 0); word(332 + 64 + 12, 0);
+    verify(load()); // Original construction does not guard on the source URL.
+    for (const uint32_t invalidIndex : {2u, UINT32_MAX}) {
+        word(332 + 64 + 24, invalidIndex);
+        bool rejected = false;
+        try { load(); } catch (const std::runtime_error&) { rejected = true; }
+        require(rejected, "A null target hid an invalid effect index or invented a null-effect fallback.");
+    }
+    word(332 + 64 + 24, 1);
+    // Source image precedence is independent of effect texture availability.
+    word(32 + 52, 2); word(32 + 56, 512);
+    word(512 + 8, 552); word(532 + 8, 564);
+    text(552, "effect.tga"); text(564, "override.tga");
+    bytes[156 + 16] = 1;
+    word(156 + 80, 1); word(156 + 84, 580); word(580, 0);
+    word(332 + 36, 1);
+    require(load().materials.at("first").texture == "override.tga",
+            "Source image must override a nonempty effect texture at layer zero.");
+    word(156 + 80, 0);
+    require(load().materials.at("first").texture == "override.tga",
+            "Source image must also bind layer zero when the effect texture list is empty.");
+    word(332 + 36, UINT32_MAX); word(156 + 80, 1);
+    require(load().materials.at("first").texture == "effect.tga",
+            "An absent source image must preserve the effect's layer-zero texture.");
+    word(332 + 36, 2);
+    bool rejected = false;
+    try { load(); } catch (const std::runtime_error&) { rejected = true; }
+    require(rejected, "Out-of-range source image index was accepted.");
+}
+
+void verifyMaterialModes()
+{
+    using Mode = CityMaterialMode;
+    CityMaterialSelection selection{false, UINT32_MAX, false, 0, 1, 0};
+    require(selectCityMaterialMode(selection) == Mode::solid, "Default retail material was not solid.");
+    selection.effectTransparency = 1;
+    require(selectCityMaterialMode(selection) == Mode::alphaChannel, "Texture transparency did not select type 14.");
+    selection.effectTransparency = 2;
+    require(selectCityMaterialMode(selection) == Mode::solid, "Transparency selector must compare exactly with 1.");
+    selection.opacity = 0;
+    require(selectCityMaterialMode(selection) == Mode::alphaChannel, "Nonunit opacity did not select type 14.");
+    selection.reflectionImage = true;
+    require(selectCityMaterialMode(selection) == Mode::reflection, "Reflection did not precede ordinary alpha selection.");
+    selection.sourceTransparency = 1;
+    require(selectCityMaterialMode(selection) == Mode::transparentReflection, "Transparent reflection did not select type 17.");
+    selection.additive = true;
+    require(selectCityMaterialMode(selection) == Mode::additive, "Additive did not override reflection and transparency.");
+    selection.lightmap = 1;
+    require(selectCityMaterialMode(selection) == Mode::lightmap, "Late lightmap selection did not override the earlier modes.");
+    for (const auto mode : {Mode::lightmap, Mode::reflection, Mode::transparentReflection})
+        require(!cityMaterialModeSupported(mode), "An unresolved original material mode was silently supported.");
+    for (const uint32_t mode : {14u, 16u, 17u, 26u})
+        require(cityParticleMaterialMode(static_cast<Mode>(mode)) == Mode::textureVertexAlpha,
+                "Particle preparation did not convert the original transparent mode to type 25.");
+    for (const auto mode : {Mode::solid, Mode::additive, Mode::textureVertexAlpha})
+        require(cityParticleMaterialMode(mode) == mode, "Particle preparation changed a preserved original material mode.");
+    CityMaterial material;
+    material.mode = Mode::alphaChannel;
+    material.texture = "props_alpha_02.tga";
+    material.additionalTextures = {"props_alpha_01.tga"};
+    require(citySurfaceMaterialMode(material, true) == Mode::alphaChannel,
+            "An additional texture incorrectly selected the layer-0 alpha-reference override.");
+    material.texture = "./props_alpha_01.tga";
+    require(citySurfaceMaterialMode(material, true) == Mode::alphaReference &&
+            citySurfaceMaterialMode(material, false) == Mode::alphaChannel &&
+            !cityMaterialTransparent(Mode::alphaReference) && cityMaterialTransparent(Mode::alphaChannel),
+            "Placed city alpha-reference selection or transparent pass classification changed.");
+    CitySurface near{}, far{};
+    near.node = std::make_shared<CitySurfaceNode>(CitySurfaceNode{{2, 0, 0}});
+    far.node = std::make_shared<CitySurfaceNode>(CitySurfaceNode{{3, 0, 0}});
+    require(cityTransparentSurfaceBefore(far, near, {}) && !cityTransparentSurfaceBefore(near, far, {}),
+            "Transparent node ordering must use descending squared origin distance.");
+    near.node->cameraOffset = 6;
+    require(cityTransparentSurfaceBefore(near, far, {}), "Transparent sorting lost the original camera-offset bias.");
+    far.node->renderingLayer = 1;
+    require(cityTransparentSurfaceBefore(far, near, {}), "Rendering layer must precede transparent distance.");
+    near.node = far.node;
+    near.materialMode = Mode::alphaChannel;
+    far.materialMode = Mode::additive;
+    require(cityTransparentSurfaceBefore(near, far, {}), "Equal-distance material ties lost the original mode-hash prefix.");
+    near.materialMode = Mode::textureVertexAlpha;
+    require(cityTransparentSurfaceBefore(near, far, {}) && !cityTransparentSurfaceBefore(far, near, {}),
+            "Native material identity ordering must remain strict for mode prefixes separated by INT32_MIN.");
+    std::vector<CitySurface> ties;
+    for (const auto mode : {Mode::solid, Mode::additive, Mode::alphaChannel, Mode::alphaReference, Mode::textureVertexAlpha})
+        for (const auto* texture : {"a.tga", "b.tga"}) {
+            auto surface = near;
+            surface.materialMode = mode;
+            surface.texture = texture;
+            ties.push_back(std::move(surface));
+        }
+    const auto before = [](const auto& a, const auto& b) { return cityTransparentSurfaceBefore(a, b, {}); };
+    for (const auto& a : ties) {
+        require(!before(a, a), "Transparent material tie ordering must be irreflexive.");
+        for (const auto& b : ties) {
+            require(!before(a, b) || !before(b, a), "Transparent material tie ordering must be antisymmetric.");
+            for (const auto& c : ties)
+                require(!before(a, b) || !before(b, c) || before(a, c),
+                        "Transparent material tie ordering must be transitive.");
+        }
+    }
+}
+
 void verifyStopObject()
 {
     for (const bool player : {false, true}) {
@@ -309,13 +473,13 @@ void verifyStopObject()
     }
     require(RetailScriptObjectMotion{5, 0x4000, 100, false}.stopped() &&
             !RetailScriptObjectMotion{5, 0xffffbfff, 0, false}.stopped(),
-            "StopObject must wait for the vehicle's completion bit to be set.");
+            "StopObject must wait for the NPC's completion bit to be set.");
     for (const int32_t category : {-1, 0, 4, 6})
         require(RetailScriptObjectMotion{category, UINT32_MAX, 100, false}.stopped(),
                 "StopObject incorrectly blocked an unhandled original object category.");
 
     const CityScriptCommand playerStop{5, {0, 0, 0, 1, 'P'}};
-    const CityScriptCommand vehicleStop{5, {0, 0, 0, 3, 'C', 'a', 'r'}};
+    const CityScriptCommand npcStop{5, {0, 0, 0, 3, 'N', 'P', 'C'}};
     require(decodeCityStopObject(playerStop) == "P" &&
             decodeCityStopObject({5, {0, 0, 0, 2, 'P', 0}}) == "P",
             "StopObject did not preserve the original string framing.");
@@ -329,15 +493,15 @@ void verifyStopObject()
         require(rejected, "StopObject accepted an invalid opcode or malformed object payload.");
     }
 
-    RetailScriptExecution scripts({{playerStop, {48, {}}, vehicleStop, {48, {}}}});
-    RetailScriptObjectMotion player{0, 2, 100, true}, vehicle{5, 0, 0, false};
+    RetailScriptExecution scripts({{playerStop, {48, {}}, npcStop, {48, {}}}});
+    RetailScriptObjectMotion player{0, 2, 100, true}, npc{5, 0, 0, false};
     std::vector<std::string> queries;
     unsigned hidden = 0, refreshed = 0, saved = 0;
     RetailMissionHooks mission;
     mission.objectMotion = [&](std::string_view name) {
-        require(name == "P" || name == "Car", "StopObject resolved the wrong object name.");
+        require(name == "P" || name == "NPC", "StopObject resolved the wrong object name.");
         queries.emplace_back(name);
-        return name == "P" ? player : vehicle;
+        return name == "P" ? player : npc;
     };
     mission.hideTutorial = [&] { ++hidden; };
     const auto step = [&](int32_t elapsedMs, bool skip = false) {
@@ -353,20 +517,20 @@ void verifyStopObject()
     player.flags = 1;
     step(16);
     require(hidden == 1 && refreshed == 2 && saved == 0 &&
-            scripts.state(0) == RetailScriptState::active && vehicle.flags == 0,
-            "StopObject did not resume in order and wait for the vehicle completion bit.");
-    vehicle.flags = 0x4000;
+            scripts.state(0) == RetailScriptState::active && npc.flags == 0,
+            "StopObject did not resume in order and wait for the NPC completion bit.");
+    npc.flags = 0x4000;
     step(16);
     require(hidden == 2 && refreshed == 4 && saved == 1 &&
             scripts.state(0) == RetailScriptState::locked &&
-            queries == std::vector<std::string>{"P", "P", "P", "Car", "Car"},
+            queries == std::vector<std::string>{"P", "P", "P", "NPC", "NPC"},
             "StopObject failed to requery a blocked object or finish after it stopped.");
     player.flags = 2;
-    vehicle.flags = 0;
+    npc.flags = 0;
     scripts.unlock(0, 0, 0);
     step(0, true);
     require(hidden == 4 && refreshed == 8 && saved == 2 &&
-            player.flags == 2 && vehicle.flags == 0,
+            player.flags == 2 && npc.flags == 0,
             "Skipping StopObject did not resume without changing object movement.");
 
     RetailScriptExecution unbound({{playerStop}});
@@ -1464,9 +1628,12 @@ void poseRetailDoor(const std::filesystem::path& root)
             "Suburbs mesh did not decode the distinct auxiliary texture coordinates.");
     const auto hospitalSign = loadCityScene(assets, "hospital_logo_00.bdae");
     const auto& hospitalMaterial = hospitalSign.materials.at("hospital_logo_00_mat");
-    require(hospitalMaterial.alphaTest && hospitalMaterial.texture == "props_alpha_02.tga" &&
+    require(hospitalMaterial.mode == CityMaterialMode::alphaChannel && hospitalMaterial.texture == "props_alpha_02.tga" &&
             hospitalMaterial.additionalTextures == std::vector<std::string>{"props_alpha_01.tga"},
             "Hospital sign lost one of its distinct authored texture bindings.");
+    require(loadCityScene(assets, "p_fire_00.bdae").materials.at("p_fire_00").mode == CityMaterialMode::additive &&
+            loadCityScene(assets, "health_crate.bdae").materials.at("props_00").mode == CityMaterialMode::alphaChannel,
+            "Retail fire additive precedence or health-crate opacity selection changed.");
     const auto parkingLight = loadCityScene(assets, "light_park_00.bdae");
     require(!parkingLight.meshes.empty() && parkingLight.meshes.front().colors.size() > 1 &&
             parkingLight.meshes.front().colors[1] == std::array<float, 4>{172.f / 255, 1, 1, 1},
@@ -1492,6 +1659,19 @@ void poseRetailDoor(const std::filesystem::path& root)
     std::cout << staticCity.terrain.jumpRamps.size() << " authored jump ramps.\n";
     std::cout << staticCity.terrain.walls.size() << " authored district collision-plane triangles.\n";
     auto markerDraw = prepareCityView(city, opening);
+    size_t hospitalSurfaces = 0, shadowSurfaces = 0;
+    for (const auto& surface : markerDraw.surfaces) {
+        require(surface.node != nullptr, "A rendered mesh buffer lost its original node sorting metadata.");
+        shadowSurfaces += surface.node->renderingLayer == 1;
+        if (surface.texture == "props_alpha_02.tga" &&
+            surface.additionalTextures == std::vector<std::string>{"props_alpha_01.tga"}) {
+            require(surface.materialMode == CityMaterialMode::alphaChannel && surface.tintAndCutoff[3] == 0,
+                    "Resolved placed hospital surfaces must use alpha-channel blending, not alpha-reference.");
+            ++hospitalSurfaces;
+        }
+    }
+    require(hospitalSurfaces && shadowSurfaces,
+            "Retail fixtures did not cover placed hospital materials and layer-1 character/vehicle shadows.");
     require(!markerDraw.billboards.empty(), "Retail billboard tags did not reach draw geometry.");
     const auto policeCar = retailPool.acquire(38);
     require(policeCar.has_value(), "Retail police car has no spawn geometry slot.");
@@ -1514,10 +1694,12 @@ void poseRetailDoor(const std::filesystem::path& root)
             "Ambient car could not cross an authored Santa Monica road edge.");
     require(retailPool.release(*policeCar), "Could not return the retail police car slot.");
     size_t propCutouts = 0;
-    for (const auto& surface : markerDraw.surfaces) {
+    for (size_t surfaceIndex = 0; surfaceIndex < markerDraw.districtSurfaceCount; ++surfaceIndex) {
+        const auto& surface = markerDraw.surfaces[surfaceIndex];
         const auto name = std::filesystem::path(surface.texture).filename();
         if (name != "props_alpha.tga" && name != "props_alpha_01.tga") continue;
-        require(surface.tintAndCutoff[3] == 0.5f, "Retail prop alpha test was not applied.");
+        require(surface.materialMode == CityMaterialMode::alphaReference && surface.tintAndCutoff[3] == 0.5f,
+                "Retail prop alpha-reference override was not applied after material resolution.");
         ++propCutouts;
     }
     require(propCutouts > 0, "No retail prop alpha-test surfaces were found.");
@@ -2557,6 +2739,9 @@ void poseRetailDoor(const std::filesystem::path& root)
                 "Retail vehicle effect emitter did not decode.");
         require(cityParticleTexture(effect) == (std::string_view(path) == "p_smoke_00.bdae" ? "smoke.tga" : "fire.tga"),
                 "Retail vehicle effect texture did not bind.");
+        require(effect.materials.size() == 1 && cityParticleMaterialMode(effect.materials.begin()->second.mode) ==
+                (std::string_view(path) == "p_smoke_00.bdae" ? CityMaterialMode::textureVertexAlpha : CityMaterialMode::additive),
+                "Retail smoke, fire, or explosion selected the wrong prepared particle material mode.");
         const auto& definition = effect.particleEmitters.front();
         const auto node = std::find_if(effect.nodes.begin(), effect.nodes.end(), [&](const CityNode& entry) {
             return std::find(entry.particleEmitters.begin(), entry.particleEmitters.end(), definition.name) !=
@@ -3933,6 +4118,8 @@ int wmain(int argc, wchar_t** argv)
         verifyTaggedKillTargets();
         verifyScriptExecution();
         verifyScriptChapterCommands();
+        verifyIndexedMaterialLoader();
+        verifyMaterialModes();
         verifyActorMovement();
         verifyStopObject();
         verifyWaitKilled();

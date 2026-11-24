@@ -771,7 +771,13 @@ void readMaterials(const BresReader& bres, CityScene& scene)
         const auto uri = bres.word(imageTable + i * 20 + 8);
         scene.images.push_back(uri ? bres.string(uri) : std::string{});
     }
-    std::map<std::string, CityMaterial> effects;
+    struct Effect {
+        CityMaterial material;
+        uint8_t transparency, lightmap;
+        float opacity;
+    };
+    std::vector<Effect> effects;
+    effects.reserve(effectCount);
     for (uint32_t i = 0; i < effectCount; ++i) {
         const auto effect = effectTable + i * 88;
         CityMaterial material;
@@ -789,16 +795,27 @@ void readMaterials(const BresReader& bres, CityScene& scene)
                 if (slot == 0) material.texture = scene.images[image];
                 else material.additionalTextures.push_back(scene.images[image]);
             }
-            material.alphaTest = textureCount != 0 && bres.byte(effect + 48) != 0;
         }
-        effects.emplace(bres.string(bres.word(effect)), std::move(material));
+        effects.push_back(Effect{
+            std::move(material), bres.byte(effect + 48), bres.byte(effect + 8), bres.scalar(effect + 56)});
     }
     for (uint32_t i = 0; i < materialCount; ++i) {
         const auto material = materialTable + i * 64;
-        const auto target = bres.word(material + 12);
-        if (!target) continue;
-        const auto effect = effects.find(readFragment(bres, target));
-        if (effect != effects.end()) scene.materials.emplace(bres.string(bres.word(material)), effect->second);
+        // Original post-load fixup resolves this index even with a null URL at +12.
+        const auto effectIndex = bres.word(material + 24);
+        if (effectIndex >= effectCount) bres.fail();
+        const auto& effect = effects.at(effectIndex);
+        auto resolved = effect.material;
+        const auto reflection = bres.word(material + 40);
+        const auto baseImage = bres.word(material + 36);
+        if ((reflection != UINT32_MAX && reflection >= imageCount) ||
+            (baseImage != UINT32_MAX && baseImage >= imageCount)) bres.fail();
+        // prepareMaterial assigns this image to stage zero after effect textures.
+        if (baseImage != UINT32_MAX) resolved.texture = scene.images[baseImage];
+        resolved.mode = selectCityMaterialMode({reflection != UINT32_MAX, bres.word(material + 48),
+            bres.word(material + 28) != 0, effect.transparency,
+            effect.opacity, effect.lightmap});
+        scene.materials.emplace(bres.string(bres.word(material)), std::move(resolved));
     }
 }
 
@@ -1404,6 +1421,41 @@ std::vector<CitySkin> readActorSkins(const CityScene& model)
 void validateBresContainer(FileSystemBase& assets, const std::string& path)
 {
     loadBres(assets, path);
+}
+
+CityMaterialMode selectCityMaterialMode(const CityMaterialSelection& selection)
+{
+    auto mode = CityMaterialMode::solid;
+    if (selection.reflectionImage)
+        mode = selection.sourceTransparency == 1 ? CityMaterialMode::transparentReflection : CityMaterialMode::reflection;
+    else if (selection.effectTransparency == 1 || selection.sourceTransparency == 1 || selection.opacity != 1.f)
+        mode = CityMaterialMode::alphaChannel;
+    if (selection.additive) mode = CityMaterialMode::additive;
+    if (selection.lightmap == 1) mode = CityMaterialMode::lightmap;
+    return mode;
+}
+
+CityMaterialMode cityParticleMaterialMode(CityMaterialMode mode)
+{
+    // CParticleSystemSceneNode::prepareMaterial preserves 13/25 and converts
+    // the other listed transparent built-ins to texture-times-vertex alpha.
+    switch (static_cast<uint32_t>(mode)) {
+    case 14: case 16: case 17: case 26: return CityMaterialMode::textureVertexAlpha;
+    default: return mode;
+    }
+}
+
+bool cityMaterialModeSupported(CityMaterialMode mode)
+{
+    return mode == CityMaterialMode::solid || mode == CityMaterialMode::additive ||
+        mode == CityMaterialMode::alphaChannel || mode == CityMaterialMode::alphaReference ||
+        mode == CityMaterialMode::textureVertexAlpha;
+}
+
+bool cityMaterialTransparent(CityMaterialMode mode)
+{
+    return mode == CityMaterialMode::additive || mode == CityMaterialMode::alphaChannel ||
+        mode == CityMaterialMode::transparentReflection || mode == CityMaterialMode::textureVertexAlpha;
 }
 
 CityScene loadCityScene(FileSystemBase& assets, const std::string& path)

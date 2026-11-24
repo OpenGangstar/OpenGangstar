@@ -40,10 +40,30 @@ struct CityGeometryRef {
     std::vector<MaterialRef> materials;
 };
 
+enum class CityMaterialMode : uint32_t {
+    solid = 0, lightmap = 3, reflection = 12, additive = 13,
+    alphaChannel = 14, alphaReference = 15, transparentReflection = 17,
+    textureVertexAlpha = 25
+};
+
+// Decoded scalar selectors, not the pointer-containing original SMaterial layout.
+struct CityMaterialSelection {
+    bool reflectionImage;
+    uint32_t sourceTransparency;
+    bool additive;
+    uint8_t effectTransparency;
+    float opacity;
+    uint8_t lightmap;
+};
+CityMaterialMode selectCityMaterialMode(const CityMaterialSelection& selection);
+CityMaterialMode cityParticleMaterialMode(CityMaterialMode mode);
+bool cityMaterialModeSupported(CityMaterialMode mode);
+bool cityMaterialTransparent(CityMaterialMode mode);
+
 struct CityMaterial {
     uint32_t diffuse = 0xffffffff;
     std::string texture;
-    bool alphaTest = false;
+    CityMaterialMode mode = CityMaterialMode::solid;
     std::vector<std::string> additionalTextures;
 };
 
