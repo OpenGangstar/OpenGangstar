@@ -627,7 +627,11 @@
         "If implemented, x64 static library and meaningful independent collision/stepping/contact tests; preserve original float units/settings.",
         "Keep runtime world binding and unverified original divergences explicit; do not claim physics complete from compile success."
       ],
-      "submission": null
+      "submission": null,
+      "findings": [
+        "Original b2_version at0x4b6068 independently verified as{2,0,1}; source compatibility still under investigation.",
+        "Recovered InitWorld config:AABB\u00b12000m,zero gravity,allowSleep true,positionCorrection true,continuousPhysics false,custom contact listener/filter."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -637,6 +641,7 @@
     "port/CINEMATIC_SCHEDULER.md"
   ],
   "validation": {
-    "original_arm_preservation": "2969 tracked files retain their pre-migration SHA-256 values; pre-existing local submodule changes preserved. Checked 2026-11-24."
+    "original_arm_preservation": "2969 tracked files retain their pre-migration SHA-256 values; pre-existing local submodule changes preserved. Checked 2026-11-24.",
+    "original_decompilation_gates": "2026-11-24:83 Python unittests passed;check_repository.py passed;progress.py --check passed. No full ARM matching rebuild claimed."
   }
 }

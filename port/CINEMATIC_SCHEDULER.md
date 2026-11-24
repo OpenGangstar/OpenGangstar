@@ -57,7 +57,7 @@ and Character vtables inherit the zero-speed accessor. Do not substitute a wait
 for their compiled path duration.
 
 Acceptance must cover movement during held dialogue, a stop followed by a
-same-tick placement, placement resetting older motion, consecutive moves with a
+same-tick placement, actor-specific placement behavior, consecutive moves with a
 stop, original NPC zero-speed behavior, vehicle readiness and skip, and dynamic
 actor-relative destinations. Camera, fade, audio, and animation timing also need
 original-state evidence. This dependency investigation made no production change;
