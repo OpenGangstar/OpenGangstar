@@ -22,19 +22,18 @@ layout(push_constant) uniform Material {
     uint stageState;
 } material;
 
-vec4 combineMaterial(vec4 diffuse, vec3 primaryRgb)
+vec4 combineMaterial(vec4 diffuse, vec4 primary)
 {
-    float primaryAlpha = tint.a * material.diffuseAlpha;
     float alpha = material.materialMode == 14u || material.materialMode == 15u
-        ? diffuse.a : diffuse.a * primaryAlpha;
-    vec4 result = vec4(diffuse.rgb * primaryRgb, alpha);
+        ? diffuse.a : diffuse.a * primary.a;
+    vec4 result = vec4(diffuse.rgb * primary.rgb, alpha);
     if (material.materialMode != 3u && material.materialMode != 12u && material.materialMode != 17u)
         return result;
     if (material.materialMode == 3u) {
         // REPLACE differs for original RGB and RGBA uploads, and a disabled stage passes P.
         result = (material.stageState & 8u) != 0u
-            ? vec4(diffuse.rgb, (material.stageState & 1u) != 0u ? primaryAlpha : diffuse.a)
-            : vec4(primaryRgb, primaryAlpha);
+            ? vec4(diffuse.rgb, (material.stageState & 1u) != 0u ? primary.a : diffuse.a)
+            : primary;
     }
     result = clamp(result, 0.0, 1.0);
     if ((material.stageState & 2u) == 0u) return result;
@@ -54,19 +53,27 @@ void main()
     vec2 firstUv = vec2(dot(textureMatrices.firstU.xyz, coordinates), dot(textureMatrices.firstV.xyz, coordinates));
     vec4 diffuse = texture(diffuseTexture, firstUv);
     if (material.tintAndCutoff.a == -3.0 && uv.x < material.tintAndCutoff.x) discard;
+    if ((material.stageState & 32u) != 0u) {
+        // Original setupArrays chooses literal current RGBA OR primary color0.
+        // CommonGL disables GL_LIGHTING even when its material flag2 is requested.
+        vec4 primary = (material.stageState & 16u) != 0u
+            ? vec4(material.tintAndCutoff.rgb, material.diffuseAlpha) : tint;
+        primary.rgb *= material.brightness;
+        if (material.tintAndCutoff.a > 0.0 && diffuse.a <= material.tintAndCutoff.a) discard;
+        color = combineMaterial(diffuse, primary);
+        return;
+    }
+    // Independent UI and particle producers retain their existing primary values.
+    float primaryAlpha = tint.a * material.diffuseAlpha;
     if (material.tintAndCutoff.a == -2.0) {
-        color = combineMaterial(diffuse, material.tintAndCutoff.rgb * material.brightness * tint.rgb);
+        color = combineMaterial(diffuse, vec4(material.tintAndCutoff.rgb * material.brightness * tint.rgb, primaryAlpha));
         return;
     }
     if (material.tintAndCutoff.a < 0.0) {
-        color = combineMaterial(diffuse, material.brightness * tint.rgb);
+        color = combineMaterial(diffuse, vec4(material.brightness * tint.rgb, primaryAlpha));
         return;
     }
-    vec3 faceNormal = cross(dFdx(worldPosition), dFdy(worldPosition));
-    vec3 surface = dot(worldNormal, worldNormal) > 1e-12 ? normalize(worldNormal) : normalize(faceNormal);
-    vec3 light = normalize(vec3(-0.35, -0.45, 1.0));
-    float shade = 0.30 + 0.70 * abs(dot(surface, light));
     // The retail alpha-reference material binds stage zero and uses its texture alpha.
     if (material.tintAndCutoff.a > 0.0 && diffuse.a <= material.tintAndCutoff.a) discard;
-    color = combineMaterial(diffuse, material.tintAndCutoff.rgb * tint.rgb * shade * material.brightness);
+    color = combineMaterial(diffuse, vec4(material.tintAndCutoff.rgb * tint.rgb * material.brightness, primaryAlpha));
 }

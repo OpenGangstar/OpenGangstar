@@ -23,6 +23,51 @@
 #include <vector>
 
 namespace {
+void auditPrimaryColorLanes(const CityScene& scene)
+{
+    // Independent raw source comparison: the original color0 GL array consumes
+    // literal byte0/1/2/3; the unused secondary decode keeps its previous lanes.
+    const auto& bytes = scene.bytes;
+    const auto word = [&](size_t offset) {
+        if (offset > bytes.size() || bytes.size() - offset < 4)
+            throw std::runtime_error("Short raw primary-color audit record.");
+        return uint32_t(bytes[offset]) | uint32_t(bytes[offset + 1]) << 8 |
+               uint32_t(bytes[offset + 2]) << 16 | uint32_t(bytes[offset + 3]) << 24;
+    };
+    const auto name = [&](uint32_t offset) {
+        std::string value;
+        while (bytes.at(offset)) value.push_back(char(bytes.at(offset++)));
+        return value;
+    };
+    const auto table = word(scene.rootOffset + 80), count = word(scene.rootOffset + 76);
+    for (uint32_t index = 0; index < count; ++index) {
+        const auto geometry = table + index * 16;
+        if (word(geometry + 8) != 0) continue;
+        const auto found = std::find_if(scene.meshes.begin(), scene.meshes.end(), [&](const CityMesh& mesh) {
+            return mesh.name == name(word(geometry));
+        });
+        if (found == scene.meshes.end()) throw std::runtime_error("Missing raw color-audit geometry.");
+        const auto mesh = word(geometry + 12), stream = word(mesh + 8), buffer = word(mesh + 16);
+        const auto data = word(stream + 28), stride = word(stream), offsets = word(stream + 8);
+        for (const bool primary : {true, false}) {
+            const auto component = bytes.at(buffer + (primary ? 22 : 23));
+            const auto& colors = primary ? found->colors : found->secondaryColors;
+            if (component == 255) {
+                if (!colors.empty()) throw std::runtime_error("Unauthored primary/secondary colors were synthesized.");
+                continue;
+            }
+            if (colors.size() != word(mesh + 4)) throw std::runtime_error("Raw color vertex count changed.");
+            for (size_t vertex = 0; vertex < colors.size(); ++vertex) {
+                const size_t source = data + vertex * stride + word(offsets + component * 4);
+                const std::array<float, 4> expected{bytes.at(source + (primary ? 0 : 2)) / 255.f,
+                    bytes.at(source + 1) / 255.f, bytes.at(source + (primary ? 2 : 0)) / 255.f,
+                    bytes.at(source + 3) / 255.f};
+                if (colors[vertex] != expected) throw std::runtime_error("Raw primary RGBA or retained secondary lanes differ.");
+            }
+        }
+    }
+}
+
 struct SceneIndex {
     std::map<std::string, std::vector<std::string>> meshes;
     std::map<std::string, std::vector<std::string>> materials;
@@ -745,6 +790,7 @@ try {
         }
         try {
             const auto scene = loadCityScene(assets, path);
+            auditPrimaryColorLanes(scene);
             for (const auto& [name, material] : scene.materials) {
                 ++materialModes[material.mode];
                 if ((material.mode == CityMaterialMode::lightmap || material.mode == CityMaterialMode::reflection ||
@@ -800,7 +846,7 @@ try {
     std::cout << scenes.size() << '/' << paths.size() << " accepted by the current scene decoder\n";
     std::cout << particleScenes << " BRES particle scenes with decoded emitters and "
               << particleTracks << " animated parameters, " << simulatedEmitters << " emitters simulated\n";
-    std::cout << authoredColors << " authored BGRA vertex colors decoded\n";
+    std::cout << authoredColors << " authored literal primary RGBA vertex colors validated against raw records\n";
     for (const auto mode : {CityMaterialMode::lightmap, CityMaterialMode::reflection,
                             CityMaterialMode::transparentReflection}) materialModes.try_emplace(mode, 0);
     for (const auto& [mode, count] : materialModes)

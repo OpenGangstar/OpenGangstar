@@ -1,6 +1,7 @@
 #pragma once
 
 #include "retail_text.h"
+#include "retail_material.h"
 
 #include <array>
 #include <cstddef>
@@ -75,7 +76,7 @@ struct CityMaterialStageState {
 };
 
 struct CityMaterial {
-    uint32_t diffuse = 0xffffffff;
+    RetailMaterialState state;
     std::string texture;
     CityMaterialMode mode = CityMaterialMode::solid;
     std::vector<std::string> additionalTextures;

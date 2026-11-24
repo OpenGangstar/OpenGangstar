@@ -253,32 +253,67 @@ already used bit replication. Supplied BMPs are 24/32-bit and retain their
 existing decoded pixels. Other runtime option masks, including direct packed
 uploads, remain outside the default-options contract.
 
-## Primary-color producer prerequisite
+## Original primary-color selection
 
-The texture equations in this document are verified given primary color P.
-They do not complete the original producer of P. A literal prepareMaterial
-trace also shows source material+32 replacing CMaterial's tracked color84 when
-+36 is present (`0x002a0988` through `0x002a09a8`, assignment at
-`0x002a0bf6`); the additive branch repeats this color selection at
-`0x002a0a54` through `0x002a0a76`. That tracked color reaches SMaterial+84,
-then `setBasicRenderStates` and `oglSetMaterialColor`, `0x002c51bd`, which
-calls `glMaterialfv` at `0x002c5206`. It is not an unconditional glColor or
-post-texturing multiplier. Lighting, ColorMaterial flags and game overrides
-determine its contribution to P. The native approximation still takes its
-material color from the previously decoded diffuse effect and has not ported
-this complete producer. New-mode combiner correctness therefore does not
-claim original material-color/lighting parity.
+The supported original CommonGL path disables GL_LIGHTING in both reset and
+changed lighting-requested-flag branches (`setBasicRenderStates`, 0x2c6661,
+actual disables at0x2c6734/0x2c6950). Material/light uploads do not establish
+an extra directional-normal lighting equation. Original `setupArrays`
+(0x2c72fd, selection0x2c757e..0x2c75f4) chooses authored primary RGBA when a
+primary stream exists and either stored flags40 mask2 is false or material
+word0 mask1 is true. Otherwise it sends the literal bytes of current color84
+to glColor4ub. Public material flag4 changes word0 mask1; internal flags40
+mask4 is color-material tracking and does not independently select a stream.
+All supported built-in material paths request primary attribute4.
 
-There are nine supplied records with source+36. Seven have nonwhite or
-nonunit-alpha source colors: car_light_00/01 `0x00ffffff`, p_explosion_00
-`0x87ffffff`, p_fire_00 `0xd1ffffff`, p_sand_00 `0xff85daff`, p_sand_01
-`0xff6ccbff`, and p_smoke_00 `0xfe000000`. The two car-light records select
-additive13 and begin with source alpha0; the live game light-color/vertex
-producer must be traced before substituting that value into the native
-unlit light path. No blanket source-color/alpha multiplication or speculative
-mode exception was added. Completing that producer and the related lighting
-flags is a concrete remaining dependency, not an assertion that these fields
-are unused. Modes3/12/17 have no supplied fixture to resolve it empirically.
+`CityMaterial` now retains the verified seven-field `RetailMaterialState`
+instead of a separate diffuse word. Preparation preserves the original current
+color, ambient, emissive, specular, flags, vertex-color control and dirty88:
+color-valued diffuse scales its alpha by effect+56 with float multiplication
+then integer truncation; texture-valued diffuse retains current white. A
+source+36 layer-zero override copies source+32 literally. Additive selection
+and that same literal color copy follow reflection/ordinary-alpha selection;
+lightmap follows additive and skips the ordinary ambient/emissive assignment.
+Effect+68 suppresses source512/1024 flags after their initial assignment.
+Actual original preparation for all1366 supplied records matches all seven
+native fields, including nonwhite ambient/specular and dirty state. No filename
+exceptions or unconditional alpha multipliers are used.
+
+The earlier OG059 research prose incorrectly described reflection as bypassing
+additive. Literal0x2a0a34 sends a present reflection directly to0x2a0a3c;
+ordinary alpha selection also ends there. Eight independent original conflict
+executions confirm additive follows either branch, then lightmap overrides it.
+The existing native mode selector already preserved that precedence.
+
+Primary vertex decoding now preserves byte0/1/2/3 as float RGBA, matching the
+original glColorPointer input and Vulkan float vertex format end to end.
+Secondary-color decoding and its distinct existing BGRA representation remain
+unchanged; no current production consumer or new original use is inferred.
+All1877 supplied ordinary mesh loaders compare directly to raw primary and
+secondary bytes:169337 primary rows across473 meshes and19637 secondary rows.
+These are source rows, not buffer repetitions or visible draw counts.
+
+Resolved world surfaces retain the prepared scalar state and actual primary
+stream presence. The production fragment constants choose that state's literal
+current RGBA OR the authored stream using `usesVertexColors`; they do not
+multiply both. The world shader no longer invents normal-based brightness.
+The existing explicit native brightness setting remains an application option.
+Independent UI/particle primary producers retain their established constants,
+alpha and descriptor paths. Reflection UV generation still uses the original
+raw normal path; removing primary lighting does not remove texgen normals.
+
+The two car-light materials demonstrate why selection matters: prepared current
+color is0x00ffffff, but their default authored primary streams are white with
+alpha255, and the original selector uses those streams. Badge/collectible glow
+have no primary stream and use prepared0xff959595. The particle materials keep
+the separately proved emitter/animation color producer; corrected source
+constants are not multiplied over those particle colors.
+
+This is the prepared-state and resolved-surface producer, not a complete live
+actor material host. Original game setup/recursive material0 overrides and
+shared mutable actor-material identity must eventually operate on the genuine
+scene owner; this change adds no model-name override or synthetic hierarchy.
+The scalar mutation leaves remain authoritative in MATERIAL_STATE.md.
 
 ## Validation and remaining work
 
@@ -289,7 +324,7 @@ both exhaustive 16-to-32 conversion paths. They run only as ignored research
 artifacts and add no emulator or original binary dependency to the port.
 
 The GPU smoke uses production shaders and pipelines with RGBA readback. Its
-31 checks include the earlier 11 material cases, the new texture equations,
+48 checks retain the earlier 11 material cases, the new texture equations,
 RGB/RGBA/disabled-stage alpha, authored UV1, both static texture matrices,
 nonunit reflection normals, view rotation, missing-normal fallback, fresh and
 inherited reflection alpha, an intervening one-stage draw, state across command
@@ -298,7 +333,9 @@ case uses a nonuniform texture through the shared production one-stage
 descriptor writer and real identity uniform block, real overlay default
 mode 0/diffuseAlpha 1/stageState 0 constants, and the caption pipeline. This checks
 legacy UI sampling and fractional alpha directly rather than relying only on
-opening smoke presentation.
+opening smoke presentation. Seventeen additional production-selector readbacks
+check non-gray stream and current RGB/alpha, stream absence, public flag4,
+stored flags2/internal4, opposite normals, modes13/14/15/25 alpha behavior, and the literal wreck current/stream choice.
 
 Retail enumeration still selects no modes 3/12/17. The former 1,409 secondary
 "bindings" flattened whole image lists. The actual indexed diffuse vectors
@@ -311,7 +348,7 @@ props_alpha_02; props_alpha_01 remains in its image catalogue but is not a
 selected secondary binding. Tests validate the actual placed hospital material
 resolution as mode 14 and its selected single texture.
 
-Remaining boundaries are explicit: full original primary lighting, dynamic
+Remaining boundaries are explicit: arbitrary external lighting state, dynamic
 material animation and its matrix-cache transitions, render-target vertical
 flips, arbitrary runtime texture-option changes, nonzero device orientation,
 and current-coordinate fallbacks without authored streams are not completed
@@ -337,9 +374,9 @@ An original simple-sphere helper execution independently checked all four
 orientation signs with an identity matrix, a nonunit normal, and nonzero
 matrix translation.
 
-Final verification: complete x64 Release and Debug builds and 13/13 CTests
+Final verification: complete x64 Release and Debug builds and 36/36 CTests
 passed in both configurations. Supplied retail geometry/door/material fixtures
-passed in both, and 31 actual GPU RGBA readbacks plus automated opening smoke
+passed in both, and 48 actual GPU RGBA readbacks plus automated opening smoke
 passed in both. The full asset audit exits 1 in both configurations because the
 supplied archive still lacks 111 distinct texture references; primary bindings
 remain 4,058/4,216 and district bindings 2,908/2,910. All 98 supplied images still

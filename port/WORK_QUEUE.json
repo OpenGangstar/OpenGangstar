@@ -2217,8 +2217,8 @@
         "OG-063"
       ],
       "blockers": [
-        "Retained actor graph/CPU skin/full animation source/material mutation state are merged. Live retained pose and dynamic bounds are in progress; typed binding-mask discrepancy is being corrected from original execution evidence.",
-        "Genuine global scene reparent/ownership/frame dispatch, instance materials/primary rendering, full original outer player/world/VM host and deformed renderer binding remain unimplemented."
+        "Retained scene/pose/global graph primitives, material state/prepared rendering and CPU deformation cores merged or under final review. Full original outer player/world/VM actor host remains unimplemented.",
+        "Real software process ownership074, live collision075 and actor-instance material ownership076 are active prerequisites; deformed renderer submission, target/facing, full scene pool policy and ordered outer host remain required."
       ],
       "assigned_agent": null,
       "baseline": null,
@@ -3124,8 +3124,8 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "f14b77a20c97e01cfc49af5df8fc50fc1b0f4dd7",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Exact original prepared state/vertex binding capture and actual GPU readbacks of source selection, literal lanes, alpha/modes, unchanged normals/reflection behavior and existing combiner/UI sequences.",
         "Full Release/Debug builds/CTests and asset/startup gates; no manual gameplay."
@@ -3134,7 +3134,8 @@
         "patch": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1/port/build/OG-064.patch",
         "sha256": "5f948521ddbbdf789d398555ea7cb295af12cf290802ef27132ff6fd30b3ccec",
         "report_sha256": "44451c5c9a6e554c2cb7b5d2c19a006a2736e3ecdd130046b2d431bd39cb406d"
-      }
+      },
+      "independent_verification": "Root R/D39CTests each and affected game/test PEs PE32+AMD64. Re-executed actual prepareMaterial1366records and11synthetic original mode/type cases; all sevenfields exact in both nativeconfigs. Raw359BRES/1877meshes,169337primaryRGBA rows and19637unchangedsecondary rows match. Both configs48actual GPU material pixels and opening smoke pass withtemporary saves. Audit98decoded/111missing/0decodefailures retained. Resolved per-surface state snapshots only; full actor material owner separate076."
     },
     {
       "id": "OG-065",
@@ -3273,7 +3274,7 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "9d748c1",
-      "status": "IN_PROGRESS",
+      "status": "AWAITING_REVIEW",
       "reservations_active": true,
       "validation": [
         "Actual original54 ownership/lifecycle/projection cases and additional manager propagation/hierarchy flag/lifetime cases compared against real Player/jail native graphs.",
@@ -3462,11 +3463,109 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "3587d97",
-      "status": "AWAITING_REVIEW",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Exact original call/field/function evidence; targeted actual-original probes including live matrix/box/animation mutations and side-effect order where supported.",
         "Frozen source identities/report/resource plan and honest native adaptation limits; no product/original edits or manual gameplay."
+      ],
+      "independent_verification": "Root independently replayed all34actual original filter timing cases including both real Player graphs and genuine dirty skin palette/bounds getters; zero assertion failures. Live production binding assigned075; ordinary transformed boxes still unsupported."
+    },
+    {
+      "id": "OG-074",
+      "description": "Port original software deformation process-buffer ownership and release state.",
+      "scope": "Real owned current output streams, borrowed source metadata and exact skin/morph range/mask/process-type/preparation/release semantics using verified066 and070. No fabricated GL driver, renderer or absent game host. New files only; actor_scene reserved068.",
+      "symbols": [
+        "CColladaSkinnedMesh process/preparation/release/toggle routines documented066",
+        "CColladaMorphingMesh software proxy process ownership documented066"
+      ],
+      "resources": [
+        "port/retail_deformation.h",
+        "port/retail_deformation.cpp",
+        "port/tests/retail_deformation.cpp",
+        "port/DEFORMATION.md"
+      ],
+      "assigned_agent": "/root/worker_1",
+      "dependencies": [
+        "OG-066",
+        "OG-070"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "blockers": [],
+      "baseline": "446a4ad",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original execution matches ordered state transitions and native bits in R/D.",
+        "Real retained source resources and lifetime controls; strict checked unsupported boundaries.",
+        "Full tests/config, PE32+AMD64 and original source untouched; root owns CMake/commit/push."
+      ]
+    },
+    {
+      "id": "OG-075",
+      "description": "Port genuine live contact-filter getter order and actor body scene binding.",
+      "scope": "Preserve captured metadata identities and ordered live category/player/position/rootHeight/transformed-box/jump reads. Retain explicit genuine skin node binding; unsupported ordinary transformed getter rejects setup. Keep constant fixture domain explicit; no eager snapshot refresh, new jump clock, fake runtime or actor_scene edits.",
+      "symbols": [
+        "ContactFilter::ShouldCollide0x31dc7d",
+        "RetailContactFilter::ShouldCollide",
+        "RetailActorPhysics::initialize"
+      ],
+      "resources": [
+        "port/retail_physics.h",
+        "port/retail_physics.cpp",
+        "port/tests/retail_physics.cpp",
+        "port/retail_actor_physics.h",
+        "port/retail_actor_physics.cpp",
+        "port/tests/retail_actor_physics.cpp",
+        "port/LIVE_COLLISION.md"
+      ],
+      "assigned_agent": "/root/worker_2",
+      "dependencies": [
+        "OG-073",
+        "OG-055",
+        "OG-062",
+        "OG-072"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "blockers": [],
+      "baseline": "446a4ad",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original execution matches ordered state transitions and native bits in R/D.",
+        "Real retained source resources and lifetime controls; strict checked unsupported boundaries.",
+        "Full tests/config, PE32+AMD64 and original source untouched; root owns CMake/commit/push."
+      ]
+    },
+    {
+      "id": "OG-076",
+      "description": "Recover genuine constructed actor material ownership and recursive mutation binding.",
+      "scope": "Read-only prerequisite040: establish factory material ownership/sharing/refcounts between source, constructed ordinary/skin meshes and scene node material accessor, recursive setMaterialFlag/setColor/setAlpha selection/order. Existing063state and064prepared/render arithmetic are authoritative; do not duplicate them or claim full actor host. New ignored evidence only.",
+      "symbols": [
+        "DefaultFactory material/mesh construction and source construct lifetime",
+        "ISceneNode material access and recursive LevelObject/Character material mutations"
+      ],
+      "resources": [
+        "worker-3/port/build/OG-076-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-049",
+        "OG-063",
+        "OG-064",
+        "OG-068"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "446a4ad",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original identities/order/lifetimes on both real Player factory graphs plus minimal shared source/multiple-instance probes.",
+        "Precise minimal native ownership/resource plan; no speculative state owner or product edits."
       ]
     }
   ],
@@ -3483,7 +3582,7 @@
     "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root R/D39CTests/config pass after070. All original skin/morph/composition outputs unchanged. 064 rendering and073 live-filter research frozen awaiting review;068 global graph finalizing."
+    "native_integration": "2026-11-25: Root R/D39CTests each after064+070. All1366original materials, raw359scene colors, original skin/morph chains exact;48actualGPUchecks/config and opening smoke pass. Missing111source textures remain explicit.068globalgraph awaitingreview;074/075/076 active."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

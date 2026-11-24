@@ -416,9 +416,18 @@ struct CityFragmentConstants {
     uint32_t stageState = 0;
 };
 
-CityFragmentConstants cityFragment(const CitySurface& surface, float brightness)
+CityFragmentConstants cityFragment(const CitySurface& surface, float brightness,
+                                   const RetailMaterialState* replacement = nullptr)
 {
-    return {surface.tintAndCutoff, brightness, static_cast<uint32_t>(surface.materialMode), surface.diffuseAlpha};
+    CityFragmentConstants result{surface.tintAndCutoff, brightness, static_cast<uint32_t>(surface.materialMode)};
+    const auto* material = replacement ? replacement : surface.material ? &*surface.material : nullptr;
+    if (material) {
+        const auto rgba = retailMaterialRgba(material->diffuse);
+        std::copy_n(rgba.begin(), 3, result.tintAndCutoff.begin());
+        result.diffuseAlpha = rgba[3];
+        result.stageState = 32u | (material->usesVertexColors(surface.primaryStreamPresent) ? 0u : 16u);
+    }
+    return result;
 }
 
 using CityTextureBinding = std::tuple<std::string, std::string,
@@ -2367,7 +2376,7 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
     frame.layers = 1;
     check(VK_CALL(vkCreateFramebuffer)(vk.device, &frame, nullptr, &proof.frame), "vkCreateFramebuffer (material proof)");
     std::vector<CityVertex> vertices;
-    for (size_t quad = 0; quad < 5; ++quad)
+    for (size_t quad = 0; quad < 7; ++quad)
         for (const auto& xy : std::array<std::array<float, 2>, 6>{{{-1, -1}, {1, -1}, {1, 1}, {-1, -1}, {1, 1}, {-1, 1}}}) {
             CityVertex vertex{{xy[0] + (quad == 3 ? 4.f : 0.f), xy[1], quad == 1 ? 0.5f : 0.25f},
                 quad >= 2 ? std::array<float, 2>{0.25f, 0.25f} : std::array<float, 2>{0.5f, 0.5f},
@@ -2375,6 +2384,10 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
                 {-0.35f, -0.45f, 1}};
             vertex.auxiliaryUv = {0.25f, 0.25f};
             vertex.reflectionNormal = {0.5f, -0.5f, 2.f, quad == 4 ? 0.f : 1.f};
+            if (quad >= 5) {
+                vertex.color = {51.f / 255, 153.f / 255, 230.f / 255, 64.f / 255};
+                vertex.normal = quad == 5 ? std::array<float, 3>{1, 2, 3} : std::array<float, 3>{-1, -2, -3};
+            }
             vertices.push_back(vertex);
         }
     const VkDeviceSize pixelOffset = vertices.size() * sizeof(CityVertex);
@@ -2447,11 +2460,14 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
     using Mode = CityMaterialMode;
     enum class StageCase { legacy, rgba, rgb, disabledFirst, disabledSecond, firstTransform,
                            secondTransform, rotatedView, missingNormal, inheritedAlpha, interveningOneStage, carryAlpha, ui };
+    enum class PrimaryCase { legacy, stream, current, noLighting, vertexFlag, trackedCurrent, noStream, oppositeNormal,
+                             wreckStream, wreckCurrent };
     struct Case {
         const char* name;
         Mode mode;
         bool lowAlpha = false, behind = false, equalDepth = false;
         StageCase stages = StageCase::legacy;
+        PrimaryCase primary = PrimaryCase::legacy;
     };
     constexpr Case cases[]{
         {"solid modulation", Mode::solid}, {"alpha channel", Mode::alphaChannel}, {"additive", Mode::additive},
@@ -2481,7 +2497,24 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
         {"transparent reflection does not write depth", Mode::transparentReflection, false, true, false, StageCase::rgba},
         {"real one-stage UI descriptor and default material constants", Mode::solid, false, false, false, StageCase::ui},
         {"lightmap primes next command buffer", Mode::lightmap, false, false, false, StageCase::rgba},
-        {"reflection inherits across command buffers", Mode::reflection, false, false, false, StageCase::carryAlpha}
+        {"reflection inherits across command buffers", Mode::reflection, false, false, false, StageCase::carryAlpha},
+        {"literal RGBA stream without material multiplication", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::stream},
+        {"literal RGBA current without stream multiplication", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::current},
+        {"flag2 false uses stream despite public flag4 false", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::noLighting},
+        {"public flag4 true restores stream", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::vertexFlag},
+        {"internal flags4 tracks color but does not select stream", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::trackedCurrent},
+        {"absent primary stream uses current", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::noStream},
+        {"opposite normals preserve literal primary brightness", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::oppositeNormal},
+        {"additive stream alpha", Mode::additive, false, false, false, StageCase::legacy, PrimaryCase::stream},
+        {"additive current alpha", Mode::additive, false, false, false, StageCase::legacy, PrimaryCase::current},
+        {"alpha14 stream RGB and texture alpha", Mode::alphaChannel, false, false, false, StageCase::legacy, PrimaryCase::stream},
+        {"alpha14 current RGB and texture alpha", Mode::alphaChannel, false, false, false, StageCase::legacy, PrimaryCase::current},
+        {"alpha15 stream RGB and texture alpha", Mode::alphaReference, false, false, false, StageCase::legacy, PrimaryCase::stream},
+        {"alpha15 current RGB and texture alpha", Mode::alphaReference, false, false, false, StageCase::legacy, PrimaryCase::current},
+        {"mode25 stream alpha", Mode::textureVertexAlpha, false, false, false, StageCase::legacy, PrimaryCase::stream},
+        {"mode25 current alpha", Mode::textureVertexAlpha, false, false, false, StageCase::legacy, PrimaryCase::current},
+        {"wreck flag2 false keeps authored stream", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::wreckStream},
+        {"wreck current literal byte25 25 35", Mode::solid, false, false, false, StageCase::legacy, PrimaryCase::wreckCurrent}
     };
     constexpr std::array<float, 4> background{0.125f, 0.25f, 0.375f, 0.75f};
     const bool bgra = colorFormat == VK_FORMAT_B8G8R8A8_UNORM || colorFormat == VK_FORMAT_B8G8R8A8_SRGB;
@@ -2512,7 +2545,7 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
                 city.materialPipelines.at(static_cast<size_t>(mode))[0];
             VK_CALL(vkCmdBindPipeline)(command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
             const bool materialQuad = twoStage && first != 6;
-            const auto descriptor = test.stages == StageCase::ui ? proof.textures[2].descriptor : descriptors[materialQuad ?
+            const auto descriptor = test.stages == StageCase::ui || test.primary != PrimaryCase::legacy ? proof.textures[2].descriptor : descriptors[materialQuad ?
                 test.stages == StageCase::firstTransform ? 3 : test.stages == StageCase::secondTransform ? 4 : 2 :
                 first ? 0 : test.lowAlpha ? 1 : 0];
             VK_CALL(vkCmdBindDescriptorSets)(command, VK_PIPELINE_BIND_POINT_GRAPHICS, city.layout,
@@ -2521,6 +2554,28 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
             CityFragmentConstants fragment{{first == 6 ? 1.f : 0.6f, 1, 1, mode == Mode::alphaReference ? 0.5f : 0},
                                                   1, static_cast<uint32_t>(mode), first == 6 ? 1.f : 0.4f};
             if (test.stages == StageCase::ui) fragment = {{0, 1, 1, -1}, 0.8f};
+            if (test.primary != PrimaryCase::legacy) {
+                CitySurface surface{};
+                surface.tintAndCutoff = {1, 1, 1, mode == Mode::alphaReference ? 0.5f : 0};
+                surface.materialMode = mode;
+                surface.material.emplace();
+                surface.material->setColor(0xb31a4dcc, 0);
+                surface.material->setColor(0xff112233, 1);
+                surface.primaryStreamPresent = test.primary != PrimaryCase::noStream && test.primary != PrimaryCase::wreckCurrent;
+                if (test.primary == PrimaryCase::current || test.primary == PrimaryCase::noLighting ||
+                    test.primary == PrimaryCase::vertexFlag || test.primary == PrimaryCase::trackedCurrent)
+                    surface.material->setFlag(4, false);
+                if (test.primary == PrimaryCase::noLighting) surface.material->setFlag(2, false);
+                if (test.primary == PrimaryCase::vertexFlag) surface.material->setFlag(4, true);
+                if (test.primary == PrimaryCase::trackedCurrent) surface.material->setColor(0xb31a4dcc, 1);
+                fragment = cityFragment(surface, 1);
+                if (test.primary == PrimaryCase::wreckStream || test.primary == PrimaryCase::wreckCurrent) {
+                    auto wreck = *surface.material;
+                    wreck.setFlag(2, false);
+                    wreck.setColor(0xff231919, 0);
+                    fragment = cityFragment(surface, 1, &wreck);
+                }
+            }
             vk.materialStages.bind(mode);
             if (materialQuad) fragment.stageState = (test.stages == StageCase::rgb ? 1u : 0u) |
                 (test.stages == StageCase::disabledSecond ? 0u : 2u) |
@@ -2538,7 +2593,8 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
         if (test.stages == StageCase::inheritedAlpha || test.stages == StageCase::interveningOneStage)
             draw(Mode::lightmap, 18, false); // Clipped geometry still executes material binding.
         if (test.stages == StageCase::interveningOneStage) draw(Mode::alphaChannel, 18, false);
-        draw(test.mode, twoStage || test.stages == StageCase::ui ? test.stages == StageCase::missingNormal ? 24 : 12 : 0, false);
+        draw(test.mode, test.primary != PrimaryCase::legacy ? test.primary == PrimaryCase::oppositeNormal ? 36 : 30 :
+             twoStage || test.stages == StageCase::ui ? test.stages == StageCase::missingNormal ? 24 : 12 : 0, false);
         if (test.behind) draw(Mode::solid, 6, test.equalDepth);
         VK_CALL(vkCmdEndRenderPass)(command);
         VkImageMemoryBarrier imageBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
@@ -2617,6 +2673,22 @@ void verifyCityMaterialPixels(CityRender& city, VkFormat colorFormat, VkExtent2D
             const auto sourceAlpha = (153.f / 255) * 0.25f;
             expected = {0.8f * (64.f / 255) * sourceAlpha + background[0] * (1 - sourceAlpha),
                         background[1] * (1 - sourceAlpha), background[2] * (1 - sourceAlpha), sourceAlpha};
+        }
+        if (test.primary != PrimaryCase::legacy) {
+            // Independent literal GL inputs; do not call the production selector or color decoder for expectations.
+            const bool current = test.primary == PrimaryCase::current || test.primary == PrimaryCase::trackedCurrent ||
+                                 test.primary == PrimaryCase::noStream;
+            const std::array<float, 4> primary = test.primary == PrimaryCase::wreckCurrent ?
+                std::array<float, 4>{25.f / 255, 25.f / 255, 35.f / 255, 1} :
+                current ? std::array<float, 4>{204.f / 255, 77.f / 255, 26.f / 255, 179.f / 255} :
+                          std::array<float, 4>{51.f / 255, 153.f / 255, 230.f / 255, 64.f / 255};
+            const float alpha = test.mode == Mode::alphaChannel || test.mode == Mode::alphaReference ? 153.f / 255 :
+                (153.f / 255) * primary[3];
+            expected = {(64.f / 255) * primary[0], (128.f / 255) * primary[1], (32.f / 255) * primary[2], alpha};
+            if (test.mode == Mode::additive || test.mode == Mode::alphaChannel || test.mode == Mode::textureVertexAlpha)
+                for (size_t channel = 0; channel < 4; ++channel)
+                    expected[channel] = expected[channel] * alpha + background[channel] *
+                        (test.mode == Mode::additive ? 1.f : 1 - alpha);
         }
         if (test.behind && (test.equalDepth || cityMaterialTransparent(test.mode))) expected = {0, 0, 1, 128.f / 255};
         for (size_t channel = 0; channel < expected.size(); ++channel) {
@@ -3743,7 +3815,8 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
             ? city.textures.at(draw.surface->texture).descriptor : binding->second.descriptor;
         auto fragment = draw.fragment;
         vk.materialStages.bind(draw.surface->materialMode);
-        fragment.stageState = (city.textures.at(draw.surface->texture).baseFormat == TextureBaseFormat::rgb ? 1u : 0u) |
+        fragment.stageState = (fragment.stageState & 48u) |
+            (city.textures.at(draw.surface->texture).baseFormat == TextureBaseFormat::rgb ? 1u : 0u) |
             (!std::get<1>(key).empty() && city.textures.at(std::get<1>(key)).enabled ? 2u : 0u) |
             (vk.materialStages.alpha == CityStageOneAlpha::previousSquared ? 4u : 0u) |
             (city.textures.at(draw.surface->texture).enabled ? 8u : 0u);
@@ -3939,9 +4012,13 @@ bool presentCity(CityRender& city, VkExtent2D size, size_t* lightDraws = nullptr
         auto fragment = cityFragment(surface, brightness);
         if (surface.vehicle && surface.payphoneActor.has_value() == city.playback.nextMissionVehicleActive &&
             vehicle && vehicle->exploded) {
-            // Vehicle::explode assigns BGRA 25, 25, 35, 255 to the wreck.
-            fragment.tintAndCutoff[0] = 35.f / 255;
-            fragment.tintAndCutoff[1] = fragment.tintAndCutoff[2] = 25.f / 255;
+            // Vehicle::explode disables flag2, then assigns literal RGBA25,25,35,255.
+            // This remains the existing preview's surface selection, not a recursive actor material host.
+            if (!surface.material) throw std::runtime_error("Missing resolved wreck material state.");
+            auto wreck = *surface.material;
+            wreck.setFlag(2, false);
+            wreck.setColor(0xff231919, 0);
+            fragment = cityFragment(surface, brightness, &wreck);
         }
         if (arrowMarker) fragment.tintAndCutoff[3] = -1;
         queueSurface(surface, fragment, citySurfaceCullBackfaces(surface, city.playback));

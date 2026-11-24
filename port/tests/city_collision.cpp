@@ -326,6 +326,7 @@ void verifyIndexedMaterialLoader()
         const auto effect = 156 + i * 88, material = 332 + i * 64;
         word(effect, 468); // Equal names must not collapse indexed identity.
         word(effect + 20, 460 + i * 4);
+        word(effect + 12, 460); word(effect + 28, 464);
         word(effect + 56, 0x3f800000); // Opacity1.0f.
         word(material, 480 + i * 8);
         word(material + 12, 468);
@@ -341,9 +342,9 @@ void verifyIndexedMaterialLoader()
         return loadCityScene(assets, "materials.bdae");
     };
     const auto verify = [](const CityScene& scene) {
-        require(scene.materials.size() == 2 && scene.materials.at("first").diffuse == 0x11223344 &&
+        require(scene.materials.size() == 2 && scene.materials.at("first").state.diffuse == 0x11223344 &&
                 scene.materials.at("first").mode == CityMaterialMode::solid &&
-                scene.materials.at("second").diffuse == 0xaabbccdd &&
+                scene.materials.at("second").state.diffuse == 0xaabbccdd &&
                 scene.materials.at("second").mode == CityMaterialMode::alphaChannel,
                 "Material effect indices collapsed distinct records with equal names.");
     };
@@ -413,10 +414,12 @@ void verifyIndexedMaterialLoader()
     require(load().materials.at("first").mode == CityMaterialMode::transparentReflection,
             "Original transparent reflection source selector was lost.");
     bytes[156 + 8] = 1; word(156 + 12, 840); word(840, 1); word(844, 848); word(848, 1);
+    scalar(156 + 64, 0.25f);
     word(332 + 28, 1);
     indexed = load().materials.at("first");
     require(indexed.mode == CityMaterialMode::lightmap && indexed.additionalTextures[0] == "tex2.tga" &&
-            indexed.texture == "tex0.tga" && indexed.textureTransforms[0][0] == 2,
+            indexed.texture == "tex0.tga" && indexed.textureTransforms[0][0] == 2 &&
+            indexed.state.ambient == 0xffffffff && indexed.state.emissive == 0,
             "Late lightmap selection did not override reflection/additive while retaining matrices.");
     const auto reject = [&] {
         bool invalid = false;
@@ -432,7 +435,66 @@ void verifyIndexedMaterialLoader()
     word(900 + 12, 2);
     require(load().materials.at("first").texture == "tex0.tga", "Image external selector must compare exactly with1.");
     word(900 + 12, 0);
-
+    // Original prepareMaterial fixtures, independent literal outputs from ARM:
+    // diffuse alpha truncates before late source/additive overrides; ambient,
+    // emissive, specular and dirty88 remain genuine prepared state.
+    std::fill(bytes.begin(), bytes.end(), 0);
+    text(0, "BRES"); word(4, 0xfffe); word(8, 32); word(12, static_cast<uint32_t>(bytes.size()));
+    word(20, 32); word(24, 32); word(28, 32);
+    word(32 + 60, 1); word(32 + 64, 156); word(32 + 68, 1); word(32 + 72, 244);
+    word(156, 320); text(320, "effect"); word(244, 328); text(328, "mat");
+    word(156 + 12, 308); word(308, 0xff112233);
+    word(156 + 20, 312); word(312, 0x80402010);
+    word(156 + 28, 316); word(316, 0xff445566);
+    scalar(156 + 56, 0.5f); scalar(156 + 64, 0.25f);
+    word(244 + 24, 0); word(244 + 32, 0x87abcdef);
+    word(244 + 36, UINT32_MAX); word(244 + 40, UINT32_MAX);
+    auto prepared = load().materials.at("mat");
+    require(prepared.state.vertexColorControl == 1 && prepared.state.flags == 0x187 &&
+            prepared.state.ambient == 0xff112233 && prepared.state.emissive == 0x3f3f3f3f &&
+            prepared.state.specular == 0xff445566 && prepared.state.diffuse == 0x40402010 &&
+            prepared.state.dirtyFlags == 0xfd && prepared.mode == CityMaterialMode::alphaChannel,
+            "Prepared material scalar state differs from original alpha/ambient/emissive/specular/dirty order.");
+    for (const uint8_t type : {uint8_t(2), uint8_t(255)}) {
+        bytes[156 + 16] = type;
+        require(load().materials.at("mat").state.diffuse == 0x40402010,
+                "Original diffuse selector compares exactly with1; other values are color-valued.");
+    }
+    bytes[156 + 16] = 0;
+    word(244 + 28, 1);
+    prepared = load().materials.at("mat");
+    require(prepared.state.diffuse == 0x87abcdef && prepared.mode == CityMaterialMode::additive,
+            "Additive must select literal source color without requiring a source image.");
+    word(244 + 28, 0); bytes[156 + 16] = 1; word(156 + 20, 340); // Empty authored texture list.
+    require(load().materials.at("mat").state.diffuse == 0xffffffff,
+            "Textured diffuse must retain original current white rather than interpreting its vector as color.");
+    word(32 + 52, 2); word(32 + 56, 360);
+    word(360 + 8, 400); text(400, "base.tga"); word(380 + 8, 416); text(416, "refl.tga");
+    word(244 + 36, 0); word(244 + 40, 1); word(244 + 28, 1); word(244 + 32, 0x87123456);
+    prepared = load().materials.at("mat");
+    require(prepared.mode == CityMaterialMode::additive && prepared.state.diffuse == 0x87123456,
+            "Additive must follow reflection selection and retain literal source current RGBA.");
+    for (bool firstFlag : {false, true}) for (bool secondFlag : {false, true}) for (bool suppress : {false, true}) {
+        word(244 + 56, firstFlag); word(244 + 60, secondFlag); word(156 + 68, suppress);
+        const auto state = load().materials.at("mat").state;
+        const uint32_t expectedFlags = 0x187 | ((!suppress && firstFlag) ? 512 : 0) |
+                                               ((!suppress && secondFlag) ? 1024 : 0);
+        require(state.flags == expectedFlags && state.dirtyFlags == 0xfd,
+                "Effect suppression must follow the source512/1024 flag assignments.");
+    }
+    auto state = prepared.state;
+    state.setFlag(4, false);
+    require(!state.usesVertexColors(true), "Lighting-requested material with public flag4 false must use current RGBA.");
+    state.setColor(state.diffuse, 1);
+    require((state.flags & 4) && !state.usesVertexColors(true),
+            "Internal color-material mask4 must not be confused with public vertex-color flag4.");
+    state.setFlag(2, false);
+    require(state.usesVertexColors(true) && !state.usesVertexColors(false),
+            "Actual primary stream presence and flags2 must control selection independently.");
+    state.setFlag(2, true); state.setFlag(4, true);
+    require(state.usesVertexColors(true) && retailMaterialRgba(0x87123456) ==
+            std::array<float, 4>{86.f / 255, 52.f / 255, 18.f / 255, 135.f / 255},
+            "Restored vertex flag or literal current RGBA lanes changed.");
 }
 
 void verifyMaterialModes()
@@ -1714,8 +1776,8 @@ void poseRetailDoor(const std::filesystem::path& root)
             "Retail fire additive precedence or health-crate opacity selection changed.");
     const auto parkingLight = loadCityScene(assets, "light_park_00.bdae");
     require(!parkingLight.meshes.empty() && parkingLight.meshes.front().colors.size() > 1 &&
-            parkingLight.meshes.front().colors[1] == std::array<float, 4>{172.f / 255, 1, 1, 1},
-            "Retail parking light lost its BGRA color channels.");
+            parkingLight.meshes.front().colors[1] == std::array<float, 4>{1, 1, 172.f / 255, 1},
+            "Retail parking light lost literal primary RGBA color channels.");
     const auto& highlight = *opening.vehicleObjective;
     require(std::filesystem::path(highlight.model.path).filename() == "target_car.bdae" &&
             !highlight.model.nodes.empty() && highlight.animation.durationMs &&
@@ -1888,8 +1950,9 @@ void poseRetailDoor(const std::filesystem::path& root)
                     mesh->texCoords.size() == mesh->positions.size(), "Retail light mesh lost its UVs.");
             for (size_t i = 0; i < mesh->buffers.size(); ++i) {
                 const auto material = resolveCityMaterial(city, effect, library, geometry, *mesh, i);
-                require(material.texture == "gloweffects.tga" && material.diffuse == 0xff959595,
-                        "Retail light material lost its atlas binding or diffuse tint.");
+                require(material.texture == "gloweffects.tga" && material.state.diffuse == 0x00ffffff &&
+                        material.state.usesVertexColors(!mesh->colors.empty()),
+                        "Retail light must select its authored primary stream and ignore current-color alpha zero.");
                 ++surfaces;
             }
         }

@@ -1460,3 +1460,6 @@ Root Release/Debug4original positioning and6actual reset/gate cases match54coord
 
 
 2026-11-25 OG070: shared borrowed current vertex-stream view now feeds existing skin/morph cores without copying geometry or falling back to immutable base normals. Root Release/Debug39CTests each; all native dump hashes unchanged and actual original skin/morph plus21direct chained-output cases match. Full process-buffer/actor deformation host remains separate.
+
+
+2026-11-25 OG064: prepared materials now retain authoritative seven-field mutable state, literal primary RGBA and source vertex-stream selection. Vulkan original surfaces use selected vertex OR constant primary without invented lighting. Root R/D39CTests each,1366original states and359raw scene loaders match,48actual GPU material pixels and opening smoke each pass usingtemporary saves;98texturesdecode,111missing,0decodefailures. Full actor material ownership and recursive mutation hosting remain separate076.

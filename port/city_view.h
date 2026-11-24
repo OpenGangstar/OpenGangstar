@@ -182,11 +182,12 @@ struct CitySurface {
     bool lodAlternative = false;
     std::optional<size_t> payphoneActor;
     CityMaterialMode materialMode = CityMaterialMode::solid;
-    float diffuseAlpha = 1;
     std::shared_ptr<CitySurfaceNode> node;
     std::vector<std::string> additionalTextures;
     std::array<CityTextureTransform, 2> textureTransforms{
         cityIdentityTextureTransform, cityIdentityTextureTransform};
+    std::optional<RetailMaterialState> material; // Actual resolved mutable state; absent for independent UI/particle producers.
+    bool primaryStreamPresent = false;
 };
 
 bool cityTransparentSurfaceBefore(const CitySurface& first, const CitySurface& second,

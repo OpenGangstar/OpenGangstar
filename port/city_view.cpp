@@ -693,13 +693,13 @@ void appendScene(CityDrawData& draw, const CityAssets& city, const CityScene& sc
                 if (twoStage && secondBound && !generatesUv && mesh->auxiliaryTexCoords.empty())
                     throw std::runtime_error("Unsupported original current-coordinate fallback without authored UV1.");
                 const bool alphaTest = mode == CityMaterialMode::alphaReference;
-                const auto channel = [&](unsigned shift) { return float((material.diffuse >> shift) & 255) / 255; };
                 draw.surfaces.push_back({static_cast<uint32_t>(draw.indices.size()), static_cast<uint32_t>(buffer.indices.size()),
-                    material.texture, {channel(16), channel(8), channel(0), alphaTest ? 0.5f : 0.f},
+                    material.texture, {1, 1, 1, alphaTest ? 0.5f : 0.f},
                     startMs, actor ? actor->endMs : UINT32_MAX, actor && actor->name == "Player",
                     part == VehiclePart::interior, part == VehiclePart::exterior, vehicle != nullptr, {}, lodLimit});
                 draw.surfaces.back().materialMode = mode;
-                draw.surfaces.back().diffuseAlpha = channel(24);
+                draw.surfaces.back().material = material.state;
+                draw.surfaces.back().primaryStreamPresent = !mesh->colors.empty();
                 draw.surfaces.back().node = renderNode;
                 draw.surfaces.back().additionalTextures = material.additionalTextures;
                 draw.surfaces.back().textureTransforms = material.textureTransforms;
@@ -1137,7 +1137,10 @@ bool cityTransparentSurfaceBefore(const CitySurface& first, const CitySurface& s
     if (first.texture != second.texture) return first.texture < second.texture;
     if (first.additionalTextures != second.additionalTextures) return first.additionalTextures < second.additionalTextures;
     if (first.tintAndCutoff != second.tintAndCutoff) return first.tintAndCutoff < second.tintAndCutoff;
-    return first.diffuseAlpha < second.diffuseAlpha;
+    const auto color = [](const CitySurface& surface) {
+        return surface.material ? retailMaterialRgba(surface.material->diffuse) : std::array<float, 4>{1, 1, 1, 1};
+    };
+    return color(first) < color(second);
 }
 
 std::vector<CitySpawnMesh> appendCitySpawnMeshes(CityDrawData& draw, const CityAssets& city,

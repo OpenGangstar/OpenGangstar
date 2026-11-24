@@ -708,7 +708,7 @@ CityMesh readMesh(const BresReader& bres, uint32_t geometry)
     // CColladaMeshBuffer binds the auxiliary coordinate array from byte 19.
     readTexCoords(auxiliaryStream, result.auxiliaryTexCoords);
 
-    const auto readColors = [&](uint8_t colorStream, auto& colors) {
+    const auto readColors = [&](uint8_t colorStream, auto& colors, bool primary) {
         if (colorStream == 255) return;
         if (colorStream >= streamCount) bres.fail();
         const auto offset = bres.word(offsets + colorStream * 4);
@@ -716,15 +716,17 @@ CityMesh readMesh(const BresReader& bres, uint32_t geometry)
         colors.reserve(vertexCount);
         for (uint32_t i = 0; i < vertexCount; ++i) {
             const auto color = data + i * stride + offset;
-            colors.push_back({bres.byte(color + 2) / 255.f, bres.byte(color + 1) / 255.f,
-                              bres.byte(color) / 255.f, bres.byte(color + 3) / 255.f});
+            // Original glColorPointer consumes primary bytes as literal RGBA.
+            // Keep the separately unproved secondary-color representation intact.
+            colors.push_back({bres.byte(color + (primary ? 0 : 2)) / 255.f, bres.byte(color + 1) / 255.f,
+                              bres.byte(color + (primary ? 2 : 0)) / 255.f, bres.byte(color + 3) / 255.f});
         }
     };
     // CColladaMeshBuffer binds byte 22 to its color-0 accessor.
     const auto colorStream = bres.byte(bufferTable + 22);
     const auto secondaryColorStream = bres.byte(bufferTable + 23);
-    readColors(colorStream, result.colors);
-    readColors(secondaryColorStream, result.secondaryColors);
+    readColors(colorStream, result.colors, true);
+    readColors(secondaryColorStream, result.secondaryColors, false);
 
     result.buffers.reserve(bufferCount);
     for (uint32_t i = 0; i < bufferCount; ++i) {
@@ -788,9 +790,16 @@ void readMaterials(const BresReader& bres, CityScene& scene)
         uint8_t transparency, lightmap;
         float opacity;
         uint32_t lightmapImage;
+        std::optional<uint32_t> ambient, emissive, specular;
+        bool suppressSourceFlags;
     };
     std::vector<Effect> effects;
     effects.reserve(effectCount);
+    const auto scaledByte = [&](uint32_t byte, float scale) {
+        const float value = float(byte) * scale;
+        if (!std::isfinite(value) || value < 0 || value >= 4294967296.f) bres.fail();
+        return static_cast<uint32_t>(value) & 255u;
+    };
     for (uint32_t i = 0; i < effectCount; ++i) {
         const auto effect = effectTable + i * 88;
         CityMaterial material;
@@ -818,9 +827,12 @@ void readMaterials(const BresReader& bres, CityScene& scene)
         }
         const auto diffuse = bres.word(effect + 20);
         const auto type = bres.byte(effect + 16);
-        if (diffuse && type == 0) {
-            material.diffuse = bres.word(diffuse);
-        } else if (diffuse && type == 1) {
+        const auto opacity = bres.scalar(effect + 56);
+        if (!diffuse) bres.fail(); // Original color/vector dereference has no null-effect fallback.
+        if (type != 1) {
+            const auto color = bres.word(diffuse);
+            material.state.setColor((color & 0xffffff) | (scaledByte(color >> 24, opacity) << 24), 0);
+        } else {
             // postLoadProcess fixes texture record -> sampler -> image-list -> SImage.
             const auto textureCount = bres.word(diffuse);
             const auto textures = bres.word(diffuse + 4);
@@ -836,8 +848,15 @@ void readMaterials(const BresReader& bres, CityScene& scene)
                         {bres.scalar(record + 20), bres.scalar(record + 24)});
             }
         }
-        effects.push_back(Effect{
-            std::move(material), bres.byte(effect + 48), bres.byte(effect + 8), bres.scalar(effect + 56), lightmapImage});
+        const auto ambient = bres.byte(effect + 8) == 1 ? std::nullopt :
+            std::optional<uint32_t>{bres.word(bres.word(effect + 12))};
+        const auto emissionByte = bres.byte(effect + 8) == 1 ? 0 : scaledByte(255, bres.scalar(effect + 64));
+        const auto emissive = bres.byte(effect + 8) == 1 ? std::nullopt :
+            std::optional<uint32_t>{emissionByte * 0x01010101u};
+        const auto specular = bres.byte(effect + 24) == 1 ? std::nullopt :
+            std::optional<uint32_t>{bres.word(bres.word(effect + 28))};
+        effects.push_back(Effect{std::move(material), bres.byte(effect + 48), bres.byte(effect + 8),
+            opacity, lightmapImage, ambient, emissive, specular, bres.word(effect + 68) != 0});
     }
     for (uint32_t i = 0; i < materialCount; ++i) {
         const auto material = materialTable + i * 64;
@@ -859,10 +878,27 @@ void readMaterials(const BresReader& bres, CityScene& scene)
         if (reflection != UINT32_MAX) bindSecond(reflection);
         if (effect.lightmap == 1) bindSecond(effect.lightmapImage);
         // prepareMaterial assigns this image to stage zero after effect textures.
-        if (baseImage != UINT32_MAX) resolved.texture = imageName(baseImage);
+        if (baseImage != UINT32_MAX) {
+            resolved.texture = imageName(baseImage);
+            resolved.state.setColor(bres.word(material + 32), 0);
+        }
         resolved.mode = selectCityMaterialMode({reflection != UINT32_MAX, bres.word(material + 48),
             bres.word(material + 28) != 0, effect.transparency,
             effect.opacity, effect.lightmap});
+        if (resolved.mode != CityMaterialMode::solid) resolved.state.dirtyFlags |= 1;
+        resolved.state.setFlag(512, bres.word(material + 56) != 0);
+        resolved.state.setFlag(1024, bres.word(material + 60) != 0);
+        // The original additive branch follows both reflection and ordinary-alpha
+        // selection. It copies source color even without a base image; lightmap follows it.
+        if (bres.word(material + 28))
+            resolved.state.setColor(bres.word(material + 32), 0);
+        if (effect.ambient) resolved.state.setColor(*effect.ambient, 1);
+        if (effect.emissive) resolved.state.setColor(*effect.emissive, 3);
+        if (effect.specular) resolved.state.setColor(*effect.specular, 2);
+        if (effect.suppressSourceFlags) {
+            resolved.state.setFlag(512, false);
+            resolved.state.setFlag(1024, false);
+        }
         scene.materials.emplace(bres.string(bres.word(material)), std::move(resolved));
     }
 }
