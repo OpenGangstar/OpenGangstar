@@ -22,23 +22,23 @@
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
       "assignment": "OG-074",
       "status": "IN_PROGRESS",
-      "baseline": "c7b26db"
+      "baseline": "2141998"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-075",
+      "assignment": "OG-080",
       "status": "IN_PROGRESS",
-      "baseline": "446a4ad"
+      "baseline": "5b4692e"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-076",
+      "assignment": "OG-079",
       "status": "IN_PROGRESS",
-      "baseline": "446a4ad"
+      "baseline": "5b4692e"
     }
   ],
   "unavailable_worker": {
@@ -3494,7 +3494,7 @@
       "priority": 1,
       "complexity": "high",
       "blockers": [],
-      "baseline": "c7b26db",
+      "baseline": "2141998",
       "status": "IN_PROGRESS",
       "reservations_active": true,
       "validation": [
@@ -3534,13 +3534,14 @@
       "complexity": "high",
       "blockers": [],
       "baseline": "446a4ad",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Actual original execution matches ordered state transitions and native bits in R/D.",
         "Real retained source resources and lifetime controls; strict checked unsupported boundaries.",
         "Full tests/config, PE32+AMD64 and original source untouched; root owns CMake/commit/push."
-      ]
+      ],
+      "independent_verification": "Root against newer068/077/078scene full R/D41CTests/config. Actual original34filtertiming cases and24steeringphases independently rerun; native3540+7304components/events/results/dirty/gettercounts exact/config. All3nativeR/Ddumphashes matchfrozenworker hashes and eachother; affectedPE32+AMD64. Legacy9steeringoriginalassertions replay. Actual native Step/Add and destructionRemove lifetime controls pass. Skin-only concrete binding/currentquerypoint domains explicit; full actorhost separate."
     },
     {
       "id": "OG-076",
@@ -3564,12 +3565,13 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "446a4ad",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Actual original identities/order/lifetimes on both real Player factory graphs plus minimal shared source/multiple-instance probes.",
         "Precise minimal native ownership/resource plan; no speculative state owner or product edits."
-      ]
+      ],
+      "independent_verification": "Root independently replayed actual original full nonzero Player/jail geometry/skin/material factories, source-sharing two roots/model, same-root duplicate/resource alias identity, balanced actor/shadow teardown and finalmaterialfree, two-buffer color/alpha/flag recursion and four literal callerwindows. Four embedded source/proxy7field states exact/distinct from nodepreparedmaterials. No product implementation claimed;079assigned."
     },
     {
       "id": "OG-077",
@@ -3649,6 +3651,84 @@
         "Existing skin/bounds/graph/pose regressions and full R/D tests, no original edits."
       ],
       "independent_verification": "Root full R/D41CTests/config.21actual original transformBoxEx cases plus both real Player graphs9phases x35non-skin nodes=630snapshots;19026state/component words exact/config. Proved actual constructor cube and virtual getter identities; transformBoxEx translation-first min/max distinct from skin two-corner routine. Skin/cache/pose/globalgraph regressions pass; PE32+AMD64. Global manager-specific/custom bbox/culling/renderer integration unclaimed."
+    },
+    {
+      "id": "OG-079",
+      "description": "Port genuine root-local actor material owners, indexed bindings and recursive mutation.",
+      "scope": "Implement076 actual root ordered UID library/node shared material vectors/separate embedded buffer states. Minimal original ordered indexed material catalog and binding sourceIndex in existing decoder while renderer map remains. Actual moved nodes retainmaterial refs independent actor lifetime. Reuse063state/064preparedmaterial arithmetic, no fake white fallback or duplicated mutable scalar. Update only affected explicit synthetic fixture material metadata in reserved tests.",
+      "symbols": [
+        "IRootSceneNode::hasLibraryMaterial0x2a2971/addLibraryMaterial0x2a2995",
+        "CColladaMeshSceneNode::prepareMaterial0x2a2cb1/getMaterial0x2a29dd/getMaterialCount0x2a2a01",
+        "GS3DStuff::SetColor0x2ded05/SetAlpha0x2df34d/SetMaterialFlag0x2dc0ed"
+      ],
+      "resources": [
+        "port/retail_actor_material.h",
+        "port/retail_actor_material.cpp",
+        "port/tests/retail_actor_material.cpp",
+        "port/ACTOR_MATERIAL.md",
+        "port/retail_actor_scene.h",
+        "port/retail_actor_scene.cpp",
+        "port/city_assets.h",
+        "port/city_assets.cpp",
+        "port/tests/retail_actor_scene.cpp",
+        "port/tests/retail_actor_graph.cpp",
+        "port/tests/retail_actor_pose.cpp",
+        "port/tests/retail_actor_shadow.cpp",
+        "port/tests/retail_skin_bounds.cpp",
+        "port/tests/retail_actor_floor.cpp",
+        "port/tests/retail_actor_position.cpp"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-063",
+        "OG-064",
+        "OG-068",
+        "OG-076",
+        "OG-078"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_3",
+      "baseline": "5b4692e",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Root-reviewed076 original ownership/order/identity/drop sequences match real native owners in R/D, including shared aliases and detachedshadows.",
+        "Ordered source catalog/material-binding indices raw-exact, first UID/case behavior, reject malformed/externaldomain withoutfallback.",
+        "Separate source-buffer state used for074, no node/embedded conflation; existing all41CTest/core/retail gates and sourceunchanged."
+      ]
+    },
+    {
+      "id": "OG-080",
+      "description": "Recover exact concrete Character plain animator scene-host composition and retained shared timeline.",
+      "scope": "Read-only prerequisite040: actual Character::bindAnimation uses default plain CSceneNodeAnimator with24tracks and detached timeline, not assumed GenericAnimatorSet. Recover actualconstructAnimator/bind/localrelease ownership, shared timeline/catalog/fists sequence lifetime, real shadow/material/graph host ordering, pose binding/cache fields required by existing abstractscenehost. Reuse060/062/068/079 identities, no second sampler/clock or fabricated timeline/host. Produce implementation resource plan, code only after newreservation.",
+      "symbols": [
+        "Character::bindAnimation0x2f23fd",
+        "CColladaDatabase::constructAnimator0x297c51",
+        "CColladaFactory::createAnimator0x29d395",
+        "CSceneNodeAnimator ctor0x2af7c9",
+        "RetailActorAnimationSceneHost lifecycle"
+      ],
+      "resources": [
+        "worker-2/port/build/OG-080-*"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-060",
+        "OG-062",
+        "OG-068",
+        "OG-076"
+      ],
+      "blockers": [],
+      "assigned_agent": "/root/worker_2",
+      "baseline": "5b4692e",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original plain animator factory/timeline/bind ownership and both actual Player graph identities/order; source-backed dynamic state access, no unsupportedGenericSet inference.",
+        "Concrete next nativehost signatures/resources and exact remaining prerequisites; no original/product edits."
+      ]
     }
   ],
   "orchestrator_resources": [
@@ -3661,10 +3741,10 @@
     "port/ACTOR_COLLISION.md"
   ],
   "validation": {
-    "original_arm_preservation": "2026-11-25: Root latest recheck: all 2969 original tracked file sizes/SHA256 match the pre-migration baseline; pre-existing local edits preserved.",
+    "original_arm_preservation": "2026-11-25: Root latest after078:2969original tracked sizes/SHA256 unchanged vs pre-migration baseline; originalsubmodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and userlocaledits preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root R/D41CTests/config after078.19026ordinary/nodebounds words/config exact; existing skin/cache/globalgraph pass.074softwareowner,075livefilter+steering,076materialidentity active."
+    "native_integration": "2026-11-25: Root full R/D41CTests/config after075livefilter/body/steering.58actualoriginal cases10844components/config exact; samefrozendump hashes.074deformation,079materialowner,080concreteanimatorhost researchactive."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",

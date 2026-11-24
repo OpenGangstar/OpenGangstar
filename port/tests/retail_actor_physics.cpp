@@ -1,6 +1,11 @@
 #include "retail_actor_physics.h"
+#include "retail_actor_scene.h"
+#include "retail_animation.h"
+#include "filesystem.h"
+#include <iomanip>
 
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -436,8 +441,226 @@ void poolReuse() {
     RetailActorPhysics reused(terrain, world, owners[0]);
     require(reused.heightController().groupIndex() == 1, "Actor cleanup releases owned height pool identity");
 }
+std::shared_ptr<RetailActorSceneSource> collisionSceneSource() {
+    auto source = std::make_shared<RetailActorSceneSource>();
+    auto& model = source->model;
+    model.path = "./actor.bdae";
+    CityMesh mesh{};
+    mesh.name = "body";
+    mesh.positions = {{0,0,0},{100,0,0},{0,100,0}};
+    mesh.buffers.push_back({"", {0,1,2}});
+    mesh.rawBoundsCm = RetailSkinBoundingBox{{{-1,-2,-3},{111,222,333}}};
+    model.meshes.push_back(mesh);
+    CityNode body{}, bone{};
+    body.name = "body-node"; body.parent = -1; body.rotation = {0,0,0,1}; body.scale = {1,1,1};
+    body.instances.push_back({2,0,"","body-skin",false});
+    body.geometry.push_back({"", "body", {}});
+    bone.name = "Bip01-node"; bone.jointName = "Bone1"; bone.parent = -1;
+    bone.rotation = {0,0,0,1}; bone.scale = {1,1,1}; bone.translation = {2,3,4};
+    model.nodes = {body,bone};
+    model.visualScenes.push_back({"visual-uid","visual-display",0,2});
+    CitySkin skin{};
+    skin.controllerUid = "body-skin"; skin.meshName = "body";
+    skin.bindShape = retailSceneIdentity;
+    skin.joints.push_back({1,retailSceneIdentity,"Bone1"});
+    skin.jointBoundsCm = std::vector<RetailSkinBoundingBox>{}; // Original known-empty branch.
+    source->skins.push_back(skin);
+    return source;
+}
+RetailActorSceneNode& actualSkin(RetailActorScene& scene) {
+    for (const auto& node : scene.nodes())
+        if (node->type() == retailSceneSkinnedMeshType) return *node;
+    throw std::runtime_error("Fixture requires its actual retained skin node");
+}
+struct ObservedReads final : RetailPhysicsOwnerReads, RetailPhysicsNodeReads {
+    std::shared_ptr<const RetailActorCollisionBinding> actual;
+    std::vector<std::string>& events;
+    mutable RetailPhysicsZBounds lastBox{};
+    std::function<void()> beforePosition;
+    ObservedReads(std::shared_ptr<const RetailActorCollisionBinding> actual, std::vector<std::string>& events)
+        : actual(std::move(actual)), events(events) {}
+    const RetailPhysicsOwnerState& ownerIdentity() const override { return actual->ownerIdentity(); }
+    float getPositionZCm() const override {
+        events.push_back("GetPosition");
+        if (beforePosition) beforePosition();
+        return actual->getPositionZCm();
+    }
+    float storedRootHeightCm() const override { return actual->storedRootHeightCm(); }
+    RetailPhysicsZBounds transformedBoundingBoxCm() const override {
+        events.push_back("skinTransformedBox"); lastBox = actual->transformedBoundingBoxCm(); return lastBox;
+    }
+};
+void liveScenePhases(std::shared_ptr<const RetailActorSceneSource> source, const std::string& model = "") {
+    Fixture terrainFixture;
+    RetailHeightTerrain terrain(terrainFixture.mesh, terrainFixture.nav);
+    RetailPhysicsOwnerState owner{2,9999,8888,0};
+    RetailAnimationClock clock{}; clock.rootHeight = 10;
+    auto scene = std::make_shared<RetailActorScene>(source);
+    auto& skin = actualSkin(*scene);
+    auto binding = std::make_shared<RetailActorCollisionBinding>(owner,clock,scene,scene->root(),skin);
+    std::vector<std::string> events;
+    const RetailPhysicsOwnerState* player = nullptr;
+    RetailContactFilter filter(RetailContactFilter::PlayerLookup([&] {events.push_back("GetPlayer");return player;}), {});
+    RetailPhysicsBodyData wall{nullptr,std::nullopt,{0,1,0,1},false};
+    b2World world(bounds(),b2Vec2(0,0),true);
+    world.SetContactFilter(&filter);
+    RetailActorPhysics actor(terrain,world,owner);
+    actor.initializeLive({0,0,0},binding,nullptr);
+    auto* data = static_cast<RetailPhysicsBodyData*>(actor.body()->GetUserData());
+    require(data == actor.metadata() && !data->nodeBounds && data->liveNode && data->liveOwner &&
+                &data->liveOwner->ownerIdentity() == &owner && skin.mesh()->skinCacheDirty(),
+            "Live metadata retains the actual skin without eager bbox/palette reads");
+    auto observed = std::make_shared<ObservedReads>(binding,events);
+    data->liveOwner = observed; data->liveNode = observed;
+    b2BodyDef wallDef; wallDef.userData = &wall;
+    auto* wallBody = world.CreateBody(&wallDef);
+    b2CircleDef shapeDef; shapeDef.radius = .5f;
+    shapeDef.filter.categoryBits = 0; shapeDef.filter.groupIndex = actor.heightController().groupIndex();
+    auto* wallShape = wallBody->CreateShape(&shapeDef);
+    auto* actorShape = actor.body()->GetShapeList();
+    const auto run = [&](const char* phase, bool reversed = false) {
+        events.clear();
+        const bool result = filter.ShouldCollide(reversed ? wallShape : actorShape, reversed ? actorShape : wallShape);
+        if (!model.empty()) {
+            std::cout << "livecollision {\"name\":" << std::quoted(model+" "+phase)
+                      << ",\"result\":" << result << ",\"dirty\":" << skin.mesh()->skinCacheDirty() << ",\"events\":[";
+            for (size_t i=0;i<events.size();++i) {if(i)std::cout<<',';std::cout<<std::quoted(events[i]);}
+            std::cout << "]";
+            if (std::find(events.begin(),events.end(),"skinTransformedBox") != events.end())
+                std::cout << ",\"bounds\":[" << std::setprecision(10) << observed->lastBox.lowerCm << ',' << observed->lastBox.upperCm << ']';
+            if (!skin.mesh()->skinCacheDirty()) {
+                std::cout << ",\"palette\":[";
+                const auto& matrices=skin.mesh()->skinMatrices();
+                for(size_t i=0;i<matrices.size();++i) {
+                    if(i)std::cout<<',';std::cout<<'[';
+                    for(size_t j=0;j<16;++j) {if(j)std::cout<<',';uint32_t value;std::memcpy(&value,&matrices[i][j],4);std::cout<<value;}
+                    std::cout<<']';
+                }
+                std::cout<<']';
+            }
+            std::cout << "}\n";
+        }
+        return result;
+    };
+    run("dirty skin getter inside filter");
+    auto box = observed->lastBox;
+    require(!skin.mesh()->skinCacheDirty(),"Original dirty getter prepares palette and box");
+    const auto palette = skin.mesh()->skinMatrices();
+    scene->root().setPosition({0,0,1000}); scene->root().updateAbsolutePosition(true);
+    run("absolute update alone retains clean stale skin box");
+    require(observed->lastBox.lowerCm==box.lowerCm && observed->lastBox.upperCm==box.upperCm &&
+                palette==skin.mesh()->skinMatrices(),"No eager recompute from absolute changes");
+    skin.mesh()->computeBoundingBox();
+    run("forced compute prior to filter changes visible box");
+    box=observed->lastBox;
+    scene->root().setPosition({0,0,2000});scene->root().onAnimate(20);
+    require(skin.mesh()->skinCacheDirty(),"Real original onAnimate invalidates skin cache");
+    skin.mesh()->skinMatrices();
+    run("palette-first clears shared dirty so filter sees stale box");
+    require(observed->lastBox.lowerCm==box.lowerCm && observed->lastBox.upperCm==box.upperCm,"Shared palette dirty preserves older box");
+    scene->root().onAnimate(21);
+    run("dirty frame filter recomputes bounds and palette");
+    require(observed->lastBox.lowerCm!=box.lowerCm && !skin.mesh()->skinCacheDirty(),"Filter owns genuine lazy recomputation timing");
+    owner.levelCategory=5;scene->root().onAnimate(22);
+    run("NPC interval bypasses dirty skin getter");
+    require(events==std::vector<std::string>{"GetPosition"} && skin.mesh()->skinCacheDirty(),"NPC does not run player/box getter");
+    owner.levelCategory=2;player=&owner;
+    run("genuine player interval also bypasses dirty skin getter");
+    require(events==std::vector<std::string>{"GetPlayer","GetPosition"} && skin.mesh()->skinCacheDirty(),"Player bypass preserves dirty");
+    run("reversed genuine player interval",true);
+    require(events==std::vector<std::string>{"GetPlayer","GetPosition"} && skin.mesh()->skinCacheDirty(),"Reverse body order preserves actor getter path");
+    scene->root().setPosition({0,0,9000});clock.rootHeight=77;
+    require(binding->getPositionZCm()==2000 && binding->storedRootHeightCm()==77,"Live binding uses cached absolute and actual clock, not poisoned owner snapshots/local TRS");
+    observed->beforePosition=[&]{clock.rootHeight=77;};
+    clock.rootHeight=10;wall.heightsCm={1900,1901,1900,1901};
+    require(filter.ShouldCollide(actorShape,wallShape),
+            "Actual cached GetPosition precedes reading mutated canonical clock rootHeight");
+    observed->beforePosition={};
+    bool rejected=false;
+    try {actor.synchronizeSkinNodeBounds(RetailPhysicsZBounds{0,1});}catch(const std::logic_error&){rejected=true;}
+    require(rejected,"Live body forbids eager snapshot synchronization");
+    actor.initializeLive({std::numeric_limits<float>::quiet_NaN(),0,0},{},nullptr);
+    events.clear();actor.body()->SetUserData(nullptr);
+    require(filter.ShouldCollide(actorShape,wallShape) && events.empty(),"Detached body metadata preserves original early fallback without getter calls");
+    actor.body()->SetUserData(data);
+}
+struct LiveContactAudit final : b2ContactListener {
+    const RetailPhysicsOwnerState& owner;
+    std::weak_ptr<RetailActorScene> scene;
+    unsigned added=0,removed=0;
+    bool metadataAlive=true;
+    LiveContactAudit(const RetailPhysicsOwnerState& owner, std::weak_ptr<RetailActorScene> scene)
+        : owner(owner),scene(std::move(scene)) {}
+    void Add(const b2ContactPoint*) override { ++added; }
+    void Remove(const b2ContactPoint* point) override {
+        ++removed;
+        for (auto* shape : {point->shape1,point->shape2}) {
+            const auto* data=static_cast<const RetailPhysicsBodyData*>(shape->GetBody()->GetUserData());
+            if(data && data->owner==&owner)
+                metadataAlive &= data->liveOwner && data->liveNode && !scene.expired() &&
+                    &data->liveOwner->ownerIdentity()==&owner && data->liveOwner->getPositionZCm()==0;
+        }
+    }
+};
+void liveBindingSetupAndLifetime() {
+    auto source=collisionSceneSource();
+    auto scene=std::make_shared<RetailActorScene>(source);
+    auto other=std::make_shared<RetailActorScene>(source);
+    RetailPhysicsOwnerState owner{8,0,0,0};RetailAnimationClock clock{};
+    auto rejects=[&](RetailActorSceneNode& actor,RetailActorSceneNode& skin) {
+        bool rejected=false;
+        try {RetailActorCollisionBinding invalid(owner,clock,scene,actor,skin);}catch(const std::invalid_argument&){rejected=true;}
+        require(rejected,"Unsupported/root-guessed/foreign getSkinMesh binding rejected at setup");
+    };
+    rejects(scene->root(),scene->root());
+    rejects(scene->root(),actualSkin(*other));
+    rejects(*scene->root().findUid("Bip01-node"),actualSkin(*scene));
+    auto missingSource=collisionSceneSource();missingSource->skins[0].jointBoundsCm.reset();
+    auto missing=std::make_shared<RetailActorScene>(missingSource);
+    bool rejected=false;
+    try {RetailActorCollisionBinding invalid(owner,clock,missing,missing->root(),actualSkin(*missing));}catch(const std::invalid_argument&){rejected=true;}
+    require(rejected,"Unknown required dynamic bbox metadata rejected without a box getter");
+    Fixture f;RetailHeightTerrain terrain(f.mesh,f.nav);
+    RetailPhysicsBodyData wall{nullptr,std::nullopt,{0,1,0,1},false};
+    RetailContactFilter filter(RetailContactFilter::PlayerLookup([&]{return &owner;}),{});
+    LiveContactAudit listener(owner,scene);
+    b2World world(bounds(),b2Vec2(0,0),true);
+    world.SetContactFilter(&filter);world.SetContactListener(&listener);
+    std::weak_ptr<RetailActorScene> retainedScene=scene;
+    std::weak_ptr<const RetailActorCollisionBinding> retainedBinding;
+    {
+        auto binding=std::make_shared<RetailActorCollisionBinding>(owner,clock,scene,scene->root(),actualSkin(*scene));
+        retainedBinding=binding;
+        auto actor=std::make_unique<RetailActorPhysics>(terrain,world,owner);
+        bool failed=false;
+        try {actor->initializeLive({0,0,0},{},nullptr);}catch(const std::invalid_argument&){failed=true;}
+        require(failed&&!actor->body()&&world.GetBodyCount()==1,"Missing live binding fails before body creation");
+        RetailPhysicsOwnerState differentOwner{5,0,0,0};
+        auto wrongOwner=std::make_shared<RetailActorCollisionBinding>(differentOwner,clock,scene,scene->root(),actualSkin(*scene));
+        failed=false;
+        try {actor->initializeLive({0,0,0},wrongOwner,nullptr);}catch(const std::invalid_argument&){failed=true;}
+        require(failed&&!actor->body()&&world.GetBodyCount()==1,"Adapter address never substitutes for canonical owner identity");
+        wrongOwner.reset();
+        actor->initializeLive({0,0,0},binding,&owner);
+        binding.reset();scene.reset();
+        require(!retainedScene.expired()&&!retainedBinding.expired(),"Actual body metadata retains genuine scene/node binding");
+        const auto* data=actor->metadata();
+        require(data->liveOwner->getPositionZCm()==0,"Retained node remains callable after external scene release");
+        b2BodyDef wallDef;wallDef.userData=&wall;auto* wallBody=world.CreateBody(&wallDef);
+        b2CircleDef circle;circle.radius=.5f;circle.filter.categoryBits=0;
+        circle.filter.groupIndex=actor->heightController().groupIndex();
+        auto* wallShape=wallBody->CreateShape(&circle);
+        world.Refilter(actor->body()->GetShapeList());world.Refilter(wallShape);
+        world.Step(1.f/60,10);
+        require(listener.added>0,"Live filter installed in the genuine world permits actual Box2D contacts");
+        actor.reset();
+        require(listener.removed>0&&listener.metadataAlive,"Actual destruction Remove sees retained node/owner/clock binding until body is gone");
+    }
+    require(retainedScene.expired()&&retainedBinding.expired(),"Body destruction releases retained adapter/scene without a cycle");
+}
+
 } // namespace
-int main() {
+int main(int argc, char** argv) {
     try {
         const auto baseline = b2_byteCount;
         defaultsAndIdentity();
@@ -449,6 +672,13 @@ int main() {
         rangeFailureAndFrozenPlacement();
         cleanupPointerOrdering();
         poolReuse();
+        liveScenePhases(collisionSceneSource());
+        liveBindingSetupAndLifetime();
+        if (argc == 3 && std::string(argv[1]) == "--assets") {
+            ResourceFileSystem files(argv[2]);
+            for (const auto* name : {"char_pthug.bdae", "char_pthug_jail.bdae"})
+                liveScenePhases(loadRetailActorSceneSource(files,name),name);
+        }
         require(b2_byteCount == baseline,
                 "Native actor/probe/metadata/height ownership releases all physics allocations");
         std::cout

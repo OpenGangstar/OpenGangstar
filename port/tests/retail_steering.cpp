@@ -1,4 +1,10 @@
 #include "retail_steering.h"
+#include "retail_actor_physics.h"
+#include "retail_actor_scene.h"
+#include "retail_animation.h"
+#include "filesystem.h"
+#include <iomanip>
+#include <cstring>
 
 #include <cmath>
 #include <iostream>
@@ -361,9 +367,62 @@ void checkVehicleAndFailures()
         }
     }
 }
+struct LiveNode final : RetailPhysicsNodeReads {
+    std::shared_ptr<const RetailActorCollisionBinding> actual;
+    mutable unsigned calls=0;
+    explicit LiveNode(std::shared_ptr<const RetailActorCollisionBinding> binding):actual(std::move(binding)) {}
+    const RetailPhysicsOwnerState& ownerIdentity() const override { return actual->ownerIdentity(); }
+    RetailPhysicsZBounds transformedBoundingBoxCm() const override { ++calls;return actual->transformedBoundingBoxCm(); }
+};
+void liveRetailNodes(const std::string& assets) {
+    ResourceFileSystem files(assets);
+    const auto dumpVector=[](const RetailSteeringPoint& v) {
+        std::array<float,3> values{v.x,v.y,v.z};std::cout<<'[';
+        for(size_t i=0;i<3;++i) {if(i)std::cout<<',';uint32_t bits;std::memcpy(&bits,&values[i],4);std::cout<<bits;}
+        std::cout<<']';
+    };
+    for(const auto* model : {"char_pthug.bdae","char_pthug_jail.bdae"}) {
+        const auto source=loadRetailActorSceneSource(files,model);
+        for(bool detailed : {false,true}) {
+            Fixture f;
+            auto scene=std::make_shared<RetailActorScene>(source);
+            RetailActorSceneNode* skin=nullptr;
+            for(const auto& n:scene->nodes()) if(n->type()==retailSceneSkinnedMeshType)skin=n.get();
+            require(skin,"Actual retained Player skin node");
+            RetailAnimationClock clock{};
+            auto binding=std::make_shared<RetailActorCollisionBinding>(f.obstacleOwner,clock,scene,scene->root(),*skin);
+            auto node=std::make_shared<LiveNode>(binding);
+            auto* shape=f.circle(5,detailed?.5f:0.f,.3f);
+            auto& data=f.data(shape);data.nodeBounds.reset();data.liveOwner=binding;data.liveNode=node;
+            for(unsigned phase=0;phase<6;++phase) {
+                if(phase==1){scene->root().setPosition({0,0,1000});scene->root().updateAbsolutePosition(true);}
+                else if(phase==2)skin->mesh()->computeBoundingBox();
+                else if(phase==3){scene->root().setPosition({0,0,2000});scene->root().onAnimate(20);skin->mesh()->skinMatrices();}
+                else if(phase==4)scene->root().onAnimate(21);
+                else if(phase==5){scene->root().onAnimate(22);shape->GetBody()->SetXForm(b2Vec2(5,detailed?0.f:.309f),0);}
+                RetailSteeringPoint hit{-1,-1,-1},adjusted{17,23,29};
+                node->calls=0;
+                const bool result=detailed?f.detailed({1000,0,100},hit,adjusted):retailCanGoToPoint(f.world,f.actor,{1000,0,100});
+                require(node->calls==(phase==5?0u:1u),"Both overloads call transformed node getter once only after a real segment hit");
+                require(skin->mesh()->skinCacheDirty()==(phase==5),"Actual original lazy/shared dirty behavior through steering");
+                std::cout<<"steeringlive {\"name\":"<<std::quoted(std::string(model)+"|"+(detailed?"detailed":"point")+"|"+std::to_string(phase))
+                         <<",\"result\":"<<result<<",\"dirty\":"<<skin->mesh()->skinCacheDirty()<<",\"nodeCalls\":"<<node->calls<<",\"hit\":";
+                dumpVector(hit);std::cout<<",\"adjusted\":";dumpVector(adjusted);
+                if(!skin->mesh()->skinCacheDirty()) {
+                    const auto& box=skin->mesh()->boundingBox();std::cout<<",\"box\":[";
+                    for(size_t i=0;i<6;++i){if(i)std::cout<<',';uint32_t bits;std::memcpy(&bits,&box[i/3][i%3],4);std::cout<<bits;}std::cout<<']';
+                    const auto& matrices=skin->mesh()->skinMatrices();std::cout<<",\"palette\":[";
+                    for(size_t i=0;i<matrices.size();++i){if(i)std::cout<<',';std::cout<<'[';for(size_t j=0;j<16;++j){if(j)std::cout<<',';uint32_t bits;std::memcpy(&bits,&matrices[i][j],4);std::cout<<bits;}std::cout<<']';}std::cout<<']';
+                }
+                std::cout<<"}\n";
+            }
+        }
+    }
 }
 
-int main()
+}
+
+int main(int argc, char** argv)
 {
     try {
         checkClearAndOverloads();
@@ -374,6 +433,7 @@ int main()
         checkStrictFractionAndOrder();
         checkLaterRejectedScratch();
         checkVehicleAndFailures();
+        if (argc==3 && std::string(argv[1])=="--assets") liveRetailNodes(argv[2]);
         std::cout << "Retail native steering geometry, overloads, query ordering, heights and binding errors passed.\n";
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

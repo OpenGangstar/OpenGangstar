@@ -1472,3 +1472,6 @@ Root Release/Debug4original positioning and6actual reset/gate cases match54coord
 
 
 2026-11-25 OG078: actual DefaultFactory container/root local cubes and ordinary-node transformed bounds cache supported. Original transformBoxEx uses translation-first min/max contributions, distinct from skin two-corner transformBox; both retained. Root R/D41CTests each;630node snapshots+21corecases19026original words/config exact. Getter uses cached absolute only and clears0x200, preserving stale-box behavior. Global manager-specific/custom node boxes and full render/collision hosting remain separate.
+
+
+2026-11-25 OG075: genuine retained live collision/body binding and steering candidate transformed getters. Exact original metadata/getter/rootHeight/player/jump ordering; actualscene/palette/bounds andclock lifetimes retained through contact Remove. Root R/D41CTests each;34filter+24steering cases10844original component bits/config and events/results/dirty match, native R/Dhashes unchanged. Concrete binder remains actualskin-only, queryactorpoint supplied; no full Player/worldhost claim. Original2969trackedfiles still matchbaseline.

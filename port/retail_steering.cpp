@@ -48,13 +48,15 @@ b2AABB queryBounds(const RetailSteeringPoint& current,
     return bounds;
 }
 
-bool candidateFilter(b2Shape& shape, const RetailSteeringActor& actor, bool skipOwnerless)
+bool candidateFilter(b2Shape& shape, const RetailSteeringActor& actor, bool skipOwnerless,
+                     const RetailPhysicsBodyData*& captured)
 {
     const auto& filter = shape.GetFilterData();
     if (!filter.categoryBits &&
         (filter.groupIndex != actor.physicsIndex + 1 || !filter.maskBits)) return false;
     if (shape.IsSensor()) return false;
     const auto* data = static_cast<const RetailPhysicsBodyData*>(shape.GetBody()->GetUserData());
+    captured = data; // Original keeps this pointer across TestSegment.
     if (data && (data->owner == &actor.owner || (skipOwnerless && !data->owner))) return false;
     return true;
 }
@@ -66,9 +68,27 @@ const RetailPhysicsBodyData& metadata(b2Shape& shape)
     return *data;
 }
 
-bool withinHeights(const RetailPhysicsBodyData& data, float z)
+bool hasNode(const RetailPhysicsBodyData& data)
 {
-    const auto bounds = data.nodeBounds.value_or(RetailPhysicsZBounds{data.heightsCm[0], data.heightsCm[1]});
+    if (data.liveNode && data.nodeBounds)
+        throw std::logic_error("Live steering node cannot also use snapshot bounds.");
+    return bool(data.liveNode) || bool(data.nodeBounds);
+}
+
+RetailPhysicsZBounds heightBounds(const RetailPhysicsBodyData& data)
+{
+    if (const auto node = data.liveNode) {
+        if (!data.owner || &node->ownerIdentity() != data.owner)
+            throw std::logic_error("Live steering requires its genuine node/owner binding.");
+        // Both original overloads use slot52 getTransformedBoundingBox, AFTER
+        // a segment hit, before computing the height/scratch temporary.
+        return node->transformedBoundingBoxCm();
+    }
+    return data.nodeBounds.value_or(RetailPhysicsZBounds{data.heightsCm[0], data.heightsCm[1]});
+}
+
+bool withinHeights(const RetailPhysicsZBounds& bounds, float z)
+{
     return !(bounds.lowerCm > z || bounds.upperCm < z);
 }
 
@@ -148,13 +168,16 @@ bool retailCanGoToPoint(b2World& world, const RetailSteeringActor& actor,
     float fraction = 1.f;
     for (auto* shape : shapes) {
         if (!shape) break;
-        if (!candidateFilter(*shape, actor, false)) continue;
+        const RetailPhysicsBodyData* captured = nullptr;
+        if (!candidateFilter(*shape, actor, false, captured)) continue;
         b2Vec2 normal;
         if (!shape->TestSegment(shape->GetBody()->GetXForm(), &fraction, &normal, segment, 1.f)) continue;
-        const auto& data = metadata(*shape);
-        if (data.nodeBounds || data.heightsCm[0] != data.heightsCm[1]) {
+        if (!captured) throw std::logic_error("An intersected retail steering body requires native metadata.");
+        const auto& data = *captured;
+        if (hasNode(data) || data.heightsCm[0] != data.heightsCm[1]) {
+            const auto bounds = heightBounds(data);
             const float z = (destination.z - current.z) * fraction + current.z;
-            if (!withinHeights(data, z)) continue;
+            if (!withinHeights(bounds, z)) continue;
         }
         return fraction >= 1.f;
     }
@@ -187,7 +210,8 @@ bool retailCanGoToPoint(b2World& world, const RetailSteeringActor& actor,
     RetailSteeringPoint scratch{0, 0, 0};
     for (auto* shape : shapes) {
         if (!shape) break;
-        if (!candidateFilter(*shape, actor, true)) continue;
+        const RetailPhysicsBodyData* captured = nullptr;
+        if (!candidateFilter(*shape, actor, true, captured)) continue;
         float fraction = 1.f;
         b2Vec2 normal;
         bool second = false;
@@ -195,10 +219,12 @@ bool retailCanGoToPoint(b2World& world, const RetailSteeringActor& actor,
             second = true;
             if (!shape->TestSegment(shape->GetBody()->GetXForm(), &fraction, &normal, rays[1], 1.f)) continue;
         }
-        const auto& data = metadata(*shape);
-        if (data.nodeBounds || data.heightsCm[0] != data.heightsCm[1]) {
+        if (!captured) throw std::logic_error("An intersected retail steering body requires native metadata.");
+        const auto& data = *captured;
+        if (hasNode(data) || data.heightsCm[0] != data.heightsCm[1]) {
+            const auto bounds = heightBounds(data);
             scratch = interpolate(current, destination, fraction);
-            if (!withinHeights(data, scratch.z)) continue;
+            if (!withinHeights(bounds, scratch.z)) continue;
         }
         if (!(fraction < closest)) continue;
         closest = fraction;

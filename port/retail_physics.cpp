@@ -13,20 +13,46 @@ bool insideRetailHeightRectangle(const b2Body& body)
 
 std::optional<RetailPhysicsZBounds> verticalBounds(const RetailPhysicsBodyData& data,
     const RetailPhysicsBodyData& other, const b2Body& body, bool zeroCategory,
-    const RetailPhysicsOwnerState* player)
+    const RetailPhysicsOwnerState* player, const RetailContactFilter::PlayerLookup& lookup, bool live)
 {
-    if (data.nodeBounds) {
+    const auto hasNode = [live](const RetailPhysicsBodyData& value) {
+        if (live && value.nodeBounds)
+            throw std::logic_error("Live retail filter cannot consume a snapshot node box.");
+        if (!live && (value.liveNode || value.liveOwner))
+            throw std::logic_error("Live retail metadata requires the live filter constructor.");
+        return live ? bool(value.liveNode) : bool(value.nodeBounds);
+    };
+    if (hasNode(data)) {
         if (!data.owner)
             throw std::logic_error("Node-backed retail physics metadata requires an owner.");
         const auto& owner = *data.owner;
-        if (owner.levelCategory == 3 && owner.currentJumpState > 0 && !other.nodeBounds)
+        const auto category = owner.levelCategory;
+        if (category == 3 && owner.currentJumpState > 0 && !hasNode(other))
             return std::nullopt;
-        if (owner.levelCategory == 5 || data.owner == player) {
-            const float lower = (owner.positionZCm - owner.rootZCm) - 25.f;
+        if (category == 5 || (live ? lookup() : player) == &owner) {
+            const auto* characterOwner = category == 5 ? &owner : data.owner;
+            if (!characterOwner)
+                throw std::logic_error("Live player owner disappeared during identity lookup.");
+            float position, root;
+            if (live) {
+                const auto reads = data.liveOwner;
+                if (!reads || &reads->ownerIdentity() != characterOwner)
+                    throw std::logic_error("Missing or mismatched live retail owner binding.");
+                position = reads->getPositionZCm();
+                root = reads->storedRootHeightCm(); // Deliberately AFTER GetPosition.
+            } else {
+                position = characterOwner->positionZCm;
+                root = characterOwner->rootZCm;
+            }
+            const float lower = (position - root) - 25.f;
             // Preserve the original operation order, including both upper-bound additions.
             return RetailPhysicsZBounds{lower, (lower + 150.f) + 25.f};
         }
-        return data.nodeBounds;
+        if (!live) return data.nodeBounds;
+        const auto node = data.liveNode; // Read again at the original getter call.
+        if (!node || &node->ownerIdentity() != data.owner)
+            throw std::logic_error("Missing or mismatched live retail node binding.");
+        return node->transformedBoundingBoxCm();
     }
     if (data.jumpSurface) {
         RetailPhysicsZBounds result{data.heightsCm[0], data.heightsCm[0]};
@@ -57,8 +83,17 @@ RetailContactFilter::RetailContactFilter(const RetailPhysicsOwnerState* player, 
 {
 }
 
+RetailContactFilter::RetailContactFilter(PlayerLookup lookup, JumpShapeHandler jumpShape)
+    : player(nullptr), playerLookup(std::move(lookup)), live(true), jumpShape(std::move(jumpShape))
+{
+    if (!playerLookup)
+        throw std::invalid_argument("Live retail filter requires a genuine player lookup.");
+}
+
 void RetailContactFilter::setPlayer(const RetailPhysicsOwnerState* value)
 {
+    if (live)
+        throw std::logic_error("Live retail player identity comes from its lookup binding.");
     player = value;
 }
 
@@ -76,9 +111,12 @@ bool RetailContactFilter::ShouldCollide(b2Shape* first, b2Shape* second)
     auto* secondData = static_cast<RetailPhysicsBodyData*>(second->GetBody()->GetUserData());
     if (!firstData || !secondData) return true;
 
-    const auto firstBounds = verticalBounds(*firstData, *secondData, *first->GetBody(), zeroCategory, player);
+    const auto firstBounds = verticalBounds(*firstData, *secondData, *first->GetBody(), zeroCategory, player, playerLookup, live);
     if (!firstBounds) return false;
-    const auto secondBounds = verticalBounds(*secondData, *firstData, *second->GetBody(), zeroCategory, player);
+    // Original second node-less path re-reads both categories after the first
+    // getter; the first interval has already been copied and is never revisited.
+    const bool secondZeroCategory = !first->GetFilterData().categoryBits || !second->GetFilterData().categoryBits;
+    const auto secondBounds = verticalBounds(*secondData, *firstData, *second->GetBody(), secondZeroCategory, player, playerLookup, live);
     if (!secondBounds) return false;
     const bool overlap = firstBounds->lowerCm < secondBounds->upperCm &&
                          firstBounds->upperCm > secondBounds->lowerCm;

@@ -1,6 +1,10 @@
 #include "retail_physics.h"
 
 #include <cmath>
+#include <functional>
+#include <iomanip>
+#include <memory>
+#include <string>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -350,9 +354,235 @@ void checkNativeWorldIntegration()
     require(body->GetUserData() == &actorData && wallBody->GetUserData() == &wallData,
             "Native body user-data identity was truncated or replaced.");
 }
+// Controlled original virtual-call seam. Concrete retained-scene/body tests live
+// in retail_actor_physics_test; this fixture isolates dispatch timing on real shapes.
+struct LiveReads final : RetailPhysicsOwnerReads, RetailPhysicsNodeReads {
+    RetailPhysicsOwnerState& owner;
+    std::vector<std::string>& calls;
+    std::string id;
+    RetailPhysicsZBounds box{1, 337};
+    float position = 0, root = 10;
+    std::function<void()> beforePosition, beforeBox;
+    LiveReads(RetailPhysicsOwnerState& owner, std::vector<std::string>& calls, std::string id)
+        : owner(owner), calls(calls), id(std::move(id)) {}
+    const RetailPhysicsOwnerState& ownerIdentity() const override { return owner; }
+    float getPositionZCm() const override {
+        calls.push_back(id + "position");
+        if (beforePosition) beforePosition();
+        return position;
+    }
+    float storedRootHeightCm() const override { calls.push_back(id + "root"); return root; }
+    RetailPhysicsZBounds transformedBoundingBoxCm() const override {
+        calls.push_back(id + "box");
+        if (beforeBox) beforeBox();
+        return box;
+    }
+};
+struct LivePair : Pair {
+    std::vector<std::string> calls;
+    std::shared_ptr<LiveReads> readsA = std::make_shared<LiveReads>(ownerA, calls, "A.");
+    std::shared_ptr<LiveReads> readsB = std::make_shared<LiveReads>(ownerB, calls, "B.");
+    const RetailPhysicsOwnerState* player = nullptr;
+    RetailContactFilter filter{RetailContactFilter::PlayerLookup([this] {
+        calls.push_back("player"); return player;
+    }), [this](RetailPhysicsOwnerState& owner, b2Shape& shape) {
+        require(&owner == &ownerB && &shape == a, "Genuine late jump recipient/shape");
+        calls.push_back("jump");
+    }};
+    LivePair() {
+        dataA.owner = &ownerA; dataB.owner = &ownerB;
+        dataA.liveOwner = readsA; dataA.liveNode = readsA;
+        dataB.liveOwner = readsB; dataB.liveNode = readsB;
+        filters(shapeFilter(4, 0xffff, 1), shapeFilter(4, 0xffff, 1));
+        a->GetBody()->SetXForm(b2Vec2(0, 0), 0);
+        b->GetBody()->SetXForm(b2Vec2(0, 0), 0);
+    }
+    void terrainB(float lo = 100, float hi = 101, uint16 category = 0) {
+        dataB.liveNode.reset(); dataB.heightsCm = {lo, hi, lo, hi};
+        b->SetFilterData(shapeFilter(category, 0xffff, 1));
+    }
+};
+void checkLiveDispatch() {
+    {
+        LivePair p;
+        p.ownerA.levelCategory = 5;
+        p.readsA->position = 100;
+        p.ownerA.positionZCm = 9999; p.ownerA.rootZCm = 8888; // Poison snapshots.
+        p.terrainB();
+        require(p.filter.ShouldCollide(p.a, p.b), "Live character reads canonical inputs");
+        require(p.calls == std::vector<std::string>{"A.position", "A.root"}, "NPC bypasses player and node getter");
+        p.calls.clear();
+        p.readsA->beforePosition = [&] { p.readsA->root = 77; };
+        p.terrainB(200, 201);
+        require(!p.filter.ShouldCollide(p.a, p.b) && p.calls == std::vector<std::string>{"A.position", "A.root"},
+                "Root height is read AFTER GetPosition mutation: upper173 instead of stale upper240");
+        p.readsA->root = 10; p.readsA->beforePosition = {};
+        p.terrainB(240, 241);
+        require(!p.filter.ShouldCollide(p.a, p.b), "Strict live upper endpoint remains nonoverlap");
+    }
+    {
+        LivePair p;
+        p.player = &p.ownerA; p.ownerA.levelCategory = 3; p.ownerA.currentJumpState = 1;
+        p.terrainB();
+        require(!p.filter.ShouldCollide(p.a, p.b) && p.calls.empty(), "Vehicle positive gate precedes even genuine player lookup");
+        p.ownerA.currentJumpState = 0;
+        require(p.filter.ShouldCollide(p.a, p.b), "Nonpositive vehicle continues genuine player");
+        require(p.calls == std::vector<std::string>{"player", "A.position", "A.root"}, "Player lookup then position then stored root");
+    }
+    {
+        LivePair p;
+        p.readsA->beforeBox = [&] { p.ownerB.levelCategory = 5; };
+        require(p.filter.ShouldCollide(p.a, p.b), "Second classification is live after first getter");
+        require(p.calls == std::vector<std::string>{"player", "A.box", "B.position", "B.root"}, "First interval before second dispatch");
+    }
+    {
+        LivePair p;
+        p.readsA->beforeBox = [&] { p.player = &p.ownerB; };
+        require(p.filter.ShouldCollide(p.a, p.b), "Second lookup observes changed genuine player");
+        require(p.calls == std::vector<std::string>{"player", "A.box", "player", "B.position", "B.root"}, "Player lookup is not cached per pair");
+    }
+    {
+        LivePair p;
+        p.readsA->beforeBox = [&] { p.dataB.liveNode.reset(); };
+        require(p.filter.ShouldCollide(p.a, p.b), "Second node-null uses actual metadata heights");
+        require(p.calls == std::vector<std::string>{"player", "A.box"}, "Second node presence read after first getter");
+    }
+    {
+        LivePair p;
+        p.readsA->beforeBox = [&] { p.b->GetBody()->SetUserData(nullptr); };
+        require(p.filter.ShouldCollide(p.a, p.b), "Second captured metadata pointer survives body userData replacement");
+        require(p.calls == std::vector<std::string>{"player", "A.box", "player", "B.box"}, "No late userData reload/fallback");
+        p.b->GetBody()->SetUserData(&p.dataB);
+    }
+    for (bool reverse : {false, true}) {
+        LivePair p;
+        p.terrainB(400, 500, 4);
+        p.readsA->beforeBox = [&] { p.a->SetFilterData(shapeFilter(0, 0xffff, 1)); };
+        require(p.filter.ShouldCollide(reverse ? p.b : p.a, reverse ? p.a : p.b) == reverse,
+                "Second categories are reread; an already captured first terrain interval stays unchanged");
+    }
+    {
+        LivePair p;
+        p.terrainB();
+        p.readsA->beforeBox = [&] {
+            p.dataA.jumpSurface = true;
+            p.b->GetBody()->SetLinearVelocity(b2Vec2(0, 1));
+        };
+        require(!p.filter.ShouldCollide(p.a, p.b) && p.calls.back() == "jump", "Late flags and genuine velocity dispatch jump after getter");
+    }
+    {
+        LivePair p;
+        p.a->SetFilterData(shapeFilter(4, 0, 1));
+        require(!p.filter.ShouldCollide(p.a, p.b) && p.calls.empty(), "Mask rejection invokes no live operations");
+        p.a->SetFilterData(shapeFilter(4, 0xffff, 1));
+        p.b->GetBody()->SetUserData(nullptr);
+        require(p.filter.ShouldCollide(p.a, p.b) && p.calls.empty(), "Absent metadata fallback invokes no live operations");
+        p.b->GetBody()->SetUserData(&p.dataB);
+    }
+}
+void checkLiveBindingErrors() {
+    bool rejected = false;
+    try { RetailContactFilter missing(RetailContactFilter::PlayerLookup{}, {}); }
+    catch (const std::invalid_argument&) { rejected = true; }
+    require(rejected, "Live setup requires a player lookup even when no current player exists");
+    LivePair p;
+    auto rejects = [&](const std::function<void()>& action) {
+        bool failed = false;
+        try { action(); } catch (const std::logic_error&) { failed = true; }
+        require(failed, "Invalid live binding is fatal, never a silent snapshot fallback");
+    };
+    rejects([&] { p.filter.setPlayer(nullptr); });
+    p.dataA.nodeBounds = RetailPhysicsZBounds{0, 100};
+    rejects([&] { p.filter.ShouldCollide(p.a, p.b); });
+    p.dataA.nodeBounds.reset();
+    RetailContactFilter fixture(nullptr, {});
+    rejects([&] { fixture.ShouldCollide(p.a, p.b); });
+    p.ownerA.levelCategory = 5; p.dataA.liveOwner.reset();
+    rejects([&] { p.filter.ShouldCollide(p.a, p.b); });
+    p.dataA.liveOwner = p.readsB;
+    rejects([&] { p.filter.ShouldCollide(p.a, p.b); });
+    p.dataA.liveOwner = p.readsA; p.ownerA.levelCategory = 7; p.dataA.liveNode = p.readsB;
+    rejects([&] { p.filter.ShouldCollide(p.a, p.b); });
 }
 
-int main()
+void dumpLivePolicyReference() {
+    const auto dump = [](const char* name, LivePair& p, bool reverse = false) {
+        p.calls.clear();
+        const bool result = p.filter.ShouldCollide(reverse ? p.b : p.a, reverse ? p.a : p.b);
+        std::cout << "livepolicy {\"name\":" << std::quoted(name) << ",\"result\":" << result << ",\"events\":[";
+        bool first=true;
+        for (const auto& call : p.calls) {
+            std::string label;
+            if (call=="player") label="GetPlayer";
+            else if(call=="jump") label="SetCurrentJumpShape";
+            else if(call.find("position")!=std::string::npos) label="GetPosition";
+            else if(call.find("box")!=std::string::npos) label="baseTransformedBox";
+            else continue; // Stored field read is not an original virtual call.
+            if(!first)std::cout<<','; first=false;std::cout<<std::quoted(label);
+        }
+        std::cout << "]}\n";
+    };
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.ownerA.levelCategory=5;p.terrainB();p.readsA->position=100;
+        dump("NPC cached100 vs local900 Bip01local400 rootHeight10 floor-999",p);
+        p.readsA->position=900;dump("NPC after explicit actual absolute update",p);
+        p.readsA->position=100;p.readsA->beforePosition=[&]{p.readsA->root=77;};
+        dump("rootHeight read AFTER virtual GetPosition mutation",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.player=&p.ownerA;p.terrainB();
+        dump("actual player identity selects character interval",p);
+        p.ownerA.levelCategory=3;p.ownerA.currentJumpState=1;
+        dump("vehicle jump rejects BEFORE player getter even genuine player",p);
+        p.ownerA.currentJumpState=0;dump("vehicle nonpositive jump continues actual player getter",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.terrainB(400,401);p.readsA->box={1001,1337};
+        dump("ordinary genuine transformed box after absolute update",p);
+        dump("ordinary setter without absolute update retains cached transformed box",p);
+        p.readsA->box={-999,-663};dump("ordinary explicit absolute update refreshes transformed box",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.readsA->beforeBox=[&]{p.ownerB.levelCategory=5;};
+        dump("first actual box getter mutates second classification to NPC",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.terrainB(400,500,4);p.readsA->beforeBox=[&]{p.a->SetFilterData(shapeFilter(0,0xffff,1));};
+        dump("second terrain category reread after first getter",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.terrainB();p.readsA->beforeBox=[&]{p.dataA.jumpSurface=true;p.b->GetBody()->SetLinearVelocity(b2Vec2(0,1));};
+        dump("late jump flag and velocity after getter",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.a->SetFilterData(shapeFilter(4,0,1));dump("mask rejection no getter",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.b->GetBody()->SetUserData(nullptr);dump("absent metadata fallback no getter",p);
+        p.b->GetBody()->SetUserData(&p.dataB);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.terrainB(400,500,4);p.readsA->beforeBox=[&]{p.a->SetFilterData(shapeFilter(0,0xffff,1));};
+        dump("reverse order captures terrain categories BEFORE later box mutation",p,true);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.readsA->beforeBox=[&]{p.dataB.liveNode.reset();};
+        dump("second live node binding changed by first getter",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.readsA->beforeBox=[&]{p.player=&p.ownerB;};
+        dump("second genuine GetPlayer sees global changed by first box getter",p);
+    }
+    {
+        auto owned=std::make_unique<LivePair>();auto& p=*owned;p.readsA->beforeBox=[&]{p.b->GetBody()->SetUserData(nullptr);};
+        dump("captured second metadata survives live body userData replacement",p);
+        p.b->GetBody()->SetUserData(&p.dataB);
+    }
+}
+
+}
+
+int main(int argc, char** argv)
 {
     try {
         checkMasksAndGroups();
@@ -363,6 +593,9 @@ int main()
         checkVehicleJumpGate();
         checkDirectionalJumpBinding();
         checkNativeWorldIntegration();
+        checkLiveDispatch();
+        checkLiveBindingErrors();
+        if (argc == 2 && std::string(argv[1]) == "--live-dump") dumpLivePolicyReference();
         std::cout << "Retail native collision filter gates, height boundaries, jump callbacks, and world contacts passed.\n";
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

@@ -1,4 +1,6 @@
 #include "retail_actor_physics.h"
+#include "retail_actor_scene.h"
+#include "retail_animation.h"
 
 #include "Common/b2BlockAllocator.h"
 
@@ -13,6 +15,35 @@ struct ShapeProbe : b2Shape {
     using b2Shape::Destroy;
 };
 } // namespace
+
+RetailActorCollisionBinding::RetailActorCollisionBinding(RetailPhysicsOwnerState& owner,
+    const RetailAnimationClock& clock, std::shared_ptr<RetailActorScene> scene,
+    RetailActorSceneNode& actor, RetailActorSceneNode& skin)
+    : owner(owner), clock(clock), scene(std::move(scene)), actor(actor), skin(skin) {
+    if (!this->scene)
+        throw std::invalid_argument("Live actor collision requires a retained scene.");
+    const auto contains = [&](const RetailActorSceneNode& node) {
+        for (const auto& candidate : this->scene->nodes())
+            if (candidate.get() == &node) return true;
+        return false;
+    };
+    if (!contains(actor) || !contains(skin))
+        throw std::invalid_argument("Live actor collision nodes belong to a different instance.");
+    if (skin.type() != retailSceneSkinnedMeshType || !skin.mesh() || !skin.mesh()->skin() ||
+        !skin.mesh()->skin()->jointBoundsCm)
+        throw std::invalid_argument("Live collision requires the supported genuine skin transformed getter.");
+    auto* ancestor = &skin;
+    while (ancestor && ancestor != &actor) ancestor = ancestor->parent();
+    if (!ancestor)
+        throw std::invalid_argument("getSkinMesh binding is outside the actual actor subtree.");
+}
+const RetailPhysicsOwnerState& RetailActorCollisionBinding::ownerIdentity() const { return owner; }
+float RetailActorCollisionBinding::getPositionZCm() const { return actor.absolute()[14]; }
+float RetailActorCollisionBinding::storedRootHeightCm() const { return clock.rootHeight; }
+RetailPhysicsZBounds RetailActorCollisionBinding::transformedBoundingBoxCm() const {
+    const auto& box = skin.transformedBoundingBox();
+    return {box[0][2], box[1][2]};
+}
 
 RetailActorPhysics::RetailActorPhysics(RetailHeightTerrain& terrain, b2World& world,
                                        RetailPhysicsOwnerState& owner, RetailHeightController* existingHeight)
@@ -37,8 +68,21 @@ RetailActorPhysics::~RetailActorPhysics() {
 void RetailActorPhysics::initialize(const RetailHeightPoint& position,
                                     std::optional<RetailPhysicsZBounds> skinNodeBounds,
                                     const RetailPhysicsOwnerState* player) {
-    if (actorBody)
-        return;
+    initializeBody(position, skinNodeBounds, player, {});
+}
+
+void RetailActorPhysics::initializeLive(const RetailHeightPoint& position,
+    std::shared_ptr<const RetailActorCollisionBinding> binding, const RetailPhysicsOwnerState* player) {
+    if (actorBody) return;
+    if (!binding || &binding->ownerIdentity() != &owner)
+        throw std::invalid_argument("Live actor body requires its canonical owner binding.");
+    initializeBody(position, std::nullopt, player, std::move(binding));
+}
+
+void RetailActorPhysics::initializeBody(const RetailHeightPoint& position,
+    std::optional<RetailPhysicsZBounds> skinNodeBounds, const RetailPhysicsOwnerState* player,
+    std::shared_ptr<const RetailActorCollisionBinding> binding) {
+    if (actorBody) return;
     if (!std::isfinite(position[0]) || !std::isfinite(position[1]))
         throw std::invalid_argument("Retail actor body requires finite initial XY.");
     b2BodyDef definition;
@@ -75,6 +119,8 @@ void RetailActorPhysics::initialize(const RetailHeightPoint& position,
         created->SetMassFromShapes();
         auto metadata = std::make_unique<RetailPhysicsBodyData>(
             RetailPhysicsBodyData{&owner, skinNodeBounds, {0, 0, 0, 0}, false});
+        metadata->liveOwner = binding;
+        metadata->liveNode = std::move(binding);
         created->SetUserData(metadata.get());
         bodyData = std::move(metadata);
         actorBody = created;
@@ -95,6 +141,8 @@ void RetailActorPhysics::setBodyPositionAfterSceneUpdate(const RetailHeightPoint
 void RetailActorPhysics::synchronizeSkinNodeBounds(std::optional<RetailPhysicsZBounds> bounds) {
     if (!bodyData)
         throw std::logic_error("Retail actor skin bounds require an initialized body.");
+    if (bodyData->liveNode || bodyData->liveOwner)
+        throw std::logic_error("Live actor collision uses retained getters, not synchronized box snapshots.");
     bodyData->nodeBounds = bounds;
 }
 
