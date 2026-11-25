@@ -4573,6 +4573,8 @@
     "goal_status": "paused",
     "entry_point": "CLAUDE_HANDOFF.md",
     "workers_stopped": true,
-    "unreviewed_product_submissions": []
-  }
+    "unreviewed_product_submissions": [],
+    "verified_code_commit": "42b2861"
+  },
+  "integration_baseline": "42b2861"
 }
