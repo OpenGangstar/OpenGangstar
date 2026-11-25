@@ -1,6 +1,8 @@
 #include "retail_actor_scene.h"
 #include "retail_actor_graph.h"
 #include "retail_actor_pose.h"
+#include "retail_actor_resource.h"
+#include "retail_morph.h"
 
 #include <algorithm>
 #include <cmath>
@@ -76,6 +78,7 @@ void RetailActorSceneMesh::prepareSkinMatrices() {
   dirty = false;
 }
 const RetailSkinBoundingBox &RetailActorSceneMesh::boundingBox() {
+  if (morphState) return base->boundingBox();
   // Unknown metadata must never expose the raw seed as a dynamic box,
   // including after palette preparation or a failed explicit compute.
   if (sourceSkin && !sourceSkin->jointBoundsCm)
@@ -413,15 +416,41 @@ RetailActorSceneMesh &RetailActorScene::ordinaryMesh(const std::string &uid) {
   const auto found =
       std::find_if(source.begin(), source.end(),
                    [&](const auto &mesh) { return mesh.name == uid; });
-  if (found == source.end() || !found->rawBoundsCm)
+  if (found == source.end())
     throw std::runtime_error("Missing original actor geometry/raw mesh box: " +
                              uid);
+  return ordinaryMesh(static_cast<std::size_t>(found - source.begin()));
+}
+RetailActorSceneMesh &RetailActorScene::ordinaryMesh(std::size_t index) {
+  const auto &geometry = decoded->model.meshes.at(index);
+  if (!geometry.rawBoundsCm)
+    throw std::runtime_error("Missing original ordinary resource box.");
   auto mesh = std::unique_ptr<RetailActorSceneMesh>(new RetailActorSceneMesh);
-  mesh->identity = uid;
-  mesh->sourceMesh = &*found;
-  mesh->cachedBox = *found->rawBoundsCm;
-  mesh->bufferState.resize(found->buffers.size());
-  mesh->sourceMaterials.resize(found->buffers.size()); // Actual embedded SMaterial ctor defaults.
+  mesh->identity = geometry.name;
+  mesh->sourceMesh = &geometry;
+  mesh->cachedBox = *geometry.rawBoundsCm;
+  mesh->bufferState.resize(geometry.buffers.size());
+  mesh->sourceMaterials.resize(geometry.buffers.size()); // Actual embedded SMaterial ctor defaults.
+  if (loaded) mesh->loadedStreams = loaded->currentStreams(geometry);
+  auto &result = *mesh;
+  liveMeshes.push_back(std::move(mesh));
+  return result;
+}
+RetailActorSceneMesh &RetailActorScene::morphMesh(std::size_t index) {
+  if (!loaded) throw std::logic_error("Morph resources require an explicit physical loaded resource.");
+  const auto &controller = decoded->model.morphControllers.at(index);
+  // The proved DefaultFactory path has an ordinary immediate morph source.
+  // Never flatten another controller or silently use the skin's terminal UID.
+  auto &ordinary = ordinaryMesh(controller.source);
+  auto mesh = std::unique_ptr<RetailActorSceneMesh>(new RetailActorSceneMesh);
+  mesh->identity = controller.name;
+  mesh->sourceMesh = &ordinary.geometry();
+  mesh->base = &ordinary;
+  auto catalogue = std::shared_ptr<const CityScene>(decoded, &decoded->model);
+  mesh->morphState = std::make_shared<RetailMorphState>(std::move(catalogue), index);
+  for (const auto &target : controller.targets)
+    mesh->targetMeshes.push_back(&ordinaryMesh(target.mesh));
+  mesh->bufferState.resize(ordinary.bufferState.size());
   auto &result = *mesh;
   liveMeshes.push_back(std::move(mesh));
   return result;
@@ -434,13 +463,24 @@ RetailActorSceneMesh &RetailActorScene::skinMesh(const std::string &uid) {
   if (found == source.end())
     throw std::runtime_error(
         "Unsupported/missing original actor skin controller: " + uid);
-  auto &base = ordinaryMesh(found->meshName);
+  RetailActorSceneMesh *sourceResource = nullptr;
+  if (loaded) {
+    if (found->sourceUid.empty()) throw std::runtime_error("Loaded skin lacks its original immediate source UID.");
+    const auto &controllers = decoded->model.morphControllers;
+    const auto morph = std::find_if(controllers.begin(), controllers.end(),
+        [&](const auto &controller) { return controller.name == found->sourceUid; });
+    sourceResource = morph == controllers.end() ? &ordinaryMesh(found->sourceUid) :
+        &morphMesh(static_cast<std::size_t>(morph - controllers.begin()));
+  } else sourceResource = &ordinaryMesh(found->meshName);
+  auto &base = *sourceResource;
+  if (base.geometry().name != found->meshName)
+    throw std::runtime_error("Original skin immediate source/terminal geometry disagree.");
   auto mesh = std::unique_ptr<RetailActorSceneMesh>(new RetailActorSceneMesh);
   mesh->identity = uid;
   mesh->sourceMesh = base.sourceMesh;
   mesh->sourceSkin = &*found;
   mesh->base = &base;
-  mesh->cachedBox = base.cachedBox;
+  mesh->cachedBox = base.cachedBoundingBox();
   mesh->bufferState.resize(base.bufferState.size());
   mesh->bindIdentity = originalIdentity(found->bindShape);
   auto &result = *mesh;
@@ -482,14 +522,24 @@ void RetailActorScene::bindMaterials(RetailActorSceneNode &node,
 RetailActorScene::RetailActorScene(
     std::shared_ptr<const RetailActorSceneSource> source)
     : decoded(std::move(source)) {
+  construct();
+}
+RetailActorScene::RetailActorScene(std::shared_ptr<RetailActorLoadedResource> resource)
+    : decoded(resource ? resource->source() : nullptr), loaded(std::move(resource)) {
+  construct();
+}
+void RetailActorScene::construct() {
   if (!decoded || decoded->model.path.empty())
     throw std::invalid_argument(
         "Actor scene requires its shared original decoded resource.");
   const auto &model = decoded->model;
-  if (model.hasSceneAnimations)
+  // SCollada+16 describes a global library, not an attached animator. Actual
+  // DefaultFactory scenes leave it unattached; the legacy metadata-only path
+  // keeps its conservative domain. Loaded node attachments are checked below.
+  if (model.hasSceneAnimations && !loaded)
     throw std::runtime_error(
         "Embedded actor scene animators require original factory composition.");
-  if (!model.morphControllers.empty())
+  if (!loaded && !model.morphControllers.empty())
     throw std::runtime_error("Actor morph resources require the original morph "
                              "runtime implementation.");
   rootNode = &add(0x72656164, nullptr, model.path);
@@ -531,6 +581,10 @@ RetailActorScene::RetailActorScene(
           container.setScale(authored.scale);
           std::vector<bool> bound(authored.geometry.size());
           for (const auto &instance : authored.instances) {
+            if (loaded && (instance.kind < 2 || instance.kind > 4))
+              throw std::runtime_error("Unsupported actual loaded actor instance/animator attachment.");
+            if (loaded && !instance.sourcePath.empty())
+              throw std::runtime_error("External loaded actor instance requires its genuine resource factory.");
             if ((instance.kind == 2 || instance.kind == 3) &&
                 instance.geometry) {
               const auto &ref = authored.geometry.at(*instance.geometry);
@@ -604,6 +658,22 @@ RetailActorScene::~RetailActorScene() {
   liveMeshes.clear();
   liveNodes.clear();
 }
+bool RetailActorScene::isDeformationSource(const RetailActorSceneMesh &source) const {
+  if (source.skin() || source.morphRuntime() ||
+      std::none_of(liveMeshes.begin(), liveMeshes.end(), [&](const auto &mesh) { return mesh.get() == &source; }))
+    return false;
+  std::function<bool(const RetailActorSceneMesh&)> contains = [&](const auto &mesh) {
+    if (&mesh == &source) return true;
+    if (mesh.skin() || mesh.morphRuntime()) {
+      if (contains(mesh.baseMesh())) return true;
+      for (auto *target : mesh.morphTargets()) if (contains(*target)) return true;
+    }
+    return false;
+  };
+  for (const auto &mesh : liveMeshes)
+    if ((mesh->skin() || mesh->morphRuntime()) && contains(*mesh)) return true;
+  return false;
+}
 
 std::unique_ptr<RetailActorSubtree>
 RetailActorScene::extractOrdinarySubtree(RetailActorSceneNode &root, RetailActorPose *allowedPose) {
@@ -642,6 +712,9 @@ RetailActorScene::extractOrdinarySubtree(RetailActorSceneNode &root, RetailActor
       visit(*child);
   };
   visit(root);
+  for (auto *mesh : meshes)
+    if (isDeformationSource(*mesh))
+      throw std::logic_error("Detached ordinary resource is still a live skin/morph dependency.");
   for (const auto &mesh : liveMeshes)
     for (auto *joint : mesh->jointNodes)
       if (nodes.count(joint))

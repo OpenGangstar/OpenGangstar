@@ -61,14 +61,11 @@ RetailDeformationMesh::Ptr
 RetailDeformationMesh::source(std::shared_ptr<RetailActorScene> scene,
                               RetailActorSceneMesh &sourceOwner,
                               std::shared_ptr<RetailSkinningOutput> current) {
-  if (!scene || sourceOwner.skin() ||
-      std::none_of(scene->meshes().begin(), scene->meshes().end(),
-                   [&](const auto &candidate) {
-                     return candidate->skin() &&
-                            &candidate->baseMesh() == &sourceOwner;
-                   }))
+  if (!scene || !scene->isDeformationSource(sourceOwner) ||
+      (scene->loadedResource() &&
+       (!sourceOwner.loadedSourceStreams() || current != sourceOwner.loadedSourceStreams())))
     throw std::invalid_argument(
-        "Missing actual retained skin-base source owner.");
+        "Missing actual retained deformation dependency/current loaded source owner.");
   std::vector<std::shared_ptr<RetailMaterialState>> materials;
   materials.reserve(sourceOwner.geometry().buffers.size());
   for (std::size_t slot = 0; slot < sourceOwner.geometry().buffers.size();
@@ -92,6 +89,28 @@ RetailDeformationMesh::morph(Ptr source,
                              std::size_t index, bool defer) {
   auto result = bindMorph(std::move(source), std::move(catalogue), index, {});
   result->prepareProxies(defer);
+  return result;
+}
+
+RetailDeformationMesh::Ptr RetailDeformationMesh::morph(
+    Ptr source, std::shared_ptr<RetailActorScene> scene,
+    RetailActorSceneMesh &owner, std::vector<Ptr> targets, bool defer) {
+  if (!scene || !owner.morphRuntime() ||
+      std::none_of(scene->meshes().begin(), scene->meshes().end(),
+                   [&](const auto &candidate) { return candidate.get() == &owner; }) ||
+      !source || source->kind() != Kind::source || source->scene != scene ||
+      source->runtimeSource != &owner.baseMesh() || targets.size() != owner.morphTargets().size() ||
+      owner.morphRuntime()->catalogue().get() != &scene->source().model)
+    throw std::invalid_argument("Morph process requires its genuine constructed resource/base/state.");
+  for (std::size_t i = 0; i < targets.size(); ++i)
+    if (!targets[i] || targets[i]->kind() != Kind::source || targets[i]->scene != scene ||
+        targets[i]->runtimeSource != owner.morphTargets()[i])
+      throw std::invalid_argument("Morph process target resources differ from actual authored order/ownership.");
+  const auto &runtime = owner.morphRuntime();
+  auto result = morph(std::move(source), runtime->catalogue(), runtime->controllerIndex(),
+                      std::move(targets), defer, runtime);
+  result->scene = std::move(scene);
+  result->runtimeSource = &owner;
   return result;
 }
 
@@ -167,9 +186,7 @@ RetailDeformationMesh::skin(Ptr source, std::shared_ptr<RetailActorScene> scene,
                      return candidate.get() == &paletteOwner;
                    }) ||
       &source->view(0).geometry() != &paletteOwner.geometry() ||
-      (source->kind() == Kind::source &&
-       (source->runtimeSource != &paletteOwner.baseMesh() ||
-        source->scene != scene)) ||
+      source->runtimeSource != &paletteOwner.baseMesh() || source->scene != scene ||
       paletteOwner.skin()->sourceUid != source->uid() ||
       source->kind() == Kind::skin ||
       (source->kind() == Kind::morph &&

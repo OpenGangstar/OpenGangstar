@@ -50,7 +50,7 @@ Lookups are case-sensitive and retain C-string first-NUL behavior.
 Each ordinary factory construction owns a separate mutable geometry resource.
 Each skin construction owns a separate skin resource and ordinary base resource,
 including repeated instances of the same controller or different controllers
-using the same geometry. Only the decoded geometry/controller data is shared;
+using the same geometry. Decoded geometry/controller data is shared;
 buffer state, matrix cache and dirty state never use a UID resource cache.
 DefaultFactory createGeometry0x29d2a5 and createSkin0x29d061 allocate on every
 call; constructGeometry0x2924b5 and constructSkin0x2924d5 do not look up an
@@ -207,14 +207,26 @@ original allocator teardown, CPU vertex/normal skinning or rendering. These
 boundaries are explicit in ignored `port/build/OG-049-revised-*.py` and logs;
 no ARM or Python runtime dependency ships with this owner.
 
-Supported construction is the local unoptimized DefaultFactory path. Alternate
-SNode factories, external mesh factories, node/modular/morph/particle/force
-instances, morph resources, embedded scene animators and genuinely resolved
-lights are explicit unsupported errors. Proven ignored kinds and missing local
-light/spline NULL results remain ignored. No dummy live light or morph is added.
-The authoritative skin decoder supports all83 supplied controllers after OG054,
-including the original empty-influence rows in car_limo. That decoder coverage
-does not expand this actor factory's currently rejected morph-resource domain.
+Supported construction is the local unoptimized DefaultFactory path. The
+metadata-only constructor still rejects morph resources and a present global
+animation library. The explicit loaded constructor consumes a genuine
+`RetailActorLoadedResource` and supports the 21 supplied nested vehicle
+resources as well as both Players. Every ordinary construction retains the
+exact loaded current-stream alias; every morph construction owns its actual
+ordinary base, ordered targets and one canonical runtime state. Mutable
+material/cache/resource identities remain distinct while source arrays from
+the same physical load are shared. See ACTOR_DEFORMATION.md.
+
+The loaded domain permits unattached global animation definitions: the original
+constant scene constructor does not attach that library. All 23 actual completed
+factories have empty ordinary and bound animator lists. Loaded construction
+explicitly accepts only authored instance kinds 2/3/4, with the existing local
+light lookup behavior. Alternate SNode selectors, external references, duplicate
+unsupported identities, other instance kinds and genuinely resolved lights
+remain errors. This does not accept actual attached scene animators. The
+metadata-only legacy ignored-kind behavior remains unchanged. The skin decoder
+supports all 83 supplied controllers, including car_limo's empty-influence rows;
+decoder coverage alone does not extend the bounded actor factory.
 
 Current source geometry exposes the genuine raw bind-pose box. OG055/077 add the
 real dynamic skin box, shared palette/box dirty state and enabled transitions;
@@ -222,8 +234,9 @@ OG062 binds actual retained animation targets. OG068 supplies global actor and
 independent shadow ownership, manager attachment, layer and late-frame ordering.
 OG078 supports fixed empty-node local cubes and ordinary transformed-box caches
 with the distinct original transformBoxEx algorithm; see ACTOR_BOUNDS.md.
-CPU process-buffer ownership, live material ownership/recursive mutation,
-renderer upload, complete pool/streaming/context switching and full outer actor
+The loaded process owner is documented in ACTOR_DEFORMATION.md; live material
+ownership/recursive mutation uses the separate verified material owner.
+Renderer upload, complete pool/streaming/context switching and full outer actor
 host composition remain separate work. The existing clock/catalogue/verified
 pose components compose through real live references and original body/frame
 ordering; this owner does not duplicate them or claim a complete scene host.

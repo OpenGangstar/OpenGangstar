@@ -73,6 +73,11 @@ public:
   static Ptr morph(Ptr source, std::shared_ptr<const CityScene> catalogue,
                    std::size_t controllerIndex, std::vector<Ptr> currentTargets,
                    bool defer, std::shared_ptr<RetailMorphState> runtime = {});
+  // Genuine constructed morph, with its exact immediate base/ordered targets
+  // and sole intrinsic runtime state. Same UIDs do not establish ownership.
+  static Ptr morph(Ptr source, std::shared_ptr<RetailActorScene> scene,
+                   RetailActorSceneMesh &morphOwner, std::vector<Ptr> targets,
+                   bool defer);
   static Ptr skin(Ptr source, std::shared_ptr<RetailActorScene> scene,
                   RetailActorSceneMesh &paletteOwner, bool defer);
 
@@ -134,8 +139,7 @@ private:
   std::optional<std::vector<Ptr>> morphTargets;
   std::shared_ptr<RetailActorScene> scene;
   RetailActorSceneMesh *runtimeSource =
-      nullptr; // Actual constructed source, not shared decoded geometry
-               // identity.
+      nullptr; // Actual constructed ordinary/morph resource, never a UID cache.
   RetailActorSceneMesh *palette =
       nullptr; // Retained by scene; sole dirty/cache/bbox/enabled owner.
   std::vector<Buffer> buffers;

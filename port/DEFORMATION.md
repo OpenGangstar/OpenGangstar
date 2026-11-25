@@ -16,12 +16,15 @@ mesh or silently restore bind-pose normals. Supplying the same current-storage
 handle to two sources explicitly shares their subsequent mutations.
 
 The actual actor-source overload retains the genuine `RetailActorScene` and
-verifies by actual identity that the source is a base mesh of an owned skin.
+verifies by actual identity that the source is an ordinary dependency of an
+owned skin or morph, including its ordered targets.
 Transferable standalone ordinary meshes, including shadows, are rejected before
 borrowing anything: retaining the actor alone cannot retain an extracted and
 independently destroyed ordinary subtree. A generic movable ordinary-resource
 lease remains unimplemented. The supported skin base cannot be extracted by the
-current graph's dependency preflight. The source borrows that constructed
+current graph's dependency preflight. In the explicit loaded domain the input
+must also be that resource's exact canonical loaded-stream alias, not copied
+arrays or an equal source from another load. The source borrows that constructed
 mesh's cached box address, without invoking a lazy getter, and aliases each
 actual `sourceMaterial(slot)` with the scene's retained lifetime. It creates no
 replacement material state and does not use prepared node material instead.
@@ -81,9 +84,9 @@ Construction of another process does not reset an existing state's base entry.
 
 The state retains only immutable decoded catalogue storage, never a live scene
 or process. Its catalogue handle must therefore retain the decoded source owner,
-not alias-retain a live `RetailActorScene`. A future scene morph resource may
-retain state while a process retains that scene and the same state, without a
-reverse scene-to-process edge. Actual factory integration remains separate;
+not alias-retain a live `RetailActorScene`. A scene morph resource retains
+state while a process retains that scene and the same state, without a
+reverse scene-to-process edge. The explicit loaded factory supplies this state;
 the lifetime test retains canonical state, destroys the process, verifies its
 weights/base survive, and binds a later process to that exact same state.
 
@@ -234,25 +237,26 @@ that existing original draw-transform contract itself.
 
 ## Implemented domain and remaining integration
 
-The supported retained actor path is ordinary source to real DefaultFactory
-Player skin. Standalone ordinary source and morph owners are implemented.
+The supported retained actor paths are ordinary source to real DefaultFactory
+skin and ordinary source to morph to skin. Standalone ordinary source and morph
+owners remain available.
 Identity, retention and checked source-sharing are explicit, so these owners
 can be used without another decoder or global mutable cache keyed by UID.
 
-The current `RetailActorScene` factory rejects resources declaring morph
-controllers. A genuine declared morph-to-skin palette/source resource therefore
-cannot yet be constructed through that factory. This module rejects foreign
-catalogues, geometry-only pretend matches and a matching sourceUid without the
-actual supported factory domain. Source-first/release42 logic is retained, but
-this is **not** a claim that21 vehicle morph-to-skin factory resources now have
-complete production owners. That factory is a separate concrete prerequisite;
-the existing070 core-view chain remains independently verified.
+The explicit loaded `RetailActorScene` factory constructs actual morph resources
+with their immediate ordinary base, ordered ordinary targets and canonical
+runtime state. The typed morph overload checks those exact same-scene resource
+addresses before delegating the existing kernel. Skin checks its exact immediate
+base for both direct and nested paths. Foreign catalogues, geometry-only
+matches and matching UIDs from different constructions cannot satisfy this
+contract. `RetailActorDeformationPipeline` composes those dependencies; see
+ACTOR_DEFORMATION.md. The metadata-only actor constructor still rejects morph
+resources rather than inventing loaded storage.
 
 Actual runtime material ownership remains separate from the arithmetic owner.
 The actor source aliases its genuine embedded buffer states from the verified
 actor resource owner. Standalone sources require caller-supplied existing
-states. Neither path substitutes node/root-library prepared CMaterial. No full
-shared actor material host,
+states. Neither path substitutes node/root-library prepared CMaterial. No
 vehicle gate/weight producer, automatic OnAnimate scheduler, hardware batch,
 GL driver or Vulkan deformation draw is claimed here.
 

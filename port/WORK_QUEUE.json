@@ -20,25 +20,28 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-102",
-      "status": "IN_PROGRESS",
-      "baseline": "530c3b1"
+      "assignment": null,
+      "status": "AVAILABLE",
+      "baseline": "530c3b1",
+      "last_assignment": "OG-102"
     },
     {
       "slot": 2,
       "agent": "/root/worker_2",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-2",
-      "assignment": "OG-092",
-      "status": "IN_PROGRESS",
-      "baseline": "031a24e7c0e9e9befb1ddbade1fa0d9bc421223e"
+      "assignment": null,
+      "status": "AVAILABLE",
+      "baseline": "031a24e7c0e9e9befb1ddbade1fa0d9bc421223e",
+      "last_assignment": "OG-092"
     },
     {
       "slot": 3,
       "agent": "/root/worker_3",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-3",
-      "assignment": "OG-097",
-      "status": "IN_PROGRESS",
-      "baseline": "530c3b1"
+      "assignment": null,
+      "status": "AVAILABLE",
+      "baseline": "530c3b1",
+      "last_assignment": "OG-097"
     }
   ],
   "unavailable_worker": {
@@ -4222,12 +4225,13 @@
       "blockers": [],
       "assigned_agent": "/root/worker_2",
       "baseline": "031a24e7c0e9e9befb1ddbade1fa0d9bc421223e",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "BothPlayers andall21default nested vehicle resources use actual finalized runtime identity/order/current streams; original/kernel exact outputs and flags.",
         "Process release preserves Scene intrinsic weights/state, no Scene/process cycle, source/material/bbox aliases and shared loaded arrays are genuine.",
-        "All original and legacy direct skin/graph/lifetime regressions; full R/D and AMD64PE32+, no original edits or manual progression."
+        "All original and legacy direct skin/graph/lifetime regressions; full R/D and AMD64PE32+, no original edits or manual progression.",
+        "Root independently reviewed/applied frozen11file patch875dbed3 on latest101baseline and verified jointly with097: full Release/Debug55CTest/config and AMD64 PE32+ game/tests pass. Fresh actual original21nested resources/378phases/742608used stream words+378base words/config match exactly; fresh23factory empty animator lists and10legacy actual-asset executables/config pass. Root logs: port/build/reviews/OG-092."
       ],
       "plan": "port/build/reviews/OG-092-plan.md"
     },
@@ -4391,12 +4395,13 @@
       "blockers": [],
       "assigned_agent": "/root/worker_3",
       "baseline": "530c3b1",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "MERGED",
+      "reservations_active": false,
       "validation": [
         "Original list/manager selector methods execute with actual typed links and controlled callbacks, preserving prefetch versus reread order and all fields/events.",
         "One actual entity/one link per membership, native full-width pointers, no source pointer overlays or fake creation/destruction/name/death/default callbacks.",
-        "Explicit original FillList uninitialized context and invalid iterator domains; meaningful native/original cases and full R/D after API approval."
+        "Explicit original FillList uninitialized context and invalid iterator domains; meaningful native/original cases and full R/D after API approval.",
+        "Root independently reviewed/applied frozen4file patch20a61869 on latest101baseline and verified jointly with092: full Release/Debug55CTest/config and AMD64 PE32+ game/tests pass. Fresh original/native16link/mutation/context/teardown traces+5selector pairs+2name/respawn/count paths/config exactly match; real Box2D teardown/membership/lifetime tests pass. Root logs: port/build/reviews/OG-097; combined build/native logs under092."
       ]
     },
     {
@@ -4444,8 +4449,7 @@
         "OG-095"
       ],
       "blockers": [
-        "Canonical fields, shared table and real scene/list/target/physics lifetime interface require source evidence and API review.",
-        "Temporarily deprioritized for user-reported movement source research102; saved research remains reusable."
+        "Research/API still required before implementation. Saved worker-1/port/build/OG-099-checkpoint.md records source-only findings, original addresses and unexecuted lifecycle probes; no product work was started."
       ],
       "assigned_agent": "/root/worker_1",
       "baseline": "530c3b1",
@@ -4477,11 +4481,12 @@
       ],
       "assigned_agent": "/root",
       "baseline": "9877f5a",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "AVAILABLE",
+      "reservations_active": false,
       "validation": [
         "Execute original pool/acquisition/return policy using actual lists/typed nodes and explicit genuine unported factory endpoints; distinguish weak/strong ownership and original capacity behavior.",
-        "No source ARM edits, duplicate scene graph, fake pool returns or borrowed subtree/material lifetime regression."
+        "No source ARM edits, duplicate scene graph, fake pool returns or borrowed subtree/material lifetime regression.",
+        "Root completed17actual original pool policy phases and CRC32 controls; proven original minimum-growth overwrite loses two active scene identities without teardown. Notes/probe/results in port/build/reviews/OG-100. Name/collision/full factory/Graph ownership API and checked native adaptation remain unfinished; no pool product code."
       ]
     },
     {
@@ -4534,11 +4539,12 @@
       "blockers": [],
       "assigned_agent": "/root/worker_1",
       "baseline": "9877f5a",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "VERIFIED",
+      "reservations_active": false,
       "validation": [
         "Actual original source/ARM branches/animation index names and loaded clip data, no guessed arbitrary speed multiplier.",
-        "Return precise source evidence rapidly; do not duplicate root101code edits or pool100research."
+        "Return precise source evidence rapidly; do not duplicate root101code edits or pool100research.",
+        "Reviewed original ARM source: ordinary fullstrength1/multiplier1 selects steady188/run at rate1.0; <=0.5*multiplier selects202walk. Initial run179/flags0x204 and transition/context/weapon distinctions remain uncomposed in old production playback. Source-only report port/build/reviews/OG-102/OG-102-report.md; no new native implementation or original-execution probe claimed."
       ]
     }
   ],
@@ -4555,10 +4561,18 @@
     "original_arm_preservation": "2026-11-25: Root after101: all2969original baseline sizes/SHA256 unchanged; submodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and6pre-existing user local paths preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root Release/Debug53CTest/config after101reported movement/camera fixes; retail running clip188/speed428.971cm/s versus cinematic walk202/136.614cm/s preserved separately, right/left camera projection and post-opening entry/exit-follow regressions pass, both full Vulkan opening smokes and retail audits pass.092/097in progress; full040canonical outer host remains incomplete."
+    "native_integration": "2026-11-25: Root final combined092+097 on101baseline: full Release/Debug55CTest/config, AMD64 PE32+ game/components, original21nested resources/378phases/742608stream words+378base entries/config and16list+5selector+2respawn traces/config exact;23factory animator-presence checks and20legacy actual-asset executable runs pass. Latest101retail+Vulkanstartup logs preserved. Full040canonical game/world/VM and production dynamic Vulkan composition incomplete."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
     "OG027 independently validated with pending OG029 producer present, then rebuilt without that pending CMake source before material integration."
-  ]
+  ],
+  "handoff": {
+    "recipient": "Claude",
+    "mode": "Stopped after requested in-flight verification; no new tasks scheduled.",
+    "goal_status": "paused",
+    "entry_point": "CLAUDE_HANDOFF.md",
+    "workers_stopped": true,
+    "unreviewed_product_submissions": []
+  }
 }

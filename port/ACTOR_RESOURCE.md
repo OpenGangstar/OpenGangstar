@@ -100,9 +100,16 @@ gate compares initial position/normal bits and normal-format flags against a
 separate authoritative decode for every source geometry. Both Player models
 and all 21 nested vehicle metadata catalogues are retained by the loader.
 
-The scene/graph/pose interfaces are unchanged. This component supplies the
-canonical storage producer; it does not automatically bind it to live actor
-instances, replace the current nested scene-factory rejection, own morph
-weights or process buffers, schedule deformation or upload/draw Vulkan data.
-Those production composition steps must pass this same resource handle and
-its actual stream aliases through the verified owners.
+The explicit loaded `RetailActorScene` constructor now consumes this handle.
+Every constructed ordinary resource retains the exact current-stream alias for
+its source geometry, including separate base/target roles and transferable
+ordinary shadows. Extraction therefore preserves loaded storage without
+retaining the old actor. The metadata-only constructor remains a separate
+compatibility domain and does not invent a physical-load identity.
+
+Scene owns canonical morph weights; the separate
+`RetailActorDeformationPipeline` composes actual source/morph/skin resources
+without duplicating this bank. See ACTOR_DEFORMATION.md. This storage owner does
+not schedule deformation, implement CarFactory damage policy or upload/draw
+Vulkan data. A resource manager must still distribute the same genuine load
+handle rather than recreate a bank for each actor.

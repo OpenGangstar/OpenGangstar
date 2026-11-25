@@ -14,6 +14,10 @@ class RetailActorSceneNode;
 class RetailActorGraph;
 class RetailActorSubtree;
 class RetailActorPose;
+class RetailActorLoadedResource;
+class RetailActorDeformationPipeline;
+class RetailMorphState;
+struct RetailSkinningOutput;
 struct RetailActorGraphState;
 
 // Ordinary frame dispatch and target-retention are separate original lists.
@@ -47,6 +51,11 @@ public:
   const std::string &uid() const { return identity; }
   const CityMesh &geometry() const { return *sourceMesh; }
   const CitySkin *skin() const { return sourceSkin; }
+  const std::shared_ptr<RetailMorphState>& morphRuntime() const { return morphState; }
+  const std::vector<RetailActorSceneMesh*>& morphTargets() const { return targetMeshes; }
+  // Only ordinary loaded resources have this physical-load alias. It is never
+  // substituted for a deferred morph/skin current output descriptor.
+  const std::shared_ptr<RetailSkinningOutput>& loadedSourceStreams() const { return loadedStreams; }
   RetailActorSceneMesh &baseMesh() { return base ? *base : *this; }
   const RetailActorSceneMesh &baseMesh() const { return base ? *base : *this; }
   const std::vector<RetailActorSceneNode *> &joints() const {
@@ -70,7 +79,9 @@ public:
   // older cached box visible. Ordinary meshes retain their actual raw box.
   const RetailSkinBoundingBox &boundingBox();
   // Proxy setReferences borrows skin+64 directly, without invoking its lazy getter.
-  const RetailSkinBoundingBox &cachedBoundingBox() const noexcept { return cachedBox; }
+  const RetailSkinBoundingBox &cachedBoundingBox() const noexcept {
+    return morphState ? base->cachedBoundingBox() : cachedBox;
+  }
   void computeBoundingBox();
   bool skinCacheDirty() const { return dirty; }
   bool skinningEnabled() const { return enabled; }
@@ -96,7 +107,10 @@ private:
   std::string identity;
   const CityMesh *sourceMesh = nullptr;
   const CitySkin *sourceSkin = nullptr;
+  std::shared_ptr<RetailMorphState> morphState;
+  std::shared_ptr<RetailSkinningOutput> loadedStreams;
   RetailActorSceneMesh *base = nullptr;
+  std::vector<RetailActorSceneMesh*> targetMeshes;
   std::vector<RetailActorSceneNode *> jointNodes;
   std::vector<const RetailSceneMatrix *> jointPointers;
   std::vector<RetailSceneMatrix> matrices;
@@ -214,11 +228,16 @@ private:
 class RetailActorScene {
 public:
   explicit RetailActorScene(std::shared_ptr<const RetailActorSceneSource>);
+  // Supply the actual physical load once. Instances share its stream bank,
+  // while each construction owns fresh resources/materials/weights/palettes.
+  explicit RetailActorScene(std::shared_ptr<RetailActorLoadedResource>);
   ~RetailActorScene();
   RetailActorScene(const RetailActorScene &) = delete;
   RetailActorScene &operator=(const RetailActorScene &) = delete;
   RetailActorSceneNode &root() const { return *rootNode; }
   const RetailActorSceneSource &source() const { return *decoded; }
+  const std::shared_ptr<RetailActorLoadedResource>& loadedResource() const { return loaded; }
+  bool isDeformationSource(const RetailActorSceneMesh&) const;
   // Separate CRootSceneNode+480 finalizer cache, not the root's public cube.
   const RetailSkinBoundingBox &postLoadBoundingBox() const { return postLoadBox; }
   const std::vector<std::unique_ptr<RetailActorSceneNode>> &nodes() const {
@@ -233,15 +252,21 @@ public:
 
 private:
   friend class RetailActorGraph;
+  friend class RetailActorDeformationPipeline;
   std::unique_ptr<RetailActorSubtree> extractOrdinarySubtree(RetailActorSceneNode &,
                                                            RetailActorPose *allowedPose = nullptr);
   RetailActorSceneNode &add(std::uint32_t, RetailActorSceneNode *,
                             std::string uid = {}, std::string scope = {},
                             std::string name = {});
   RetailActorSceneMesh &ordinaryMesh(const std::string &);
+  RetailActorSceneMesh &ordinaryMesh(std::size_t geometryIndex);
+  RetailActorSceneMesh &morphMesh(std::size_t controllerIndex);
   RetailActorSceneMesh &skinMesh(const std::string &);
+  void construct();
   void bindMaterials(RetailActorSceneNode &, const CityGeometryRef &, uint32_t instanceKind);
   std::shared_ptr<const RetailActorSceneSource> decoded;
+  std::shared_ptr<RetailActorLoadedResource> loaded;
+  std::weak_ptr<RetailActorDeformationPipeline> activeDeformation;
   std::vector<std::unique_ptr<RetailActorSceneNode>> liveNodes;
   std::vector<std::unique_ptr<RetailActorSceneMesh>> liveMeshes;
   std::vector<std::shared_ptr<RetailActorMaterial>> materials;
