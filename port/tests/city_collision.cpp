@@ -1346,7 +1346,7 @@ void verifyWaitStolen()
 void walkAndSlide()
 {
     CityOpening world;
-    world.walkSpeed = 140;
+    world.runSpeed = 140;
     CityActor player{};
     player.name = "Player";
     player.position = {-150, 0, 0};
@@ -1358,17 +1358,17 @@ void walkAndSlide()
     };
 
     CityPlayback playback;
-    for (int i = 0; i < 100; ++i) playback.walk(world, terrain, {1, 0}, 20);
+    for (int i = 0; i < 100; ++i) playback.walk(world, terrain, {-1, 0}, 20);
     const auto atWall = playback.player->position;
     require(atWall[0] <= -28 && atWall[0] > -32, "Player crossed or stopped too far from a wall.");
 
-    for (int i = 0; i < 20; ++i) playback.walk(world, terrain, {1, 1}, 20);
+    for (int i = 0; i < 20; ++i) playback.walk(world, terrain, {-1, 1}, 20);
     require(playback.player->position[0] <= -28 && playback.player->position[1] < -30,
             "Player could not slide along a wall.");
 
     for (auto& wall : terrain.walls)
         for (auto& vertex : wall) vertex[2] -= 250;
-    for (int i = 0; i < 40; ++i) playback.walk(world, terrain, {1, 0}, 20);
+    for (int i = 0; i < 40; ++i) playback.walk(world, terrain, {-1, 0}, 20);
     require(playback.player->position[0] > 0, "Obstacle below the deck blocked movement.");
 }
 
@@ -1612,6 +1612,13 @@ void poseRetailDoor(const std::filesystem::path& root)
         }
     }
     const auto opening = loadCityOpening(assets, city);
+    require(opening.walk.name == "move_walk" && opening.run.name == "move_run" &&
+                opening.walk.source && opening.walk.source->index == 202 &&
+                opening.run.source && opening.run.source->index == 188 &&
+                opening.runSpeed > opening.walkSpeed && opening.walkSpeed > 0,
+            "Retail interactive running and cinematic walking do not retain their distinct original clips/speeds.");
+    std::cout << "Player locomotion: run " << opening.runSpeed << " cm/s, cinematic walk "
+              << opening.walkSpeed << " cm/s.\n";
     require(opening.heightMap.meshes.size() == 1, "Retail opening heightmap mesh changed.");
     const auto& heightMesh = opening.heightMap.meshes.front();
     const auto& openingPoints = city.districts.at(opening.district).spawnPoints;
@@ -3421,7 +3428,7 @@ void verifyScriptedCameraHandoff()
     check(501, {-250, 50, 180}, moved.position, &moved);
     CityPlayback playback;
     playback.player = moved;
-    world.walkSpeed = 200;
+    world.runSpeed = 200;
     playback.walk(world, flatTerrain(), {0, 1}, 50);
     require(std::abs(playback.player->position[0] - 210) < 0.001f &&
             std::abs(playback.player->position[1] - 50) < 0.001f,
@@ -4294,6 +4301,92 @@ static void checkCityFrustum()
             "Frustum accepted a box outside the Vulkan clip planes.");
 }
 
+void verifyGameplayMovementAxes()
+{
+    CityOpening world;
+    world.walkSpeed = 140;
+    world.runSpeed = 420;
+    world.followCameraMs = 0;
+    const CityCamera shot{{0, 450, 150}, {0, 0, 0}, 2000, 60, 1};
+    world.cameras.push_back({shot, shot, 0, 0});
+    CityActor actor{};
+    actor.name = "Player";
+    actor.scale = {1, 1, 1};
+    world.actors.push_back(actor);
+    const auto terrain = flatTerrain();
+    for (const float yaw : {0.f, 90.f, 180.f, 270.f}) {
+        for (const auto input : {std::array{1.f, 0.f}, std::array{-1.f, 0.f},
+                                 std::array{0.f, 1.f}, std::array{0.f, -1.f}}) {
+            CityPlayback playback;
+            playback.player = CityPlayerPose{{0, 0, 0}, yaw};
+            playback.player->followCameraYaw = yaw;
+            const auto camera = cityCameraMatrix(world, 1.5f, 1000, &*playback.player);
+            playback.walk(world, terrain, input, 50);
+            const auto& displacement = playback.player->position;
+            require(std::abs(std::hypot(displacement[0], displacement[1]) - 21.f) < 0.001f,
+                    "Interactive movement uses cinematic walking speed instead of authored running speed.");
+            const auto projectDirection = [&](size_t row) {
+                return camera[row][0] * displacement[0] + camera[row][1] * displacement[1];
+            };
+            require(input[0] == 0 || projectDirection(0) * input[0] > 0,
+                    "Gameplay left/right input moves opposite the rendered camera right axis.");
+            require(input[1] == 0 || projectDirection(3) * input[1] > 0,
+                    "Gameplay forward/backward input moves opposite the rendered camera forward axis.");
+        }
+    }
+}
+
+void verifyVehicleCameraAfterOpening()
+{
+    CityOpening world;
+    world.durationMs = 1000;
+    world.followCameraMs = 0;
+    world.checkpoint.emplace();
+    world.vehicleActor = 0;
+    const CityCamera shot{{0, 450, 150}, {0, 0, 0}, 2000, 60, 1};
+    world.cameras.push_back({shot, shot, 0, 0});
+    CityActor car{};
+    car.vehicleCamera = CityVehicleCamera{450, 200, 0, 0, 450};
+    world.actors.push_back(car);
+    CityActor actor{};
+    actor.name = "Player";
+    actor.scale = {1, 1, 1};
+    world.actors.push_back(actor);
+    const auto terrain = flatTerrain();
+    CityPlayback playback;
+    playback.elapsedMs = world.durationMs;
+    playback.player = CityPlayerPose{{100, 0, 0}, 0};
+    playback.timeAfterCheckpointMs = 0;
+    playback.drive(world, terrain, {}, 0, true);
+    require(playback.vehicle && playback.vehicle->occupied && playback.cameraTransition,
+            "Gameplay camera fixture did not enter its vehicle.");
+    const auto entryEye = playback.vehicle->camera->eye;
+    for (int i = 0; i < 10; ++i) {
+        playback.advance(world, 50, false);
+        playback.drive(world, terrain, {0, 1}, 50, false);
+    }
+    require(!playback.cameraTransition->active(playback.elapsedMs),
+            "Vehicle entry camera transition stays active after the opening timeline ends.");
+    require(playback.vehicle->camera->eye != entryEye,
+            "Vehicle camera eye remains at the entry position after driving.");
+    const auto matrix = cityCameraMatrix(world, 1.5f, playback.elapsedMs, &*playback.player,
+                                         &*playback.vehicle, playback.cameraTransition);
+    const auto project = [&](size_t row) {
+        const auto& position = playback.vehicle->position;
+        return matrix[row][0] * position[0] + matrix[row][1] * position[1] +
+               matrix[row][2] * position[2] + matrix[row][3];
+    };
+    require(std::abs(project(0)) < 0.001f && std::abs(project(1)) < 0.001f && project(3) > 0,
+            "Gameplay camera projection does not track the occupied vehicle position.");
+    playback.vehicle->speed = 0;
+    playback.drive(world, terrain, {}, 0, true);
+    require(!playback.vehicle->occupied && playback.cameraTransition->durationMs == 300,
+            "Gameplay camera fixture did not begin its original exit handoff.");
+    for (int i = 0; i < 7; ++i) playback.advance(world, 50, false);
+    require(!playback.cameraTransition->active(playback.elapsedMs),
+            "Vehicle exit camera transition stays active after the opening timeline ends.");
+}
+
 int wmain(int argc, wchar_t** argv)
 {
     if (argc > 2) {
@@ -4301,6 +4394,8 @@ int wmain(int argc, wchar_t** argv)
         return 2;
     }
     try {
+        verifyGameplayMovementAxes();
+        verifyVehicleCameraAfterOpening();
         checkCityFrustum();
         checkNodeProperties();
         checkBillboardPose();

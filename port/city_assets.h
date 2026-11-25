@@ -943,7 +943,9 @@ struct CityOpening {
     CityScene heightMap;
     CityNavigation navigation;
     CityAnimationClip walk;
-    float walkSpeed = 0;  // centimeters per second
+    float walkSpeed = 0;  // Cinematic walking, centimeters per second.
+    CityAnimationClip run;
+    float runSpeed = 0;   // Interactive full-stick locomotion, centimeters per second.
 };
 
 std::vector<CityHighlight> loadCityHighlights(FileSystemBase& assets);

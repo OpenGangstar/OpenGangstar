@@ -2046,9 +2046,10 @@ void CityPlayback::walk(const CityOpening& opening, const CityTerrain& terrain,
     bool moving = false;
     if (length > 0) {
         const auto yaw = pose.followCameraYaw.value_or(actor.rotationDegrees[2]) * radians;
-        const auto x = (std::cos(yaw) * input[0] + std::sin(yaw) * input[1]) / length;
-        const auto y = (std::sin(yaw) * input[0] - std::cos(yaw) * input[1]) / length;
-        const auto distance = float(elapsed * 0.001) * opening.walkSpeed * std::min(length, 1.f);
+        // Match cityCameraMatrix's cross(forward, +Z) screen-right basis.
+        const auto x = (-std::cos(yaw) * input[0] + std::sin(yaw) * input[1]) / length;
+        const auto y = (-std::sin(yaw) * input[0] - std::cos(yaw) * input[1]) / length;
+        const auto distance = float(elapsed * 0.001) * opening.runSpeed * std::min(length, 1.f);
         const auto step = [&](float dx, float dy) {
             if ((!dx && !dy) || distance <= 0) return false;
             auto next = add(pose.position, {dx*distance, dy*distance, 0});
@@ -3045,7 +3046,14 @@ bool CityPlayback::acknowledgeFailure(const CityOpening& opening, double deltaMs
 
 void CityPlayback::advance(const CityOpening& opening, double deltaMs, bool pressed)
 {
-    advance(opening.dialogue, opening.durationMs, deltaMs, pressed);
+    // Gameplay continues after the opening sequence. Camera handoffs use this
+    // same clock; clamping it to the last cinematic frame freezes every later
+    // entry/exit transition and prevents the vehicle camera from updating.
+    // Standalone cinematic timelines still use the bounded overload below.
+    if (!activeDialogue && elapsedMs >= opening.durationMs)
+        elapsedMs += std::max(0., deltaMs);
+    else
+        advance(opening.dialogue, opening.durationMs, deltaMs, pressed);
 }
 
 void CityPlayback::advance(const std::vector<CityDialogue>& dialogue, uint32_t durationMs, double deltaMs, bool pressed)
@@ -3421,13 +3429,13 @@ void poseCityActors(const CityOpening& opening, const std::vector<CitySkinRange>
                 for (size_t i = 0; i < playback.dialogueHoldMs.size(); ++i)
                     if (opening.dialogue[i].startMs >= start) time += playback.dialogueHoldMs[i];
             const bool loop = entering || time >= animation.first.durationMs;
-            clip = player ? (player->walking ? &opening.walk : &actor.animations.back().loop)
+            clip = player ? (player->walking ? &opening.run : &actor.animations.back().loop)
                           : (loop ? &animation.loop : &animation.first);
             const auto loopTime = entering ? time : time - animation.first.durationMs;
             clipTime = player ? std::fmod(player->clipTimeMs, clip->durationMs)
                               : (loop ? std::fmod(loopTime, clip->durationMs) : time);
         }
-        const bool removeRootMotion = (player && player->walking && clip == &opening.walk) ||
+        const bool removeRootMotion = (player && player->walking && clip == &opening.run) ||
             ((walk || pursuer || loco) && clip->name == "move_walk") || (motion && clip == &motion->clip);
         const auto transforms = animatedSkeleton(actor.model, *clip, clipTime, removeRootMotion);
         if (range.node) range.node->origin = point(world, transforms.at(range.nodeIndex)[3]);

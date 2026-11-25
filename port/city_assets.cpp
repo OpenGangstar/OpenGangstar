@@ -465,7 +465,8 @@ void bindSpawnGroups(FileSystemBase& assets, CityAssets& city)
             weapon.shootFrequency = record.signedInteger();
             weapon.weaponType = record.signedInteger();
             record.finish();
-            city.weaponMetatypes.emplace(id, std::move(weapon));
+            // The catalogue loader bounds its indexed domain to256 entries.
+            city.weaponMetatypes.emplace(static_cast<uint32_t>(id), std::move(weapon));
         }
     }
     const auto bindMetatype = [&](int32_t id, int32_t type) {
@@ -5360,13 +5361,22 @@ CityOpening loadCityOpening(FileSystemBase& assets, const CityAssets& city, Reta
             bindVehiclePlayer(*openingVehicle, player->model, opening.vehicleSeated, opening.vehicleCharacterClips);
         if (opening.followCameraMs && player != opening.actors.end()) {
             opening.walk = readClip(library, &player->model, "move_walk");
-            for (const auto& channel : opening.walk.channels) {
-                if (channel.transform != CityAnimationTransform::translation || channel.target != "Bip01-node") continue;
-                const auto& first = channel.keys.front().value;
-                const auto& last = channel.keys.back().value;
-                opening.walkSpeed = std::hypot(last[0] - first[0], last[1] - first[1]) * 1000 / opening.walk.durationMs;
-            }
-            if (opening.walkSpeed <= 0) throw std::runtime_error("Missing retail walk root motion.");
+            // Original PlayerTest::move selects specific animation188 for full
+            // movement; the supplied unarmed clip is move_run. Scripted walking
+            // retains its separate move_walk clip and authored travel speed.
+            opening.run = readClip(library, &player->model, "move_run");
+            const auto rootSpeed = [](const CityAnimationClip& clip) {
+                for (const auto& channel : clip.channels) {
+                    if (channel.transform != CityAnimationTransform::translation || channel.target != "Bip01-node") continue;
+                    const auto& first = channel.keys.front().value;
+                    const auto& last = channel.keys.back().value;
+                    const auto speed = std::hypot(last[0] - first[0], last[1] - first[1]) * 1000 / clip.durationMs;
+                    if (std::isfinite(speed) && speed > 0) return speed;
+                }
+                throw std::runtime_error("Missing retail locomotion root motion for " + clip.name);
+            };
+            opening.walkSpeed = rootSpeed(opening.walk);
+            opening.runSpeed = rootSpeed(opening.run);
         }
         if (opening.payphone) {
             auto& route = *opening.payphone;

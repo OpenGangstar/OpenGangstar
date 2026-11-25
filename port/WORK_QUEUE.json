@@ -20,7 +20,7 @@
       "slot": 1,
       "agent": "/root/worker_1",
       "workspace": "C:/Users/Ethan/Documents/GitHub/OpenGangstar-workers/worker-1",
-      "assignment": "OG-099",
+      "assignment": "OG-102",
       "status": "IN_PROGRESS",
       "baseline": "530c3b1"
     },
@@ -4444,15 +4444,101 @@
         "OG-095"
       ],
       "blockers": [
-        "Canonical fields, shared table and real scene/list/target/physics lifetime interface require source evidence and API review."
+        "Canonical fields, shared table and real scene/list/target/physics lifetime interface require source evidence and API review.",
+        "Temporarily deprioritized for user-reported movement source research102; saved research remains reusable."
       ],
       "assigned_agent": "/root/worker_1",
       "baseline": "530c3b1",
-      "status": "IN_PROGRESS",
-      "reservations_active": true,
+      "status": "AVAILABLE",
+      "reservations_active": false,
       "validation": [
         "Execute actual original constructor/load/lifecycle branches with explicit required endpoint captures; distinguish exact field writes from unknown constructor bytes and raw pointer offsets.",
         "Map same096target/097hook whole entity ownership, single flags/category/scene/physics/store state and genuine destruction effects; no proxy entity, second registry/table/cache or guessed gameplay."
+      ]
+    },
+    {
+      "id": "OG-100",
+      "description": "Recover original scene-node pool identity, acquisition and return ownership for canonical LevelObject lifecycle.",
+      "scope": "Original research/API first in root ignored review artifacts only. Inspect actual SceneNodeManager/pool functions and existing Graph ownership; no Graph/Scene/deformation worker edits or placeholder pool/factory.",
+      "symbols": [
+        "SceneNodeManager::getInstance/findOrCreatePool/grab/drop",
+        "Original scene pool constructors/destructors/limits"
+      ],
+      "resources": [
+        "port/build/reviews/OG-100/* (root ignored research only)"
+      ],
+      "priority": 1,
+      "complexity": "high",
+      "dependencies": [
+        "OG-068"
+      ],
+      "blockers": [
+        "Exact original pool storage/ownership/factory/lifetime/Graph interface needs source evidence and API review."
+      ],
+      "assigned_agent": "/root",
+      "baseline": "9877f5a",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Execute original pool/acquisition/return policy using actual lists/typed nodes and explicit genuine unported factory endpoints; distinguish weak/strong ownership and original capacity behavior.",
+        "No source ARM edits, duplicate scene graph, fake pool returns or borrowed subtree/material lifetime regression."
+      ]
+    },
+    {
+      "id": "OG-101",
+      "description": "Fix reported playable movement speed, reversed horizontal input and vehicle camera follow.",
+      "scope": "Root exclusive production playback/input-camera integration and relevant regression tests; preserve cinematic locomotion and original source-verified physics/heading subsystems. Diagnose actual render/input axes and clamped timeline before edits.",
+      "symbols": [
+        "CityPlayback::walk/advance/drive",
+        "cityCameraMatrix/followCamera",
+        "loadCityOpening player movement clips"
+      ],
+      "resources": [
+        "port/city_view.cpp",
+        "port/city_view.h",
+        "port/city_assets.cpp",
+        "port/city_assets.h",
+        "port/tests/city_collision.cpp",
+        "port/vulkan.cpp (only if actual callsite requires change)"
+      ],
+      "priority": 0,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root",
+      "baseline": "9877f5a",
+      "status": "MERGED",
+      "reservations_active": false,
+      "validation": [
+        "Before/after projection-based left/right/forward and speed/clip regression independent of scripted walk.",
+        "Entry/exit transitions must complete through production advance calls after original cinematic duration; moved vehicle eye/target must follow; no manual progression.",
+        "Relevant full Release/Debug gates, retail asset loading and short startup smoke as needed.",
+        "Root reproduced camera-axis failure and frozen post-opening vehicle handoff before fixes. Full Release/Debug builds and53CTest/config pass;16cardinal projection controls and authored run/cinematic-speed separation plus production advance/entry-drive-exit camera regression pass. Actual supplied run428.971cm/s/clip188 versus walk136.614cm/s/clip202. Both full retail asset checks and Vulkan opening smoke pass with isolated saves, exact98decodes/111missing paths unchanged. Launcher Play selects rebuilt port/build/x64/Release/gangstar-wch.exe.2969original baseline hashes/submodule and pre-existing user edits unchanged. Logs: port/build/reviews/OG-101."
+      ]
+    },
+    {
+      "id": "OG-102",
+      "description": "Identify actual original interactive locomotion animation and speed selection for reported movement bug.",
+      "scope": "Urgent source/ARM research only in worker-1 ignored102 artifacts. Determine unarmed direct input default run/walk choice, root motion speed/frame scaling and camera horizontal basis. No product edits; root101 owns playback/files.",
+      "symbols": [
+        "CControlManager direct movement dispatch",
+        "PlayerTest interactive movement",
+        "Character animation root motion and getSpecificAnimation"
+      ],
+      "resources": [
+        "port/build/OG-102-* (worker-1 ignored research only)"
+      ],
+      "priority": 0,
+      "complexity": "medium",
+      "dependencies": [],
+      "blockers": [],
+      "assigned_agent": "/root/worker_1",
+      "baseline": "9877f5a",
+      "status": "IN_PROGRESS",
+      "reservations_active": true,
+      "validation": [
+        "Actual original source/ARM branches/animation index names and loaded clip data, no guessed arbitrary speed multiplier.",
+        "Return precise source evidence rapidly; do not duplicate root101code edits or pool100research."
       ]
     }
   ],
@@ -4466,10 +4552,10 @@
     "port/ACTOR_COLLISION.md"
   ],
   "validation": {
-    "original_arm_preservation": "2026-11-25: Root latest after091:2969original baseline file sizes/SHA256 unchanged; original submodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and6userlocaledit/untracked paths preserved.",
+    "original_arm_preservation": "2026-11-25: Root after101: all2969original baseline sizes/SHA256 unchanged; submodule08e4fc11d8457ac40c502f3b0b2e966a20247293 and6pre-existing user local paths preserved.",
     "original_decompilation_gates": "2026-11-25: Latest root rerun: 83 Python tests, check_repository.py and progress.py --check pass. No full ARM matching rebuild claimed.",
     "launcher": "2026-11-25: Windows Build/Play handlers inspected: x64 CMake/configuration/executable and retail ZIP context lifetime retained. Launcher Python syntax parses. Actual UI Build/Play was previously verified at migration; no launcher change in these native slices.",
-    "native_integration": "2026-11-25: Root Release/Debug53CTest/config after096canonical common target/rich Player transitions.371fresh actual original/native required-operation and final-state traces/config exact, plus12raw/getter controls.094reload/095full metatypes merged.092nested factory,097intrusive list implementation,098factory coverage and099canonical LevelObject research active; full040outer entity/world/VM and dynamic Vulkan submission remain pending."
+    "native_integration": "2026-11-25: Root Release/Debug53CTest/config after101reported movement/camera fixes; retail running clip188/speed428.971cm/s versus cinematic walk202/136.614cm/s preserved separately, right/left camera projection and post-opening entry/exit-follow regressions pass, both full Vulkan opening smokes and retail audits pass.092/097in progress; full040canonical outer host remains incomplete."
   },
   "integration_notes": [
     "OG018/020/021 verified together against the shared integration library/interfaces; mandatory live game hosts remain unbound.",
